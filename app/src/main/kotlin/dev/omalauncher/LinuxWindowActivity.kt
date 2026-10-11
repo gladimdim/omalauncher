@@ -27,8 +27,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,11 +38,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import dev.omalauncher.nav.HoldScreenSides
+import dev.omalauncher.nav.gestureNav
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.omalauncher.ui.ExtraKeys
 import dev.omalauncher.ui.KeyboardSink
@@ -68,8 +73,11 @@ class LinuxWindowActivity : InstantActivity() {
         }
         this.window = window
         setInstantContent {
-            AppWindow(runtime, window)
+            val keepSides = gestureNav.settings.collectAsState().value.linuxKeepsSides
+            AppWindow(runtime, window, keepSides)
             BackHandler { backInstantly() }
+            // Edge drags (scrollbars, selections) are the app's: the launcher's back swipe steps aside.
+            HoldScreenSides(keepSides)
             LaunchedEffect(window) {
                 snapshotFlow { window in runtime.wm.appWindows }.first { !it }
                 closeInstantly()
@@ -89,6 +97,7 @@ class LinuxWindowActivity : InstantActivity() {
     override fun onResume() {
         super.onResume()
         window?.let(runtime.wm::focus)
+        window?.let { gestureNav.ownTaskResumed(taskId, runtime.displayName(it.appId, it.title)) }
     }
 
     override fun onStop() {
@@ -99,6 +108,7 @@ class LinuxWindowActivity : InstantActivity() {
     /** Swiping the card away in Recents closes the Linux window, like closing an app. */
     override fun onDestroy() {
         super.onDestroy()
+        if (isFinishing) gestureNav.ownTaskGone(taskId)
         val w = window ?: return
         if (isFinishing && w in runtime.wm.appWindows) runtime.wm.close(w)
     }
@@ -159,9 +169,22 @@ internal fun taskIcon(
 private fun AppWindow(
     runtime: Runtime,
     window: XdgToplevel,
+    /** The window's sides are the app's, not back's (settings › navigation). */
+    keepSides: Boolean,
 ) {
     var sink by remember { mutableStateOf<KeyboardSink?>(null) }
     var surfaceView by remember { mutableStateOf<WindowSurfaceView?>(null) }
+    // Android's own back swipe too, where the phone has gestures: it allows 200dp of each edge, so around the middle.
+    val band = with(LocalDensity.current) { 200.dp.toPx() }
+    val edge = with(LocalDensity.current) { 32.dp.toPx() }
+
+    fun side(left: Boolean) =
+        Modifier.systemGestureExclusion { c ->
+            val w = c.size.width.toFloat()
+            val h = c.size.height.toFloat()
+            val top = (h - band).coerceAtLeast(0f) / 2
+            if (left) Rect(0f, top, edge, top + minOf(band, h)) else Rect(w - edge, top, w, top + minOf(band, h))
+        }
     // Shows wherever the window has yet to draw, as when it grows; the terminal's own background, not a lighter one.
     val background = Palette.background.toArgb()
     val density = LocalDensity.current
@@ -197,7 +220,12 @@ private fun AppWindow(
             ) {
                 // Over the SurfaceView, which Compose's pointer input doesn't reach.
                 // A tap on the prompt line brings the keyboard back, as the ⌨ button does.
-                Box(Modifier.fillMaxSize().linuxWindowInput(runtime.wm, window) { sink?.takeUnless { it.showing }?.show() })
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .linuxWindowInput(runtime.wm, window) { sink?.takeUnless { it.showing }?.show() }
+                        .then(if (keepSides) side(left = true).then(side(left = false)) else Modifier),
+                )
                 Box(
                     Modifier
                         .align(Alignment.BottomEnd)

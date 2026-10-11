@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import dev.omalauncher.nav.gestureNav
 import dev.omalauncher.ui.FilesScreen
 
 /** The Files app for the Linux file system: its own task and Recents card, opened from the drawer or `omarchy-files` in a terminal. */
@@ -22,6 +23,16 @@ class FilesActivity : InstantActivity() {
         setInstantContent {
             FilesScreen(runtime, startPath, onExit = ::backInstantly)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        gestureNav.ownTaskResumed(taskId, "Files")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing) gestureNav.ownTaskGone(taskId)
     }
 
     /** Opened again with a path (e.g. `omarchy-files ~/Downloads`): jump there. */

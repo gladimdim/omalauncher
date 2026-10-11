@@ -18,7 +18,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import dev.omalauncher.Runtime
+import dev.omalauncher.nav.gestureNav
 import dev.omalauncher.linux.LinuxState
 
 /** The screens of the settings activity; each can also be opened on its own, from home or a widget. */
@@ -42,6 +44,9 @@ enum class SettingsPage {
     Linux,
     Licenses,
     Gestures,
+
+    /** Buttons or the launcher's own gestures, for phones that keep gestures to their launcher. */
+    Navigation,
 }
 
 /** Opens [page] over the ones in [stack]; one that's already open comes back to the top, closing what's over it. */
@@ -115,6 +120,7 @@ private fun SettingsPage(
                 onLinux = { stack.push(SettingsPage.Linux) },
                 onLicenses = { stack.push(SettingsPage.Licenses) },
                 onGestures = { stack.push(SettingsPage.Gestures) },
+                onNavigation = { stack.push(SettingsPage.Navigation) },
             )
         SettingsPage.Style -> StyleScreen(runtime, onDismiss = close, onBrowse = { stack.push(SettingsPage.Themes) }, onAgent = ::agent)
         SettingsPage.Pages -> {
@@ -162,5 +168,6 @@ private fun SettingsPage(
         SettingsPage.Linux -> LinuxScreen(runtime, onDismiss = close)
         SettingsPage.Licenses -> LicensesScreen(onDismiss = close)
         SettingsPage.Gestures -> GesturesScreen(runtime, onDismiss = close, onAgent = ::agent)
+        SettingsPage.Navigation -> NavigationScreen(LocalContext.current.gestureNav, onDismiss = close)
     }
 }

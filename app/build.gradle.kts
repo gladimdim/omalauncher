@@ -23,6 +23,7 @@ android {
         targetSdk = 37
         versionCode = 23
         versionName = "0.12.2"
+        manifestPlaceholders["appLabel"] = "@string/app_name"
         ndk { abiFilters += "arm64-v8a" }
     }
 
@@ -60,6 +61,13 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             signingConfig = signingConfigs.getByName(if (uploadKey != null) "release" else "debug")
+        }
+        // A debug build that installs next to the Play app, under its own package and name: ./gradlew :app:installSelf
+        create("self") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".self"
+            manifestPlaceholders["appLabel"] = "OmaLauncher Self"
+            matchingFallbacks += "debug"
         }
     }
 }

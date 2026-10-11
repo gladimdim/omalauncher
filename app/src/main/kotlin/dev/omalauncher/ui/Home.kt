@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import android.app.WallpaperManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.snapshotFlow
+import dev.omalauncher.nav.HoldScreenSides
 import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -140,6 +141,8 @@ fun HomeScreen(
     BackHandler(enabled = arrange.folder != null && !state.homeMenuOpen) { arrange.folder = null }
     // After the folder's, so back puts down an app selected in it before closing it.
     BackHandler(enabled = state.editing != null && !state.homeMenuOpen) { state.editing = null }
+    // A tile in edit mode has resize handles at the screen's sides: the launcher's own back swipe stays off them.
+    HoldScreenSides(state.editing != null)
     // An app selected in a folder goes with it.
     LaunchedEffect(arrange.folder) {
         if (arrange.folder == null && engine.shortcuts.items.any { it.key == state.editing && it.folder != null }) state.editing = null

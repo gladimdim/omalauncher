@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
+import dev.omalauncher.nav.gestureNav
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.ui.SystemBarsEffect
 import dev.omalauncher.ui.applySystemBars
@@ -114,6 +115,7 @@ abstract class InstantActivity : ComponentActivity() {
                 ActivityManager.TaskDescription(label, icon, Palette.background.toArgb())
             }
         setTaskDescription(description)
+        gestureNav.ownTaskDescribed(taskId, label, icon)
     }
 
     /** Back from Recents after [backInstantly]: solid again, so what's behind it can stop drawing. */

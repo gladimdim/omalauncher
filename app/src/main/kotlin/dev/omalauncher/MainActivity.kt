@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import dev.omalauncher.nav.HomeDrawer
+import dev.omalauncher.nav.gestureNav
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.theme.Style
 import dev.omalauncher.ui.KeyIndicated
@@ -41,6 +43,24 @@ import dev.omalauncher.widgets.market.Share
 class MainActivity : ComponentActivity() {
     private val runtime get() = (application as App).runtime
     private val state = LauncherState()
+
+    /** For the launcher's gesture navigation: a swipe up from the bottom edge on home opens the drawer, following the finger. */
+    private val homeDrawer =
+        object : HomeDrawer {
+            override val available
+                get() =
+                    !state.homeMenuOpen &&
+                        state.shared == null &&
+                        state.sharing == null &&
+                        state.pulled == null &&
+                        runtime.widgets.openScreen == null
+
+            override fun drag(fraction: Float) {
+                state.dragBy(fraction)
+            }
+
+            override fun settle(velocity: Float) = state.settle(velocity)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,6 +136,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         away = false
+        gestureNav.homeInFront = true
+        gestureNav.homeDrawer = homeDrawer
         runtime.wm.focus(null)
         removeStaleWindowTasks()
         // Made the default home app (or no longer it) while away: only then does Android show us pinned shortcuts.
@@ -195,6 +217,8 @@ class MainActivity : ComponentActivity() {
     /** A terminal tile's keys held as home goes, like Super, would stay down for it: Android sends their lift elsewhere. */
     override fun onPause() {
         super.onPause()
+        gestureNav.homeInFront = false
+        gestureNav.homeDrawer = null
         runtime.keyboard.releaseHeld()
     }
 

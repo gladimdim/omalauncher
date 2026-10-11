@@ -864,7 +864,7 @@ private fun CountOption(
  * None is picked for a value set in style.toml outside the options; [custom] says what it is.
  */
 @Composable
-private fun StyleOption(
+internal fun StyleOption(
     label: String,
     options: List<String>,
     selected: Int,

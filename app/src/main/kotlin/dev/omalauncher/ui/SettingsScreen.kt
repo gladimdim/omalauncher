@@ -32,6 +32,7 @@ import dev.omalauncher.LocalNetwork
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.JobState
 import dev.omalauncher.linux.LinuxState
+import dev.omalauncher.nav.gestureNav
 import dev.omalauncher.widgets.Market
 import dev.omalauncher.widgets.WidgetEngine
 import dev.omalauncher.widgets.market.CatalogEntry
@@ -50,8 +51,10 @@ fun SettingsScreen(
     onLinux: () -> Unit,
     onLicenses: () -> Unit,
     onGestures: () -> Unit,
+    onNavigation: () -> Unit,
 ) {
     val context = LocalContext.current
+    val gestures by context.gestureNav.settings.collectAsState()
     val linux by runtime.bootstrap.state.collectAsState()
     val installed = linux == LinuxState.Installed
     var localNetworkMissing by remember { mutableStateOf(LocalNetwork.missing(context)) }
@@ -80,6 +83,7 @@ fun SettingsScreen(
                 Triple("style", runtime.themes.current?.title ?: "theme, background, home screen", onStyle),
                 Triple("pages", runtime.widgets.pages.size.let { if (it == 1) "1 page" else "$it pages" } + " · arrange, edit, remove", onPages),
                 Triple("gestures", "up: ${runtime.gestureLabel(runtime.gestures.swipeUp)} · down: ${runtime.gestureLabel(runtime.gestures.swipeDown)}", onGestures),
+                Triple("navigation", if (gestures.gestures) "gestures · ${gestures.layout.label}" else "buttons · switch to gestures", onNavigation),
                 Triple("linux", linuxStatus, onLinux),
                 if (installed) {
                     Triple("coding agents", runtime.agents.default?.let { "default: ${it.name}" } ?: "install Claude Code, OpenCode, …", onAgents)

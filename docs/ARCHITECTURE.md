@@ -39,6 +39,15 @@ touches it: `files/omarchy` is `~/.local/share/omarchy` and `files/widgets` is
   current page: a node drawn in Kotlin loses its `remember` state when its
   page is swiped away, and keeps anything lasting in the instance
 - `theme/`: Omarchy themes, applied to the launcher and the guest
+- `nav/`: gesture navigation for phones that keep gestures to their own
+  launcher (Xiaomi, Poco): an accessibility service draws thin strips along
+  the screen's edges and turns swipes into back, home and recents; taps on a
+  strip are passed on to the app under it. Swiping up lifts the app into a
+  card drawn from a screenshot; holding opens the launcher's own recents
+  (`RecentsView`), since Android only animates real windows for its own
+  launcher. Recents is kept by the service (apps noted as they come to the
+  front, the launcher's own tasks reporting themselves) and starts empty
+  after a restart. Settings › navigation
 - `upgrade/`: how installs follow app updates (see below)
 
 ## Rendering
