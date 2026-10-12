@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import dev.omalauncher.nav.HomeDrawer
+import dev.omalauncher.nav.PhoneNavBar
 import dev.omalauncher.nav.gestureNav
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.theme.Style
@@ -138,6 +139,7 @@ class MainActivity : ComponentActivity() {
         away = false
         gestureNav.homeInFront = true
         gestureNav.homeDrawer = homeDrawer
+        PhoneNavBar.repair(this)
         runtime.wm.focus(null)
         removeStaleWindowTasks()
         // Made the default home app (or no longer it) while away: only then does Android show us pinned shortcuts.
