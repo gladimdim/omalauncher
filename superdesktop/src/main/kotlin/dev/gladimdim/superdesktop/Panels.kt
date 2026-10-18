@@ -33,6 +33,7 @@ internal fun SettingsPanel(
     host: SdHost,
     onConfig: (PageConfig) -> Unit,
     onNewPage: () -> Unit,
+    onNewWidget: () -> Unit,
     onPair: () -> Unit,
     onForget: (Bridge) -> Unit,
     modifier: Modifier = Modifier,
@@ -61,9 +62,12 @@ internal fun SettingsPanel(
             }
         }
 
-        Heading("pages", host)
-        Label("Each SUPER DESKTOP page has settings of its own.", host, c.muted, 11, lines = 2)
-        Row(Modifier.padding(vertical = 6.dp)) { Action("＋ new SUPER DESKTOP page", host, onClick = onNewPage) }
+        Heading("pages and widgets", host)
+        Label("Each has settings of its own. A terminal widget locks to one harness; resize it like any widget.", host, c.muted, 11, lines = 3)
+        Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Action("＋ page", host, onClick = onNewPage)
+            Action("＋ terminal widget", host, onClick = onNewWidget)
+        }
 
         Heading("paired computers", host)
         for (b in bridges) {

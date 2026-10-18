@@ -34,6 +34,14 @@ Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/ja
 - [x] Phase 5: `.github/workflows/sd-sync.yml` (weekly and on demand: rebase onto
   upstream, test, build, push, attach the APK; an issue on conflict or failure),
   `scripts/sd-deploy.sh`, and the `SdHookTest` guard.
+- [x] Terminal widgets: `SuperDesktop { id; kind: "terminal" }`, 6x4 and
+  resizable to 3x2. Unlocked, it lists every running harness and offers to start
+  one; picking or starting locks it (⇄ unlocks). Added from a page's ⚙
+  ("＋ terminal widget") or an open harness ("＋ widget", already locked), on the
+  page it was added from or the next one with room. The hook line grew by one
+  property, `kind`.
+- [ ] Terminal widgets still to check on the phone: placement when added from a
+  full page, resizing down to 3x2, the picker and "＋ start".
 - [ ] To switch on sd-sync: make `superdesktop` the fork's default branch
   (GitHub runs scheduled workflows from the default branch only), and add an
   `SD_SYNC_TOKEN` secret with the `workflow` scope for weeks when upstream changes

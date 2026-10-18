@@ -44,6 +44,9 @@ interface SdHost {
     /** The launcher's widget folder, where new SUPER DESKTOP pages are written. */
     val widgetsDir: File
 
+    /** The home page this tile is on, when the launcher knows it; new widgets go there. */
+    fun page(): Int?
+
     /** A text field in the tile took the keyboard; [release] takes its focus away. */
     fun fieldFocused(release: () -> Unit)
 

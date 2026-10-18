@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.Dp
 import dev.gladimdim.superdesktop.SdColors
 import dev.gladimdim.superdesktop.SdHost
 import dev.gladimdim.superdesktop.SuperDesktopTile
+import dev.omalauncher.App
 import dev.omalauncher.LauncherData
 import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.Palette
@@ -40,6 +41,11 @@ internal fun SdElement(
 
                 override val widgetsDir: File = LauncherData.widgetsDir(context)
 
+                override fun page(): Int? {
+                    val engine = (context.applicationContext as? App)?.runtime?.widgets ?: return null
+                    return engine.specs.firstOrNull { engine.instance(it) === p.inst }?.page
+                }
+
                 override fun fieldFocused(release: () -> Unit) {
                     val f = TileField(p.inst, release)
                     field = f
@@ -53,7 +59,7 @@ internal fun SdElement(
             }
         }
     DisposableEffect(host) { onDispose { host.fieldUnfocused() } }
-    SuperDesktopTile(p.observe("id")?.toString(), host, mod.fillMaxSize())
+    SuperDesktopTile(p.observe("id")?.toString(), p.observe("kind")?.toString(), host, mod.fillMaxSize())
 }
 
 private fun sdColors(): SdColors {

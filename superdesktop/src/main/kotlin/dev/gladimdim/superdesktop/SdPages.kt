@@ -60,23 +60,53 @@ object SdPages {
         widgetsDir: File,
         id: String = newId(),
     ): String {
-        File(widgetsDir, "superdesktop-$id.owl").writeText(
+        write(widgetsDir, id, "superdesktop-$id.owl", page = 2, size = "9x99", minSize = "4x4", kind = null)
+        return id
+    }
+
+    /**
+     * Writes a new terminal widget: 6x4 on [page], or the next page with room, resizable down to 3x2. It asks
+     * which harness to lock to, unless [lockTo] already picks one.
+     */
+    fun newTerminalWidget(
+        context: Context,
+        widgetsDir: File,
+        lockTo: PageConfig.Pinned? = null,
+        id: String = newId(),
+        page: Int = 1,
+    ): String {
+        if (lockTo != null) set(context, id, PageConfig(pinned = lockTo))
+        write(widgetsDir, id, "superdesktop-terminal-$id.owl", page = page, size = "6x4", minSize = "3x2", kind = "terminal")
+        return id
+    }
+
+    private fun write(
+        widgetsDir: File,
+        id: String,
+        file: String,
+        page: Int,
+        size: String,
+        minSize: String,
+        kind: String?,
+    ) {
+        val what = if (kind == "terminal") "One SUPER DESKTOP terminal, live on the home screen." else "Your SUPER DESKTOP computers and their AI terminals, as a whole home page."
+        val element = if (kind == null) "SuperDesktop { id: \"$id\" }" else "SuperDesktop { id: \"$id\"; kind: \"$kind\" }"
+        File(widgetsDir, file).writeText(
             """
             |widget "SUPER DESKTOP" {
-            |  page: 2
-            |  size: 9x99
-            |  minSize: 4x4
+            |  page: $page
+            |  size: $size
+            |  minSize: $minSize
             |  padding: 0
             |
-            |  meta { owl: 9; description: "Your SUPER DESKTOP computers and their AI terminals, as a whole home page."; version: "0.1"; license: "MIT"; category: "tools" }
+            |  meta { owl: 9; description: "$what"; version: "0.1"; license: "MIT"; category: "tools" }
             |
-            |  // Made by "new SUPER DESKTOP page". The id keys this page's settings; remove the widget to remove the page.
-            |  SuperDesktop { id: "$id" }
+            |  // Made by SUPER DESKTOP. The id keys this widget's settings; remove the widget to remove it.
+            |  $element
             |}
             |
             """.trimMargin(),
         )
-        return id
     }
 
     fun newId() = "sd-" + Random.nextInt(0x1000000).toString(16).padStart(6, '0')

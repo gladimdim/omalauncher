@@ -44,12 +44,36 @@ private const val TAG = "SuperDesktop"
 private enum class Panel { NONE, SETTINGS, CREATE }
 
 /**
- * A SUPER DESKTOP page: one tile, usually filling a home page. It shows the harnesses of the
- * computers its settings pick (every paired one by default), or just one harness. [id] keys
- * those settings, so every page has its own.
+ * A SUPER DESKTOP widget. [kind] `terminal` is one harness's terminal at any size, locked to it once picked;
+ * anything else is a page of every harness. [id] keys its settings, so every widget has its own.
  */
 @Composable
 fun SuperDesktopTile(
+    id: String?,
+    kind: String?,
+    host: SdHost,
+    modifier: Modifier = Modifier,
+) {
+    SideEffect {
+        SdTheme.colors = host.colors
+        SdTheme.mono = host.mono
+    }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            SdStore.load(context)
+            SdPages.load(context)
+        }
+    }
+    if (kind == "terminal") TerminalWidget(id ?: "terminal", host, modifier) else PageTile(id, host, modifier)
+}
+
+/**
+ * A SUPER DESKTOP page: one tile, usually filling a home page. It shows the harnesses of the
+ * computers its settings pick (every paired one by default), or just one harness.
+ */
+@Composable
+private fun PageTile(
     id: String?,
     host: SdHost,
     modifier: Modifier = Modifier,
@@ -57,19 +81,9 @@ fun SuperDesktopTile(
     val c = host.colors
     val context = LocalContext.current
     val page = id ?: "home"
-    SideEffect {
-        SdTheme.colors = c
-        SdTheme.mono = host.mono
-    }
     DisposableEffect(page) {
         Log.d(TAG, "page $page shown")
         onDispose { Log.d(TAG, "page $page hidden") }
-    }
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            SdStore.load(context)
-            SdPages.load(context)
-        }
     }
     val bridges by SdStore.bridges.collectAsState()
     val pages by SdPages.pages.collectAsState()
@@ -77,21 +91,8 @@ fun SuperDesktopTile(
     val all = bridges.orEmpty()
     val shown = all.filter { config.shows(it.key) }
 
-    // A live feed per computer this page shows; SdLive shares them with other pages.
-    val feeds = remember { mutableStateMapOf<String, Feed>() }
+    val feeds = rememberFeeds(shown)
     val scope = rememberCoroutineScope()
-    for (b in shown) {
-        key(b.key) {
-            DisposableEffect(b) {
-                val flow = SdLive.acquire(b)
-                val job = scope.launch { flow.collect { feeds[b.key] = it } }
-                onDispose {
-                    job.cancel()
-                    SdLive.release(b)
-                }
-            }
-        }
-    }
 
     var panel by remember { mutableStateOf(Panel.NONE) }
 
@@ -146,6 +147,18 @@ fun SuperDesktopTile(
         }
     }
 
+    /** A terminal widget already locked to [h]; the launcher opens its page. */
+    fun addWidget(
+        b: Bridge,
+        h: Harness,
+    ) {
+        act("New widget") {
+            val id = SdPages.newId()
+            Notes.put(id, "Locked to ${h.sessionTitle ?: h.agentName}; long-press to move or resize it", error = false)
+            withContext(Dispatchers.IO) { SdPages.newTerminalWidget(context, host.widgetsDir, PageConfig.Pinned(b.key, h.id), id, host.page() ?: 1) }
+        }
+    }
+
     Column(modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Label("SUPER DESKTOP", host, c.accent, 15, bold = true)
@@ -178,6 +191,13 @@ fun SuperDesktopTile(
                             withContext(Dispatchers.IO) { SdPages.newPage(host.widgetsDir, id) }
                         }
                     },
+                    onNewWidget = {
+                        act("New widget") {
+                            val id = SdPages.newId()
+                            Notes.put(id, "Pick the terminal this widget locks to; long-press to move or resize it", error = false)
+                            withContext(Dispatchers.IO) { SdPages.newTerminalWidget(context, host.widgetsDir, id = id, page = host.page() ?: 1) }
+                        }
+                    },
                     onPair = { openPairing(context) },
                     onForget = { b -> act("Forget") { withContext(Dispatchers.IO) { SdStore.remove(context, b.key) } } },
                     modifier = body,
@@ -208,6 +228,7 @@ fun SuperDesktopTile(
                     onOpen = { pc, h -> openInApp(context, pc, h) },
                     onKeys = ::keys,
                     leave = { SdPages.set(context, page, config.copy(pinned = null)) },
+                    onWidget = ::addWidget,
                     modifier = body,
                 )
             }
@@ -237,7 +258,7 @@ fun SuperDesktopTile(
                         )
                     }
                     val view = @Composable { m: Modifier ->
-                        HarnessView(b, h, feed, host, leaveLabel = if (wide) "close" else "back", onOpen = { pc, harness -> openInApp(context, pc, harness) }, onKeys = ::keys, leave = { opened = null }, modifier = m)
+                        HarnessView(b, h, feed, host, leaveLabel = if (wide) "close" else "back", onOpen = { pc, harness -> openInApp(context, pc, harness) }, onKeys = ::keys, leave = { opened = null }, onWidget = ::addWidget, modifier = m)
                     }
                     when {
                         wide && opened != null ->
@@ -255,7 +276,7 @@ fun SuperDesktopTile(
 }
 
 /** Each page's last note and when it was said, so a rebuilt tile shows it for the rest of its five seconds. */
-private object Notes {
+internal object Notes {
     private val notes = HashMap<String, Triple<String, Boolean, Long>>()
 
     @Synchronized fun put(
@@ -269,10 +290,10 @@ private object Notes {
     @Synchronized fun of(page: String): Pair<String, Boolean>? = notes[page]?.takeIf { System.currentTimeMillis() - it.third < 5000 }?.let { it.first to it.second }
 }
 
-private fun openPairing(context: Context) = context.startActivity(Intent(context, PairingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+internal fun openPairing(context: Context) = context.startActivity(Intent(context, PairingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 
 /** Hands harness [h] to the SUPER DESKTOP app's terminal, when it's installed and paired with the same computer. */
-private fun openInApp(
+internal fun openInApp(
     context: Context,
     b: Bridge,
     h: Harness,
