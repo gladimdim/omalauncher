@@ -31,7 +31,13 @@ Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/ja
   page, with a key row and prompt; side by side with the list on a wide tile.
   Checked on the phone: colors and fitting on a Claude Code pane, ↑ ⏎ on a
   throwaway shell, Back, page swipes over the terminal, landscape split.
-- [ ] Phase 5 next: sync automation and the install script.
+- [x] Phase 5: `.github/workflows/sd-sync.yml` (weekly and on demand: rebase onto
+  upstream, test, build, push, attach the APK; an issue on conflict or failure),
+  `scripts/sd-deploy.sh`, and the `SdHookTest` guard.
+- [ ] To switch on sd-sync: make `superdesktop` the fork's default branch
+  (GitHub runs scheduled workflows from the default branch only), and add an
+  `SD_SYNC_TOKEN` secret with the `workflow` scope for weeks when upstream changes
+  its own workflow files.
 
 ### Phase 4 notes
 
@@ -347,7 +353,7 @@ no longer composed (from 1.5) or on `ON_STOP`.
 Done when: you can follow a Claude Code session and answer it from the home
 screen, and swiping away and back resumes within a second.
 
-## Phase 5: hardening and sync automation (0.5–1 d)
+## Phase 5: hardening and sync automation (0.5–1 d) ✓
 
 **5.1 Guard test**, `app/src/test/.../SdHookTest.kt`: compile `90-superdesktop.owl`,
 assert it has a `SuperDesktop` element, and assert `Schema.KINDS` contains
