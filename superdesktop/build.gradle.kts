@@ -12,6 +12,8 @@ android {
 
     defaultConfig {
         minSdk = 29
+        // Applied to the app's release build, which shrinks with R8.
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     testOptions { unitTests.isReturnDefaultValues = true }
