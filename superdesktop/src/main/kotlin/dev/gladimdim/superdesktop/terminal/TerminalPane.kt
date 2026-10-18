@@ -66,8 +66,8 @@ private class Rendered(
 private const val FRAME_MS = 80L
 
 /**
- * Harness [id]'s live terminal on [b], fitted to the tile. Until [active] (a tap makes it so) it only
- * scrolls up and down, so swipes still turn home pages; once active it also pans sideways.
+ * Harness [id]'s live terminal on [b], fitted to the tile. Until [active] (the ⌨ button or a tap makes it so)
+ * it only scrolls up and down, so swipes still turn home pages; once active it also pans sideways.
  */
 @Composable
 internal fun TerminalPane(
@@ -162,7 +162,6 @@ internal fun TerminalPane(
             terminal.ended -> Badge("session ended", host, c.muted, Modifier.align(Alignment.Center))
             rendered == null -> Badge("connecting…", host, c.muted, Modifier.align(Alignment.Center))
             terminal.reconnecting -> Badge("reconnecting…", host, c.yellow, Modifier.align(Alignment.TopEnd))
-            !active -> Badge("tap to type", host, c.muted, Modifier.align(Alignment.BottomEnd))
         }
     }
 }
