@@ -40,6 +40,9 @@ Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/ja
   ("＋ terminal widget") or an open harness ("＋ widget", already locked), on the
   page it was added from or the next one with room. The hook line grew by one
   property, `kind`.
+- [x] The home long-press menu has a "super desktop [ terminal ] [ page ]" row
+  (fork file `ui/SdMenu.kt`, one line in upstream's `HomeMenu.kt`), adding to
+  the long-pressed page through the module's `SdWidgets`.
 - [ ] Terminal widgets still to check on the phone: placement when added from a
   full page, resizing down to 3x2, the picker and "＋ start".
 - [ ] To switch on sd-sync: make `superdesktop` the fork's default branch
