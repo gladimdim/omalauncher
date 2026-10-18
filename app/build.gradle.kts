@@ -101,3 +101,9 @@ androidComponents {
         }
     }
 }
+
+// Fork: SD Launcher's resources (its icon), over Omalauncher's in both build types.
+android.sourceSets {
+    named("debug") { res.directories.add("src/sd/res") }
+    named("release") { res.directories.add("src/sd/res") }
+}

@@ -161,6 +161,16 @@ against 9% by position), so lines are keyed by position.
   starts pairing at once (approval still happens on the computer). Pasting a link
   stays as the fallback. The camera permission is asked on first scan.
 
+### App icon (2026-10-18)
+
+SD Launcher's icon is the SUPER DESKTOP thunderbolt mascot: its ASCII art from the
+app (`ThunderboltMascot.kt`), winking, in acid green with a glow on a dark dotted
+background, with a white monochrome layer for themed icons. `scripts/sd-icon/`
+renders it (`make.py` writes the SVG layers, `build.sh` the PNGs per density) into
+`app/src/sd/res`, which the fork block at the end of `app/build.gradle.kts` adds to
+the debug and release builds; its `mipmap-anydpi/ic_launcher.xml` overrides
+Omalauncher's. The 512 px image is `docs/superdesktop/media/icon-512.png`.
+
 ## Facts the plan relies on
 
 Checked against upstream `06d4b48` (Release 0.8.1):
