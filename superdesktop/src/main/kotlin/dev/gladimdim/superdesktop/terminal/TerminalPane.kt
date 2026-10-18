@@ -1,6 +1,5 @@
 package dev.gladimdim.superdesktop.terminal
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +13,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,22 +25,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.gladimdim.superdesktop.Label
 import dev.gladimdim.superdesktop.SdHost
 import dev.gladimdim.superdesktop.bridge.Bridge
-import dev.gladimdim.superdesktop.live.SdLive
-import kotlinx.coroutines.channels.Channel
+import dev.gladimdim.superdesktop.live.SdTerminals
+import dev.gladimdim.superdesktop.live.Terminal
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import org.json.JSONObject
-
-private const val TAG = "SuperDesktop"
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 /** The tile's text size: as large as fits the widest line, between these. */
 private val MAX_SP = 11f
@@ -47,22 +51,14 @@ private val MIN_SP = 7f
 /** A monospace cell is about this much of the font size wide. */
 private const val CELL_EM = 0.6f
 
-/** What a pane knows about its harness's terminal. */
-private class Pane {
-    var frame by mutableStateOf<String?>(null)
-    var ended by mutableStateOf(false)
-    var reconnecting by mutableStateOf(false)
-}
+/** A frame ready to draw: its styled text and the width of its widest line, in cells. */
+private class Rendered(
+    val text: AnnotatedString,
+    val columns: Int,
+)
 
-private sealed interface Event {
-    class Frame(
-        val json: String,
-    ) : Event
-
-    class Closed(
-        val httpCode: Int?,
-    ) : Event
-}
+/** At most this often a pane lays out a new frame; frames in between are skipped, never the last one. */
+private const val FRAME_MS = 80L
 
 /**
  * Harness [id]'s live terminal on [b], fitted to the tile. Until [active] (a tap makes it so) it only
@@ -78,16 +74,27 @@ internal fun TerminalPane(
     modifier: Modifier = Modifier,
 ) {
     val c = host.colors
-    val pane = remember(b.key, id) { Pane() }
-    LaunchedEffect(b.key, id) { stream(b, id, pane) }
+    // One stream per harness, shared with every other tile showing it.
+    var source by remember { mutableStateOf<StateFlow<Terminal>?>(null) }
+    DisposableEffect(b.key, id) {
+        source = SdTerminals.acquire(b, id)
+        onDispose { SdTerminals.release(b, id) }
+    }
+    val none = remember { MutableStateFlow(Terminal()) }
+    val terminal by (source ?: none).collectAsState()
 
     val palette = c.ansi.takeIf { it.size >= 16 } ?: DEFAULT_PALETTE
     val renderer = remember(palette, c.foreground, c.background) { AnsiRenderer(palette, c.foreground, c.background) }
-    val raw = pane.frame.orEmpty()
-    // tmux pads the pane with empty lines below the cursor.
-    val lines = remember(raw) { raw.split('\n').dropLastWhile { TerminalAnsi.plain(it).isBlank() } }
-    val text = remember(lines, renderer) { renderer.render(lines.joinToString("\n")) }
-    val columns = remember(lines) { lines.maxOfOrNull { TerminalAnsi.plain(it).length }?.coerceIn(20, 300) ?: 80 }
+    // Parsing and styling 300 lines happen off the main thread; a busy agent's frames are thinned to one per FRAME_MS.
+    val rendered by produceState<Rendered?>(null, source, renderer) {
+        val flow = source ?: return@produceState
+        flow.map { it.tail }.filterNotNull().distinctUntilChanged().conflate().collect { tail ->
+            value = withContext(Dispatchers.Default) { render(tail, renderer) }
+            delay(FRAME_MS)
+        }
+    }
+    val text = rendered?.text ?: AnnotatedString("")
+    val columns = rendered?.columns ?: 80
 
     val shape = host.shape(8.dp)
     BoxWithConstraints(
@@ -121,9 +128,9 @@ internal fun TerminalPane(
             )
         }
         when {
-            pane.ended -> Badge("session ended", host, c.muted, Modifier.align(Alignment.Center))
-            pane.frame == null -> Badge("connecting…", host, c.muted, Modifier.align(Alignment.Center))
-            pane.reconnecting -> Badge("reconnecting…", host, c.yellow, Modifier.align(Alignment.TopEnd))
+            terminal.ended -> Badge("session ended", host, c.muted, Modifier.align(Alignment.Center))
+            rendered == null -> Badge("connecting…", host, c.muted, Modifier.align(Alignment.Center))
+            terminal.reconnecting -> Badge("reconnecting…", host, c.yellow, Modifier.align(Alignment.TopEnd))
             !active -> Badge("tap to type", host, c.muted, Modifier.align(Alignment.BottomEnd))
         }
     }
@@ -139,74 +146,14 @@ private fun Badge(
     Label(text, host, color, 10)
 }
 
-/** Streams [id]'s frames into [pane] until the session ends or the pane leaves, reconnecting with backoff. */
-private suspend fun stream(
-    b: Bridge,
-    id: String,
-    pane: Pane,
-) {
-    var backoff = 1000L
-    while (kotlinx.coroutines.currentCoroutineContext().isActive && !pane.ended) {
-        val events = Channel<Event>(Channel.UNLIMITED)
-        val socket =
-            SdLive.api(b).terminalStream(
-                id,
-                object : WebSocketListener() {
-                    override fun onMessage(
-                        webSocket: WebSocket,
-                        text: String,
-                    ) {
-                        events.trySend(Event.Frame(text))
-                    }
-
-                    override fun onClosing(
-                        webSocket: WebSocket,
-                        code: Int,
-                        reason: String,
-                    ) {
-                        webSocket.close(1000, null)
-                        events.trySend(Event.Closed(null))
-                    }
-
-                    override fun onFailure(
-                        webSocket: WebSocket,
-                        t: Throwable,
-                        response: Response?,
-                    ) {
-                        Log.d(TAG, "terminal $id: ${response?.code ?: t.message}")
-                        events.trySend(Event.Closed(response?.code))
-                    }
-                },
-            )
-        try {
-            while (true) {
-                when (val e = events.receive()) {
-                    is Event.Frame -> {
-                        val o = runCatching { JSONObject(e.json) }.getOrNull() ?: continue
-                        val tail = if (o.isNull("tailAnsi")) (if (o.isNull("tail")) null else o.optString("tail")) else o.optString("tailAnsi")
-                        if (o.optString("status") == "EXITED" && tail == null) {
-                            pane.ended = true
-                            return
-                        }
-                        if (tail != null) pane.frame = tail
-                        pane.reconnecting = false
-                        backoff = 1000L
-                    }
-                    is Event.Closed -> {
-                        // An unknown session is gone for good.
-                        if (e.httpCode == 404) pane.ended = true
-                        break
-                    }
-                }
-            }
-        } finally {
-            socket.cancel()
-        }
-        if (pane.ended) return
-        pane.reconnecting = true
-        delay(backoff)
-        backoff = (backoff * 2).coerceAtMost(10_000L)
-    }
+/** [tail] as it's drawn: without tmux's empty lines below the cursor, styled, with its widest line measured. Off the main thread. */
+private fun render(
+    tail: String,
+    renderer: AnsiRenderer,
+): Rendered {
+    val lines = tail.split('\n').dropLastWhile { TerminalAnsi.plain(it).isBlank() }
+    val columns = lines.maxOfOrNull { TerminalAnsi.plain(it).length }?.coerceIn(20, 300) ?: 80
+    return Rendered(renderer.render(lines.joinToString("\n")), columns)
 }
 
 /** Tokyo Night's terminal colors, for a launcher palette without all sixteen. */

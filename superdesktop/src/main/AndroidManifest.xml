@@ -4,6 +4,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application>
+        <!-- Loads paired computers and page settings in the background at start; not reachable from outside. -->
+        <provider
+            android:name="dev.gladimdim.superdesktop.SdWarmup"
+            android:authorities="${applicationId}.sd-warmup"
+            android:exported="false" />
+
         <!-- Pairs this launcher with a SUPER DESKTOP computer; also takes superdesktop://pair links from the computer's QR. -->
         <activity
             android:name="dev.gladimdim.superdesktop.pair.PairingActivity"
