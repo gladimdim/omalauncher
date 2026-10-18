@@ -5,9 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -92,6 +94,9 @@ fun SuperDesktopTile(
     }
 
     var panel by remember { mutableStateOf(Panel.NONE) }
+
+    /** The harness opened from the list, shown in the tile until "back". */
+    var opened by remember { mutableStateOf<PageConfig.Pinned?>(null) }
     var closing by remember { mutableStateOf<String?>(null) }
     // Kept outside the tile: writing a new page's file makes the launcher rebuild this one.
     val said = Notes.of(page)
@@ -127,6 +132,20 @@ fun SuperDesktopTile(
         }
     }
 
+    /** Types [text] into [h]; [done] runs once the computer took it. */
+    fun keys(
+        b: Bridge,
+        h: Harness,
+        text: String,
+        enter: Boolean,
+        done: () -> Unit,
+    ) {
+        act("Send") {
+            SdLive.api(b).sendKeys(h.id, text, enter)
+            done()
+        }
+    }
+
     Column(modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Label("SUPER DESKTOP", host, c.accent, 15, bold = true)
@@ -135,7 +154,7 @@ fun SuperDesktopTile(
                 all.isEmpty() -> Unit
                 panel != Panel.NONE -> Action("done", host) { panel = Panel.NONE }
                 else -> {
-                    if (config.pinned == null) Action("＋ new", host) { panel = Panel.CREATE }
+                    if (config.pinned == null && opened == null) Action("＋ new", host) { panel = Panel.CREATE }
                     Action("⚙", host) { panel = Panel.SETTINGS }
                 }
             }
@@ -180,39 +199,56 @@ fun SuperDesktopTile(
                 val pin = config.pinned
                 val b = shown.firstOrNull { it.key == pin.computer }
                 val feed = b?.let { feeds[it.key] }
-                PinnedHarness(
+                HarnessView(
                     b,
                     feed?.doc?.harnesses?.firstOrNull { it.id == pin.harness },
                     feed,
                     host,
+                    leaveLabel = "show every harness",
                     onOpen = { pc, h -> openInApp(context, pc, h) },
-                    onSend = { pc, h, text, sent ->
-                        act("Send") {
-                            SdLive.api(pc).sendKeys(h.id, text)
-                            sent()
-                        }
-                    },
-                    onShowAll = { SdPages.set(context, page, config.copy(pinned = null)) },
+                    onKeys = ::keys,
+                    leave = { SdPages.set(context, page, config.copy(pinned = null)) },
                     modifier = body,
                 )
             }
             else ->
-                Overview(
-                    shown,
-                    feeds,
-                    host,
-                    closing,
-                    onOpen = { b, h -> openInApp(context, b, h) },
-                    onAskClose = { closing = it },
-                    onClose = { b, h ->
-                        closing = null
-                        act("Close") {
-                            SdLive.api(b).closeHarness(h.id)
-                            say("Closed ${h.sessionTitle ?: h.agentName}")
-                        }
-                    },
-                    modifier = body,
-                )
+                BoxWithConstraints(body) {
+                    // A wide tile (an unfolded phone, a tablet, landscape) shows the list and the open harness side by side.
+                    val wide = maxWidth >= 600.dp
+                    val b = opened?.let { o -> shown.firstOrNull { it.key == o.computer } }
+                    val feed = b?.let { feeds[it.key] }
+                    val h = feed?.doc?.harnesses?.firstOrNull { it.id == opened?.harness }
+                    val list = @Composable { m: Modifier ->
+                        Overview(
+                            shown,
+                            feeds,
+                            host,
+                            closing,
+                            onOpen = { pc, harness -> opened = PageConfig.Pinned(pc.key, harness.id) },
+                            onAskClose = { closing = it },
+                            onClose = { pc, harness ->
+                                closing = null
+                                act("Close") {
+                                    SdLive.api(pc).closeHarness(harness.id)
+                                    say("Closed ${harness.sessionTitle ?: harness.agentName}")
+                                }
+                            },
+                            modifier = m,
+                        )
+                    }
+                    val view = @Composable { m: Modifier ->
+                        HarnessView(b, h, feed, host, leaveLabel = if (wide) "close" else "back", onOpen = { pc, harness -> openInApp(context, pc, harness) }, onKeys = ::keys, leave = { opened = null }, modifier = m)
+                    }
+                    when {
+                        wide && opened != null ->
+                            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                list(Modifier.weight(0.42f).fillMaxHeight())
+                                view(Modifier.weight(0.58f).fillMaxHeight())
+                            }
+                        opened != null -> view(Modifier.fillMaxSize())
+                        else -> list(Modifier.fillMaxSize())
+                    }
+                }
         }
         note?.let { Label(it, host, if (failed) c.red else c.muted, 11, lines = 2) }
     }

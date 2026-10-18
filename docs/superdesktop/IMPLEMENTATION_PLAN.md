@@ -27,7 +27,30 @@ Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/ja
   start and close harnesses, one-harness view with a prompt. Checked on the
   phone against gladimdim-rog: started a Terminal, pinned a page to it, sent a
   command, closed it after the in-card confirmation.
-- [ ] Phase 4 next: the live terminal in the tile.
+- [x] Phase 4: the live terminal in the tile, from the list or a one-harness
+  page, with a key row and prompt; side by side with the list on a wide tile.
+  Checked on the phone: colors and fitting on a Claude Code pane, ↑ ⏎ on a
+  throwaway shell, Back, page swipes over the terminal, landscape split.
+- [ ] Phase 5 next: sync automation and the install script.
+
+### Phase 4 notes
+
+- Not a port of `TerminalOutputView`: a Compose pane (`terminal/TerminalPane.kt`)
+  renders `tailAnsi` through a port of the app's `TerminalAnsi` (SGR 16/256/true
+  color, bold, inverse) with a per-line cache, in the launcher theme's
+  `color0..15`.
+- Fit, not resize: the text shrinks to the widest line between 7 and 11 sp and
+  pans sideways once active. The stream's `viewport` resizing is not used: it
+  resizes the shared tmux pane, which would change the desktop's terminal too.
+- Inert until tapped (vertical scroll only), so page swipes keep working; a tap
+  gives it an accent frame and the key row (esc, tab, ⇧tab, arrows, ^C, ⏎) that
+  sends the app's literal sequences through `POST /keys`. Back lets go of the
+  terminal, then leaves the harness (`BackHandler`), then reaches the home screen.
+- A tap on a card now opens the harness in the tile; "open in app" hands it to
+  the SUPER DESKTOP app. A tile 600 dp or wider shows the list (42%) and the
+  terminal (58%) side by side.
+- The stream reconnects with 1–10 s backoff, shows "session ended" after
+  `EXITED` or a 404, and closes when its page leaves the screen.
 
 ### Phase 3 notes
 
@@ -291,7 +314,7 @@ widgets you add yourself.
 Done when: two pages with different PCs show live status, survive a launcher
 restart, and follow a theme change.
 
-## Phase 4: terminal in the tile (2–3 d)
+## Phase 4: terminal in the tile (2–3 d) ✓
 
 **4.1 Output.** Wrap SD's `TerminalOutputView` in `AndroidView`. Feed it from
 `WS /api/v1/harnesses/<id>/stream?ansiOnly=1&viewport=1` (`tailAnsi`). Port
