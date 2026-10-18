@@ -26,6 +26,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.gladimdim.superdesktop.bridge.Bridge
@@ -172,6 +174,7 @@ private fun Locked(
     val context = LocalContext.current
     val h = feed?.doc?.harnesses?.firstOrNull { it.id == pin.harness }
     var active by remember(pin) { mutableStateOf(false) }
+    val promptFocus = remember { FocusRequester() }
     var prompt by remember(pin) { mutableStateOf("") }
     BackHandler(enabled = active) { active = false }
 
@@ -179,6 +182,7 @@ private fun Locked(
         Box(Modifier.size(7.dp).background(statusColor(h?.status ?: "UNKNOWN", host), CircleShape))
         Label(h?.let { it.sessionTitle ?: it.agentName } ?: "SUPER DESKTOP", host, c.foreground, 12, bold = true, modifier = Modifier.weight(1f))
         Label(listOfNotNull(b?.name, h?.status?.lowercase()).joinToString(" · "), host, c.muted, 10)
+        if (b != null && h != null) KeyboardButton(host, active, promptFocus) { active = it }
         Action("⇄", host, onClick = onUnlock)
         if (b != null && h != null) Action("↗", host) { openInApp(context, b, h) }
     }
@@ -207,7 +211,7 @@ private fun Locked(
                             }
                         }
                     }
-                    Field(prompt, { prompt = it }, host, "prompt…", Modifier.weight(1f), onDone = send)
+                    Field(prompt, { prompt = it }, host, "prompt…", Modifier.weight(1f).focusRequester(promptFocus), onDone = send)
                     Action("send", host, strong = true, enabled = prompt.isNotBlank(), onClick = send)
                 }
             }

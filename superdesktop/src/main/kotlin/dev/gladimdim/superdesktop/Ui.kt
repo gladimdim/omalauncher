@@ -15,8 +15,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -130,4 +136,33 @@ internal fun Field(
             }
         },
     )
+}
+
+/**
+ * Turns typing on and off for a terminal: on shows the key row and opens the phone keyboard on [prompt],
+ * off closes both. Filled while typing.
+ */
+@Composable
+internal fun KeyboardButton(
+    host: SdHost,
+    active: Boolean,
+    prompt: FocusRequester?,
+    onActive: (Boolean) -> Unit,
+) {
+    val focus = LocalFocusManager.current
+    var open by remember { mutableStateOf(false) }
+    // The prompt may only appear once typing is on, so it's focused after that composition.
+    LaunchedEffect(open, active) {
+        if (open && active) runCatching { prompt?.requestFocus() }
+        open = false
+    }
+    Action("⌨", host, strong = active) {
+        if (active) {
+            focus.clearFocus()
+            onActive(false)
+        } else {
+            onActive(true)
+            open = true
+        }
+    }
 }

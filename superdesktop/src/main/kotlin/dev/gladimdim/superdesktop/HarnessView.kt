@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import dev.gladimdim.superdesktop.bridge.Bridge
 import dev.gladimdim.superdesktop.bridge.Harness
@@ -56,6 +58,7 @@ internal fun HarnessView(
     val dot = statusColor(h.status, host)
     var prompt by remember(h.id) { mutableStateOf("") }
     var active by remember(h.id) { mutableStateOf(false) }
+    val promptFocus = remember { FocusRequester() }
     // Back first lets go of the terminal, then leaves the harness: the home screen gets it after that.
     BackHandler(enabled = active) { active = false }
     BackHandler(enabled = !active && leave != null) { leave?.invoke() }
@@ -71,7 +74,8 @@ internal fun HarnessView(
         if (active) KeyRow(host, onKey = { text, enter -> onKeys(b, h, text, enter) {} }, onDone = { active = false })
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val send = { if (prompt.isNotBlank()) onKeys(b, h, prompt, true) { prompt = "" } }
-            Field(prompt, { prompt = it }, host, "prompt ${h.agentName}…", Modifier.weight(1f), onDone = send)
+            Field(prompt, { prompt = it }, host, "prompt ${h.agentName}…", Modifier.weight(1f).focusRequester(promptFocus), onDone = send)
+            KeyboardButton(host, active, promptFocus) { active = it }
             Action("send", host, strong = true, enabled = prompt.isNotBlank(), onClick = send)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
