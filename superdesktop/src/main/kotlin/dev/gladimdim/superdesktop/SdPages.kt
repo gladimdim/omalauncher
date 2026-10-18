@@ -54,13 +54,14 @@ object SdPages {
 
     /**
      * Writes a new SUPER DESKTOP page into the launcher's widgets folder, where the launcher picks it up.
-     * It asks for page 2 like the default one; a full page sends it on to the next page with room, or a new last page.
+     * It asks for [page]; a full page sends it on to the next page with room, or a new last page.
      */
     fun newPage(
         widgetsDir: File,
         id: String = newId(),
+        page: Int = 2,
     ): String {
-        write(widgetsDir, id, "superdesktop-$id.owl", page = 2, size = "9x99", minSize = "4x4", kind = null)
+        write(widgetsDir, id, "superdesktop-$id.owl", page = page, size = "9x99", minSize = "4x4", kind = null)
         return id
     }
 

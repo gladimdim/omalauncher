@@ -89,6 +89,9 @@ launcher's FileObserver loads it within a second.
 | `owl/…/lang/Schema.kt` | `"SuperDesktop" to Kind(setOf("id"), Children.NONE)` as the **first** entry of `KINDS` (upstream appends new kinds at the end, so the first line rarely conflicts) |
 | `app/…/widgets/render/Render.kt` | one branch, first in `Element`'s `when`: `"SuperDesktop" -> SdElement(p, inst, mod)`, where `SdElement` lives in a fork-only file in `app/` (`widgets/render/SdHook.kt`) and adapts launcher types (Palette, LocalHomeTiles, widgets dir) to the module's `SdHost` |
 
+Since then: one line in `ui/HomeMenu.kt` adds SUPER DESKTOP's row to the home
+long-press menu (`SdMenuRow`, in the fork-only `ui/SdMenu.kt`).
+
 Plus a new asset, `assets/widgets/90-superdesktop.owl`: a default widget, so
 the launcher writes it into the widgets folder on start (new and existing
 installs) and never brings it back once deleted. It is a new file, so it never

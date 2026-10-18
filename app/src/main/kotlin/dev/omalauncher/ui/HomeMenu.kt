@@ -94,6 +94,7 @@ fun HomeMenu(
             state.homeMenuOpen = false
             state.show(SettingsPage.Store)
         }
+        SdMenuRow(state)
         Box(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             ThemeStrip(
                 runtime.themes,

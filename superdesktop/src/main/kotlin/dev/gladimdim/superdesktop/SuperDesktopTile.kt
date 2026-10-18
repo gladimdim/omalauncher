@@ -153,9 +153,7 @@ private fun PageTile(
         h: Harness,
     ) {
         act("New widget") {
-            val id = SdPages.newId()
-            Notes.put(id, "Locked to ${h.sessionTitle ?: h.agentName}; long-press to move or resize it", error = false)
-            withContext(Dispatchers.IO) { SdPages.newTerminalWidget(context, host.widgetsDir, PageConfig.Pinned(b.key, h.id), id, host.page() ?: 1) }
+            withContext(Dispatchers.IO) { SdWidgets.addTerminal(context, host.widgetsDir, host.page() ?: 1, PageConfig.Pinned(b.key, h.id), h.sessionTitle ?: h.agentName) }
         }
     }
 
@@ -186,16 +184,12 @@ private fun PageTile(
                     onNewPage = {
                         act("New page") {
                             // The launcher shows a new widget's page as soon as its file lands, so the new page says what it is.
-                            val id = SdPages.newId()
-                            Notes.put(id, "A new SUPER DESKTOP page: ⚙ picks its computers and harness", error = false)
-                            withContext(Dispatchers.IO) { SdPages.newPage(host.widgetsDir, id) }
+                            withContext(Dispatchers.IO) { SdWidgets.addPage(host.widgetsDir, (host.page() ?: 1) + 1) }
                         }
                     },
                     onNewWidget = {
                         act("New widget") {
-                            val id = SdPages.newId()
-                            Notes.put(id, "Pick the terminal this widget locks to; long-press to move or resize it", error = false)
-                            withContext(Dispatchers.IO) { SdPages.newTerminalWidget(context, host.widgetsDir, id = id, page = host.page() ?: 1) }
+                            withContext(Dispatchers.IO) { SdWidgets.addTerminal(context, host.widgetsDir, host.page() ?: 1) }
                         }
                     },
                     onPair = { openPairing(context) },
