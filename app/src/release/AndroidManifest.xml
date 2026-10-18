@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fork: the SUPER DESKTOP build's name, so it can be told apart from Omalauncher. -->
+<!--
+  Fork: the SUPER DESKTOP build's name, so it can be told apart from Omalauncher, and task affinities of
+  its own, so its Files and Settings never share a task with an installed Omalauncher's.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:label="SD Launcher"
-        tools:replace="android:label" />
+        tools:replace="android:label">
+
+        <activity
+            android:name="dev.omalauncher.FilesActivity"
+            android:taskAffinity="com.gladimdim.sdlauncher.files"
+            tools:replace="android:taskAffinity" />
+
+        <activity
+            android:name="dev.omalauncher.SettingsActivity"
+            android:taskAffinity="com.gladimdim.sdlauncher.settings"
+            tools:replace="android:taskAffinity" />
+    </application>
 </manifest>

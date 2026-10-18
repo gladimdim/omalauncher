@@ -18,8 +18,15 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.activity.compose)
     implementation(libs.compose.runtime)
     implementation(libs.compose.foundation)
     implementation(libs.compose.ui)
+    // The same versions as the SUPER DESKTOP Android app, whose bridge client this module ports.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     testImplementation(libs.junit)
+    // android.jar only has stubs of org.json.
+    testImplementation(libs.org.json)
 }

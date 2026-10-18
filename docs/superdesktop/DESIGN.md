@@ -85,7 +85,7 @@ launcher's FileObserver loads it within a second.
 | File | Change |
 |---|---|
 | `settings.gradle.kts` | `include(":superdesktop")` |
-| `app/build.gradle.kts` | `implementation(project(":superdesktop"))`; applicationId `dev.omalauncher.sd`, so the build installs next to the Play version |
+| `app/build.gradle.kts` | `implementation(project(":superdesktop"))`; applicationId `com.gladimdim.sdlauncher`, so the build installs next to the Play version |
 | `owl/…/lang/Schema.kt` | `"SuperDesktop" to Kind(setOf("id"), Children.NONE)` as the **first** entry of `KINDS` (upstream appends new kinds at the end, so the first line rarely conflicts) |
 | `app/…/widgets/render/Render.kt` | one branch, first in `Element`'s `when`: `"SuperDesktop" -> SdElement(p, inst, mod)`, where `SdElement` lives in a fork-only file in `app/` (`widgets/render/SdHook.kt`) and adapts launcher types (Palette, LocalHomeTiles, widgets dir) to the module's `SdHost` |
 

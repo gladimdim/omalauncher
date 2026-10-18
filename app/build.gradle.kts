@@ -18,7 +18,7 @@ android {
     ndkVersion = prootNdk
 
     defaultConfig {
-        applicationId = "dev.omalauncher.sd"
+        applicationId = "com.gladimdim.sdlauncher"
         minSdk = 29
         targetSdk = 37
         versionCode = 17
