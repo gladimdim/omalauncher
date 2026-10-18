@@ -54,6 +54,14 @@ data class Harness(
     val tagColor: String?,
 )
 
+/** A kind of harness the computer can start; [available] when its CLI is installed there. */
+@Immutable
+data class HarnessType(
+    val id: String,
+    val name: String,
+    val available: Boolean,
+)
+
 /** One limit of a provider's plan; [used] is 0..1, null when unknown. */
 @Immutable
 data class UsageLimit(

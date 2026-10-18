@@ -50,6 +50,9 @@ object SdLive {
         var bridge: Bridge,
     ) {
         val feed = MutableStateFlow(Feed(Feed.State.CONNECTING))
+
+        /** The address that answered last; actions go there too. */
+        @Volatile var host: String = bridge.host
         var users = 0
         var job: Job? = null
         var stop: Job? = null
@@ -71,6 +74,9 @@ object SdLive {
         if (e.job == null) e.job = scope.launch { run(e) }
         return e.feed
     }
+
+    /** [bridge]'s API at the address its feed reached last. */
+    @Synchronized fun api(bridge: Bridge) = bridge.api(entries[bridge.key]?.host ?: bridge.host)
 
     @Synchronized fun release(bridge: Bridge) {
         val e = entries[bridge.key] ?: return
@@ -178,6 +184,7 @@ object SdLive {
                         val doc = runCatching { parseHarnessDocument(JSONObject(event.text)) }.getOrNull() ?: continue
                         if (!received) Log.d(TAG, "${bridge.name} @ $host: live, ${doc.harnesses.size} harnesses")
                         received = true
+                        e.host = host
                         policy.onMessage()
                         e.feed.value = Feed(Feed.State.LIVE, doc)
                     }
@@ -202,6 +209,7 @@ object SdLive {
             val online =
                 try {
                     e.feed.value = Feed(Feed.State.LIVE, bridge.api(host).harnesses())
+                    e.host = host
                     true
                 } catch (x: NotPairedException) {
                     e.feed.value = e.feed.value.copy(state = Feed.State.NOT_PAIRED, error = "This device was removed on the computer")
