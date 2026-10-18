@@ -14,13 +14,36 @@ Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/ja
 
 ## Status
 
-- [x] Phase 0: fork builds; `dev.omalauncher.sd`, named "SD Launcher" (via
+- [x] Phase 0: fork builds; `com.gladimdim.sdlauncher`, named "SD Launcher" (via
   `app/src/{debug,release}/AndroidManifest.xml` overlays, no main manifest edit);
   `scripts/sd-sync.sh`.
 - [x] Phase 1: hook, `:superdesktop` module, placeholder tile, checked on a
   Xiaomi 2602BPC18G (Android 16). Findings below.
 - [x] 5.1 guard test (`SdHookTest`), done early.
-- [ ] Phase 2 next: bridge client and pairing.
+- [x] Phase 2: bridge client, encrypted store, pairing, live feed. Paired with
+  gladimdim-rog (SUPER DESKTOP 1.7.1) on 2026-10-18; the page shows its
+  harnesses and usage live, and a tap opens the harness in the SUPER DESKTOP app.
+- [ ] Phase 3 next: per-page settings, new pages, create and close harnesses.
+
+### Phase 2 notes
+
+- The client is a lean port, not a copy of `HarnessApi.kt`: the app's version is
+  tied to Pro gating, the demo transport, images and assets. What came from where
+  is in `superdesktop/.../bridge/SOURCE.md` (SD commit `98b6129`).
+- `PairingActivity` takes `superdesktop://pair` links (VIEW intent, so the
+  phone camera's QR scan can open it; Android asks which app when the SUPER
+  DESKTOP app is installed too) or a pasted link or JSON. A link only fills the
+  field: pairing starts on "connect". The launcher pairs as its own device,
+  "SD Launcher · <phone>".
+- Approving from the PC's CLI needs `super-desktop connection approve ID --code
+  CODE --allow-access --request-id ID`; the desktop's own prompt works too.
+- `SdLive` streams `/harnesses/stream` per computer, polls while it's down, moves
+  to the computer's other addresses (Tailscale next) when one stops answering,
+  and closes 10 s after the last page leaves.
+- The tile's colors are also kept in `SdTheme` for the pairing screen, which has
+  no launcher host; it shows Tokyo Night until a tile has drawn.
+- On a fresh install the SD page takes page 2 and the launcher's default egg
+  moves to page 3.
 
 ### Phase 1 findings (2026-10-18)
 
@@ -77,7 +100,7 @@ Checked against upstream `06d4b48` (Release 0.8.1):
 
 ---
 
-## Phase 0: fork setup (0.5 d)
+## Phase 0: fork setup (0.5 d) ✓
 
 **0.1 Build the untouched fork.**
 `./scripts/fetch-proot.sh && ./gradlew :app:assembleDebug :owl:test :app:testDebugUnitTest`.
@@ -85,7 +108,7 @@ Done when: everything passes on `superdesktop` before any change, so later
 failures are ours.
 
 **0.2 Install next to the Play version.**
-In `app/build.gradle.kts`, `defaultConfig`: `applicationId = "dev.omalauncher.sd"`.
+In `app/build.gradle.kts`, `defaultConfig`: `applicationId = "com.gladimdim.sdlauncher"`.
 Keep `namespace = "dev.omalauncher"`. Label: add a `resValue` or a fork-only
 `res/values/sd_strings.xml` override of the app name, e.g. "Omalauncher SD",
 whichever doesn't need a manifest edit (check how the manifest's label is
@@ -102,7 +125,7 @@ git rebase upstream/main superdesktop
 ```
 Done when: it runs clean on the empty fork.
 
-## Phase 1: hook and spike (0.5–1 d)
+## Phase 1: hook and spike (0.5–1 d) ✓
 
 **1.1 Module skeleton.** `settings.gradle.kts`: `include(":superdesktop")`.
 `superdesktop/build.gradle.kts`:
@@ -165,7 +188,7 @@ widget "SUPER DESKTOP" {
 - [x] Which neighbouring pages stay composed (log `DisposableEffect` enter and leave per id), to size the connection lifetime.
 - [x] A release build with R8 runs.
 
-## Phase 2: bridge client and pairing (1 d)
+## Phase 2: bridge client and pairing (1 d) ✓
 
 **2.1 Copy the client** into `superdesktop/src/main/kotlin/dev/gladimdim/superdesktop/bridge/`:
 `HarnessApi.kt` (without `BridgePrefs`), `BridgeTls.kt`, `BridgeConnection.kt`,

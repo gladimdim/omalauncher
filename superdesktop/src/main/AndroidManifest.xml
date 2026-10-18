@@ -1,2 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application>
+        <!-- Pairs this launcher with a SUPER DESKTOP computer; also takes superdesktop://pair links from the computer's QR. -->
+        <activity
+            android:name="dev.gladimdim.superdesktop.pair.PairingActivity"
+            android:exported="true"
+            android:label="Pair SUPER DESKTOP"
+            android:taskAffinity="com.gladimdim.sdlauncher.pair"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="superdesktop" android:host="pair" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

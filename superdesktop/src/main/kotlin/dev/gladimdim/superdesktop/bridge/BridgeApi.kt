@@ -1,0 +1,141 @@
+package dev.gladimdim.superdesktop.bridge
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import org.json.JSONObject
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+
+/** What GET /api/v1/ping says about a computer; needs no token. */
+data class PingInfo(
+    val hostname: String,
+    val version: Int,
+    val bridgeId: String,
+    val addresses: List<BridgeAddress>,
+)
+
+/**
+ * The SUPER DESKTOP bridge at [baseUrl], over HTTPS pinned to [pin] (PROTOCOL.md, wire v3).
+ * The parts of the SUPER DESKTOP app's HarnessApi a home page needs (see SOURCE.md).
+ */
+class BridgeApi(
+    private val baseUrl: String,
+    private val token: String,
+    private val pin: String,
+) {
+    init {
+        require(baseUrl.startsWith("https://")) { "Encrypted bridge URL required" }
+    }
+
+    private val client get() = BridgeTls.client(pin)
+    private val json = "application/json".toMediaType()
+
+    private fun authed(path: String) = Request.Builder().url("$baseUrl$path").header("Authorization", "Bearer $token")
+
+    /** The body as JSON; 401 is [NotPairedException], other failures the bridge's `error` code. */
+    private fun Response.json(): JSONObject {
+        val body = body?.string().orEmpty()
+        if (code == 401) throw NotPairedException()
+        val o = runCatching { JSONObject(body) }.getOrNull()
+        if (!isSuccessful) throw IOException(o?.optString("error")?.takeIf { it.isNotBlank() } ?: "HTTP $code")
+        return o ?: throw IOException("Not JSON")
+    }
+
+    suspend fun ping(timeoutMs: Long = 8000): PingInfo =
+        withContext(Dispatchers.IO) {
+            val request = Request.Builder().url("$baseUrl/api/v1/ping").build()
+            client.newBuilder().callTimeout(timeoutMs, TimeUnit.MILLISECONDS).build().newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
+                val o = JSONObject(response.body!!.string())
+                if (o.optString("service") != "Omarchy Harness Bridge") throw IOException("This address is not a SUPER DESKTOP computer")
+                PingInfo(
+                    hostname = o.optString("hostname", "computer"),
+                    version = o.optInt("protocolVersion", 0),
+                    bridgeId = o.optString("bridgeId"),
+                    addresses = parseAddresses(o.optJSONArray("addresses")),
+                )
+            }
+        }
+
+    suspend fun harnesses(): HarnessDocument =
+        withContext(Dispatchers.IO) {
+            client.newCall(authed("/api/v1/harnesses").build()).execute().use { parseHarnessDocument(it.json()) }
+        }
+
+    /** The harness list stream: every message is a whole [HarnessDocument]. The caller closes it. */
+    fun harnessStream(listener: WebSocketListener): WebSocket =
+        client.newWebSocket(
+            Request
+                .Builder()
+                .url("wss://" + baseUrl.substringAfter("://") + "/api/v1/harnesses/stream")
+                .header("Authorization", "Bearer $token")
+                .build(),
+            listener,
+        )
+
+    /** Types [text] into harness [id]'s terminal and, with [enter], submits it. At most 4 KiB. */
+    suspend fun sendKeys(
+        id: String,
+        text: String,
+        enter: Boolean = true,
+    ) = withContext(Dispatchers.IO) {
+        require(text.toByteArray().size <= 4096) { "Prompt is too long" }
+        val body = JSONObject().put("text", text).put("enter", enter).toString().toRequestBody(json)
+        client.newCall(authed("/api/v1/harnesses/$id/keys").post(body).build()).execute().use { it.json() }
+        Unit
+    }
+
+    /** Starts [agentType] in [workspace] (the computer's current one when null); returns the new harness id. */
+    suspend fun createHarness(
+        agentType: String,
+        workspace: String?,
+    ): String =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().put("agentType", agentType).apply { workspace?.let { put("workspace", it) } }.toString().toRequestBody(json)
+            client.newBuilder().retryOnConnectionFailure(false).build()
+                .newCall(authed("/api/v1/harnesses").post(body).build()).execute().use { it.json().getString("id") }
+        }
+
+    suspend fun closeHarness(id: String) =
+        withContext(Dispatchers.IO) {
+            client.newCall(authed("/api/v1/harnesses/$id").delete().build()).execute().use { it.json() }
+            Unit
+        }
+
+    /** Asks the computer to let this device in; the owner approves it there. Returns the request id and the code to compare. */
+    suspend fun requestPairing(
+        secret: String,
+        deviceName: String,
+    ): Pair<String, String> =
+        withContext(Dispatchers.IO) {
+            if (ping().version < 3) throw PairException("Update SUPER DESKTOP on the computer for secure pairing.")
+            val body = JSONObject().put("secret", secret).put("deviceType", "android").put("deviceName", deviceName).toString().toRequestBody(json)
+            client.newCall(Request.Builder().url("$baseUrl/api/v1/pair").post(body).build()).execute().use { response ->
+                val o = runCatching { JSONObject(response.body!!.string()) }.getOrNull()
+                if (!response.isSuccessful) throw PairException(o?.optString("error")?.takeIf { it.isNotBlank() } ?: "pairing failed")
+                if (o?.optString("status") != "pending" || !o.has("requestId")) {
+                    throw PairException("Update SUPER DESKTOP on the computer: it must approve this device.")
+                }
+                o.getString("requestId") to o.optString("code")
+            }
+        }
+
+    /** `pending`, `denied`, or `paired` with the token. */
+    suspend fun pollPairing(requestId: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().put("requestId", requestId).toString().toRequestBody(json)
+            client.newCall(Request.Builder().url("$baseUrl/api/v1/pair/poll").post(body).build()).execute().use { response ->
+                val o = runCatching { JSONObject(response.body!!.string()) }.getOrNull()
+                if (!response.isSuccessful) throw PairException(o?.optString("error")?.takeIf { it.isNotBlank() } ?: "Pairing failed")
+                o ?: throw PairException("Pairing failed")
+            }
+        }
+}
+
+fun Bridge.api(host: String = this.host) = BridgeApi(baseUrl(host), token, pin)

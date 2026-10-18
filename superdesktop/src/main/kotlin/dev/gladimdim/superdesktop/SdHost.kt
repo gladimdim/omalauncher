@@ -1,6 +1,8 @@
 package dev.gladimdim.superdesktop
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontFamily
@@ -47,4 +49,25 @@ interface SdHost {
 
     /** That text field lost focus. */
     fun fieldUnfocused()
+}
+
+/** The colors the tile last drew with, for SUPER DESKTOP's own screens; Tokyo Night until a tile has drawn. */
+internal object SdTheme {
+    var colors by androidx.compose.runtime.mutableStateOf(
+        SdColors(
+            isLight = false,
+            background = Color(0xFF1A1B26),
+            surface = Color(0xFF24283B),
+            foreground = Color(0xFFC0CAF5),
+            muted = Color(0xFF565F89),
+            accent = Color(0xFF7AA2F7),
+            border = Color(0xFF414868),
+            focusBorder = Color(0xFF7AA2F7),
+            red = Color(0xFFF7768E),
+            green = Color(0xFF9ECE6A),
+            yellow = Color(0xFFE0AF68),
+            ansi = emptyList(),
+        ),
+    )
+    var mono by androidx.compose.runtime.mutableStateOf<FontFamily>(FontFamily.Monospace)
 }
