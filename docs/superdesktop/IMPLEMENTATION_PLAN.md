@@ -112,7 +112,9 @@ Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/ja
 - **Lifecycle**: only the **current** page is composed. A neighbouring page is
   disposed as soon as you leave it. So live connections follow the visible
   page, with a grace period (2.4).
-- **Release build**: R8-minified release runs and draws the tile.
+- **Release build**: R8-minified release runs and draws the tile. Since phase 2 it
+  needs the module's `consumer-rules.pro` (Tink's Error Prone annotations, its
+  protobuf fields); checked again after phase 5 with a live terminal.
 - **Not checked**: landscape and unfolded foldables (no foldable at hand).
 
 ## Facts the plan relies on
