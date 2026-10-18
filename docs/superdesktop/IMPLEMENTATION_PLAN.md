@@ -23,7 +23,27 @@ Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/ja
 - [x] Phase 2: bridge client, encrypted store, pairing, live feed. Paired with
   gladimdim-rog (SUPER DESKTOP 1.7.1) on 2026-10-18; the page shows its
   harnesses and usage live, and a tap opens the harness in the SUPER DESKTOP app.
-- [ ] Phase 3 next: per-page settings, new pages, create and close harnesses.
+- [x] Phase 3: per-page settings (computers, every harness or one), new pages,
+  start and close harnesses, one-harness view with a prompt. Checked on the
+  phone against gladimdim-rog: started a Terminal, pinned a page to it, sent a
+  command, closed it after the in-card confirmation.
+- [ ] Phase 4 next: the live terminal in the tile.
+
+### Phase 3 notes
+
+- Settings are an overlay inside the tile (`Panels.kt`), not a new screen, so the
+  page stays on the home screen. They're stored per `id` in plain preferences
+  (`SdPages`); a page always shows at least one computer, and "all" is stored as
+  null so computers paired later show up too.
+- "＋ new SUPER DESKTOP page" writes `superdesktop-<id>.owl` asking for page 2;
+  the launcher moves it to a new last page and **jumps to it**, rebuilding the
+  tile that asked. So the new page carries the note ("⚙ picks its computers and
+  harness"), kept in a process-wide map for five seconds.
+- Closing asks inside the card first (red frame, "keep" / "close").
+- Actions go to the address the live feed reached last (`SdLive.api`).
+- The one-harness view still shows the preview text; phase 4 swaps in the
+  terminal. Its prompt goes through `POST /keys` with Enter, and lands on top of
+  whatever is already typed on that terminal's command line.
 
 ### Phase 2 notes
 
@@ -229,7 +249,7 @@ makes the tile show "not paired".
 Tests: the parser against a captured document (save one from a real bridge
 into `src/test/resources`), and the ref counting.
 
-## Phase 3: overview page (1.5–2 d)
+## Phase 3: overview page (1.5–2 d) ✓
 
 **3.1 `ui/OverviewPane.kt`**:
 - a usage strip: one compact bar per provider from `usage[]`;

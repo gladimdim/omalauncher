@@ -79,6 +79,29 @@ class BridgeApi(
             listener,
         )
 
+    /** What the computer can start, and its current workspace. */
+    suspend fun harnessTypes(): Pair<List<HarnessType>, String> =
+        withContext(Dispatchers.IO) {
+            client.newCall(authed("/api/v1/harness-types").build()).execute().use { response ->
+                val root = response.json()
+                val types = root.optJSONArray("types")
+                (0 until (types?.length() ?: 0)).mapNotNull { i ->
+                    val o = types?.optJSONObject(i) ?: return@mapNotNull null
+                    HarnessType(o.optString("id"), o.optString("name", o.optString("id")), o.optBoolean("available"))
+                } to root.optString("workspace")
+            }
+        }
+
+    /** Folders worth offering for a new harness: the current one, recent ones, then ones harnesses ran in. */
+    suspend fun workspaces(): List<String> =
+        withContext(Dispatchers.IO) {
+            client.newCall(authed("/api/v1/workspaces").build()).execute().use { response ->
+                val root = response.json()
+                fun list(key: String) = root.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
+                (listOf(root.optString("workspace")) + list("recentDirectories") + list("usedDirectories")).filter { it.isNotBlank() }.distinct()
+            }
+        }
+
     /** Types [text] into harness [id]'s terminal and, with [enter], submits it. At most 4 KiB. */
     suspend fun sendKeys(
         id: String,
