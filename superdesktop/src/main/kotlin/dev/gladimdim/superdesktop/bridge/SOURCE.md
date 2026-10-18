@@ -9,6 +9,9 @@ Ported from the SUPER DESKTOP Android app, `~/GitHub/OmarchyAILauncher`
 | `HarnessFeedPolicy.kt` | `HarnessFeed.kt` | copied |
 | `Invitation.kt` | `PairingLink.kt` | `decodePairingInvitation` copied, `Invitation` added |
 | `BridgeApi.kt` | `HarnessApi.kt` | the calls a home page needs: ping, pairing, harnesses, keys, create, close; no Pro gating, images, assets or editor actions |
+| `terminal/TerminalViewport.kt` | `TerminalViewport.kt` | copied |
+| `terminal/TerminalAnsi.kt` | `TerminalAnsi.kt` | parser copied, Compose spans instead of Android spans |
+| `pair/QrScanActivity.kt` | `QrScanActivity.kt` | copied, insets via AndroidX |
 | `Model.kt` | `HarnessApi.kt`, `BridgeConnection.kt`, `UsageHeader.kt` | slimmer models and parsers of the same JSON |
 
 Protocol: `PROTOCOL.md` in that repository (wire v3). When the app's client

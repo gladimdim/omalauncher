@@ -104,7 +104,8 @@ class BridgeApi(
 
     /**
      * Harness [id]'s live pane: a frame with `tailAnsi` (its last 300 lines, colors included) whenever it changes,
-     * then `status: EXITED` and a close once the session ends. The caller closes it.
+     * then `status: EXITED` and a close once the session ends. With `viewport=1` a computer that can size the pane
+     * says so in each frame, and takes `{"type":"viewport",…}` messages on this socket. The caller closes it.
      */
     fun terminalStream(
         id: String,
@@ -113,7 +114,7 @@ class BridgeApi(
         client.newWebSocket(
             Request
                 .Builder()
-                .url("wss://" + baseUrl.substringAfter("://") + "/api/v1/harnesses/$id/stream?ansiOnly=1")
+                .url("wss://" + baseUrl.substringAfter("://") + "/api/v1/harnesses/$id/stream?ansiOnly=1&viewport=1")
                 .header("Authorization", "Bearer $token")
                 .build(),
             listener,

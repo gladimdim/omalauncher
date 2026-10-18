@@ -44,6 +44,8 @@ import dev.gladimdim.superdesktop.bridge.PairException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import androidx.lifecycle.lifecycleScope
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,12 +78,30 @@ class PairingActivity : ComponentActivity() {
     private var step by mutableStateOf<Step>(Step.Enter(""))
     private var job: Job? = null
 
+    /** A scanned QR is the user's own act, so pairing starts right away; approval still happens on the computer. */
+    private val scanner =
+        registerForActivityResult(ScanContract()) { result ->
+            result.contents?.let { pair(it) }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         take(intent)
         setContent { Screen() }
+        // Opened to pair a new computer: go straight to the camera; back from it shows paste as the alternative.
+        if (savedInstanceState == null && intent?.getBooleanExtra(EXTRA_SCAN, false) == true && intent?.data == null) scan()
     }
+
+    private fun scan() =
+        scanner.launch(
+            ScanOptions()
+                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                .setPrompt("Scan the QR in SUPER DESKTOP → ⚙ Settings → Connections → Add a device → Pair a phone")
+                .setBeepEnabled(false)
+                .setOrientationLocked(false)
+                .setCaptureActivity(QrScanActivity::class.java),
+        )
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -149,12 +169,14 @@ class PairingActivity : ComponentActivity() {
                 is Step.Enter -> {
                     Label("Pair a computer", c.foreground, 16)
                     Label(
-                        "On the computer, open SUPER DESKTOP → Settings → Android and show the pairing code, " +
-                            "or run `super-desktop connection invite`. Scan its QR with the camera, or paste the " +
-                            "superdesktop://pair link or the invitation here.",
+                        "On the computer, open SUPER DESKTOP → ⚙ Settings → Connections → Add a device → Pair a phone, " +
+                            "and scan the QR it shows.",
                         c.muted,
                         13,
                     )
+                    Button("scan QR", c.background, c.accent, filled = true) { scan() }
+                    s.error?.let { Label(it, c.red, 13) }
+                    Label("Or paste its superdesktop://pair link (or `super-desktop connection invite`'s invitation):", c.muted, 13)
                     BasicTextField(
                         value = s.text,
                         onValueChange = { step = Step.Enter(it) },
@@ -162,13 +184,12 @@ class PairingActivity : ComponentActivity() {
                         cursorBrush = SolidColor(c.accent),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp).border(1.dp, c.border).padding(10.dp),
                     )
-                    s.error?.let { Label(it, c.red, 13) }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button("paste", c.foreground, c.border) {
                             val clip = (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
                             clip?.getItemAt(0)?.coerceToText(this@PairingActivity)?.toString()?.let { step = Step.Enter(it) }
                         }
-                        Button("connect", c.background, c.accent, filled = true) { pair(s.text) }
+                        Button("connect", c.foreground, c.border) { pair(s.text) }
                     }
                 }
                 Step.Connecting -> Label("Reaching the computer…", c.muted, 14)
@@ -211,4 +232,9 @@ class PairingActivity : ComponentActivity() {
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     ) { Label(text, color, 14) }
+
+    companion object {
+        /** Opens the camera right away, as "pair a computer" does. */
+        const val EXTRA_SCAN = "dev.gladimdim.superdesktop.SCAN"
+    }
 }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -25,5 +26,17 @@
                 <data android:scheme="superdesktop" android:host="pair" />
             </intent-filter>
         </activity>
+        <!-- Scans the computer's pairing QR: zxing's scanner, edge to edge and free to rotate. -->
+        <activity
+            android:name="dev.gladimdim.superdesktop.pair.QrScanActivity"
+            android:exported="false"
+            android:stateNotNeeded="true"
+            android:taskAffinity="com.gladimdim.sdlauncher.pair"
+            android:theme="@android:style/Theme.Black.NoTitleBar"
+            android:windowSoftInputMode="stateAlwaysHidden" />
+        <!-- zxing's own scanner is unused (QrScanActivity replaces it); drop its landscape lock. -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            tools:remove="android:screenOrientation" />
     </application>
 </manifest>

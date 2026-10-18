@@ -146,6 +146,21 @@ unchanged, so only visible, new lines are laid out (one 300-line `BasicText` was
 the main cost). Keying lines by content measured worse (13–16% janky in debug,
 against 9% by position), so lines are keyed by position.
 
+### Terminal sizing and QR pairing (2026-10-18)
+
+- Terminal panes ask the computer to size the pane to the tile (`?viewport=1`,
+  `{"type":"viewport","columns","rows"}`, renewed every 10 s, released on leave),
+  as the SUPER DESKTOP app does (`terminal/TerminalViewport.kt`, ported). The grid
+  is the tile's inner size at the readable 11 sp font, with the real cell width
+  measured from the font, sent after 150 ms of calm. Several tiles on one harness
+  share the stream; the newest size wins. Checked on the phone: a 76×22 pane
+  became 51×30 while the tile showed it and went back to 76×22 on Back. It is the
+  shared tmux pane, so the desktop card follows the phone's size meanwhile.
+- Pairing scans the computer's QR (`pair/QrScanActivity`, zxing-android-embedded
+  4.3.0 as in the app); "pair a computer" opens the camera directly, and a scan
+  starts pairing at once (approval still happens on the computer). Pasting a link
+  stays as the fallback. The camera permission is asked on first scan.
+
 ## Facts the plan relies on
 
 Checked against upstream `06d4b48` (Release 0.8.1):
