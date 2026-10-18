@@ -91,3 +91,13 @@ dependencies {
     // android.jar only has stubs of org.json.
     testImplementation(libs.org.json)
 }
+
+// Fork: SD Launcher's own version, independent of Omalauncher's (whose versionName stays above).
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach {
+            it.versionName.set("1.0.0")
+            it.versionCode.set(100)
+        }
+    }
+}
