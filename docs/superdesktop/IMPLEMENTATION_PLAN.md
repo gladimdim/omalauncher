@@ -128,6 +128,24 @@ Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/ja
   protobuf fields); checked again after phase 5 with a live terminal.
 - **Not checked**: landscape and unfolded foldables (no foldable at hand).
 
+### Performance (2026-10-18)
+
+Measured on the phone (Xiaomi 2602BPC18G, Android 16) with `dumpsys gfxinfo`: a
+shell printing a colored 60-byte line every 50 ms, open in a page's terminal, 10 s
+idle plus 4 up-and-down scrolls, same script per build. Release (R8) builds:
+
+| build | frames | janky | median | 90th | 99th |
+|---|---|---|---|---|---|
+| before (`2d073bb`) | 1010 / 1094 | 36.2% / 34.2% | 57 / 53 ms | 97 ms | 105 ms |
+| after | 2390 / 2388 | 4.3% / 4.9% | 7 ms | 24 / 26 ms | 34 ms |
+
+What did it: frames parsed and styled off the main thread (`SdTerminals`, one
+stream per harness); at most one layout per 80 ms; and drawing the terminal as a
+`LazyColumn` of per-line `AnnotatedString`s that keep their instance while
+unchanged, so only visible, new lines are laid out (one 300-line `BasicText` was
+the main cost). Keying lines by content measured worse (13–16% janky in debug,
+against 9% by position), so lines are keyed by position.
+
 ## Facts the plan relies on
 
 Checked against upstream `06d4b48` (Release 0.8.1):

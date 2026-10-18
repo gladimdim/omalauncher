@@ -8,10 +8,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -51,9 +55,9 @@ private val MIN_SP = 7f
 /** A monospace cell is about this much of the font size wide. */
 private const val CELL_EM = 0.6f
 
-/** A frame ready to draw: its styled text and the width of its widest line, in cells. */
+/** A frame ready to draw: its styled lines (unchanged ones keep their instance) and the width of its widest, in cells. */
 private class Rendered(
-    val text: AnnotatedString,
+    val lines: List<AnnotatedString>,
     val columns: Int,
 )
 
@@ -93,7 +97,7 @@ internal fun TerminalPane(
             delay(FRAME_MS)
         }
     }
-    val text = rendered?.text ?: AnnotatedString("")
+    val lines = rendered?.lines.orEmpty()
     val columns = rendered?.columns ?: 80
 
     val shape = host.shape(8.dp)
@@ -105,27 +109,29 @@ internal fun TerminalPane(
         val density = LocalDensity.current
         val fit = with(density) { ((maxWidth - 16.dp).toPx() / (columns * CELL_EM)).toSp().value }
         val size = fit.coerceIn(MIN_SP, MAX_SP).sp
-        val vertical = rememberScrollState()
+        val style = remember(c.foreground, host.mono, size) { TextStyle(color = c.foreground, fontFamily = host.mono, fontSize = size, lineHeight = size * 1.25f) }
+        // Wide enough for the widest line (with a margin for the font's real advance), so panning reaches its end.
+        val contentWidth = maxOf(maxWidth, with(density) { (columns * CELL_EM * size.toPx() * 1.08f).toDp() } + 16.dp)
+        val list = rememberLazyListState()
         val horizontal = rememberScrollState()
         // Follow new output while at the bottom; stay put once scrolled up to read.
         var follow by remember { mutableStateOf(true) }
-        LaunchedEffect(vertical.isScrollInProgress) {
-            if (!vertical.isScrollInProgress) follow = vertical.value >= vertical.maxValue - 80
+        LaunchedEffect(list.isScrollInProgress) {
+            if (!list.isScrollInProgress) follow = !list.canScrollForward
         }
-        LaunchedEffect(text, vertical.maxValue) { if (follow) vertical.scrollTo(vertical.maxValue) }
+        LaunchedEffect(lines, follow) { if (follow && lines.isNotEmpty()) list.scrollToItem(lines.lastIndex) }
 
         Box(
             Modifier
                 .fillMaxSize()
                 .clickable(enabled = !active, indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onActivate)
-                .verticalScroll(vertical),
+                .horizontalScroll(horizontal, enabled = active),
         ) {
-            BasicText(
-                text,
-                Modifier.horizontalScroll(horizontal, enabled = active).padding(8.dp),
-                style = TextStyle(color = c.foreground, fontFamily = host.mono, fontSize = size, lineHeight = size * 1.25f),
-                softWrap = false,
-            )
+            // Only the lines on screen are composed and laid out; an unchanged line is skipped.
+            LazyColumn(Modifier.width(contentWidth).fillMaxHeight(), state = list, contentPadding = PaddingValues(8.dp)) {
+                // Keyed by position: content keys measured slower on a phone (more list bookkeeping per frame).
+                items(lines.size) { i -> BasicText(lines[i], style = style, softWrap = false, maxLines = 1) }
+            }
         }
         when {
             terminal.ended -> Badge("session ended", host, c.muted, Modifier.align(Alignment.Center))
@@ -153,7 +159,7 @@ private fun render(
 ): Rendered {
     val lines = tail.split('\n').dropLastWhile { TerminalAnsi.plain(it).isBlank() }
     val columns = lines.maxOfOrNull { TerminalAnsi.plain(it).length }?.coerceIn(20, 300) ?: 80
-    return Rendered(renderer.render(lines.joinToString("\n")), columns)
+    return Rendered(renderer.renderLines(lines), columns)
 }
 
 /** Tokyo Night's terminal colors, for a launcher palette without all sixteen. */
