@@ -1,0 +1,94 @@
+name: sd-sync
+
+# Fork: brings upstream Omalauncher in under the SUPER DESKTOP branch every week (or on demand).
+# main mirrors SimonSchubert/omalauncher; superdesktop is rebased onto it, built and tested, then pushed.
+# A conflict or a failing test opens an issue instead, and nothing is pushed.
+#
+# GitHub runs scheduled and manual workflows from the default branch only, so this one runs once the fork's
+# default branch is superdesktop (gh repo edit gladimdim/omalauncher --default-branch superdesktop).
+#
+# Pushing commits that change upstream's own workflow files needs a token with the "workflow" scope:
+# add one as the SD_SYNC_TOKEN secret. Without it the default token is used, which GitHub refuses
+# for such pushes; the job then fails and opens an issue saying so.
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency: sd-sync
+
+jobs:
+  sync:
+    # Only the fork has the superdesktop branch to keep in step.
+    if: github.repository != 'SimonSchubert/omalauncher'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: superdesktop
+          fetch-depth: 0
+          token: ${{ secrets.SD_SYNC_TOKEN || github.token }}
+
+      - name: Rebase onto upstream
+        id: rebase
+        run: |
+          git config user.name 'sd-sync'
+          git config user.email 'sd-sync@users.noreply.github.com'
+          git remote add upstream https://github.com/SimonSchubert/omalauncher.git
+          git fetch upstream main
+          before=$(git rev-parse HEAD)
+          if ! git rebase upstream/main; then
+            git rebase --abort
+            echo "failure=Rebasing superdesktop onto upstream main conflicts. Rebase it by hand: scripts/sd-sync.sh" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "changed=$([ "$(git rev-parse HEAD)" != "$before" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        if: steps.rebase.outputs.changed == 'yes'
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.rebase.outputs.changed == 'yes'
+
+      # The NDK app/build.gradle.kts pins, as upstream's ci.yml installs it.
+      - name: Install the NDK
+        if: steps.rebase.outputs.changed == 'yes'
+        run: |
+          ndk=$(sed -n 's/^NDK_VERSION=//p' scripts/fetch-proot.sh)
+          [ -d "$ANDROID_HOME/ndk/$ndk" ] || yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ndk" >/dev/null
+
+      - name: Test and build
+        if: steps.rebase.outputs.changed == 'yes'
+        run: ./gradlew :owl:test :app:testDebugUnitTest :superdesktop:testDebugUnitTest :app:assembleDebug
+
+      - name: Push
+        if: steps.rebase.outputs.changed == 'yes'
+        run: |
+          git push origin upstream/main:main
+          git push --force-with-lease=superdesktop origin HEAD:superdesktop
+
+      - uses: actions/upload-artifact@v4
+        if: steps.rebase.outputs.changed == 'yes'
+        with:
+          name: sd-launcher-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Open an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REASON: ${{ steps.rebase.outputs.failure || 'Building or testing the rebased superdesktop branch failed, or pushing it was refused.' }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "sd-sync failed $(date -u +%Y-%m-%d)" \
+            --body "$REASON
+
+          Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          Upstream main: $(git rev-parse --short upstream/main 2>/dev/null || echo unknown)"
