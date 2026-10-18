@@ -28,11 +28,13 @@ class SdColors(
 )
 
 /**
- * What a SUPER DESKTOP tile needs from the launcher. The launcher implements it
+ * What a SUPER DESKTOP tile needs from the launcher. Stable: one instance per tile, whose
+ * [colors] change only through snapshot state, so tiles that get it can skip recomposition. The launcher implements it
  * (SdHook.kt in the app), so this module never depends on launcher classes.
  */
+@androidx.compose.runtime.Stable
 interface SdHost {
-    /** Read in composition: follows theme changes. */
+    /** Read in composition: follows theme changes. The same instance until the theme or style changes. */
     val colors: SdColors
 
     /** The launcher's monospace font. */

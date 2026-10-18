@@ -3,6 +3,7 @@ package dev.omalauncher.widgets.render
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,7 +35,9 @@ internal fun SdElement(
             object : SdHost {
                 private var field: TileField? = null
 
-                override val colors get() = sdColors()
+                // Derived once per theme or style change, not on every read: tiles read it many times a frame.
+                private val derived = derivedStateOf { sdColors() }
+                override val colors get() = derived.value
                 override val mono: FontFamily get() = LauncherStyle.font
 
                 override fun shape(radius: Dp): Shape = LauncherStyle.shape(radius)
