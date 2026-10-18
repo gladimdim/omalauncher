@@ -22,7 +22,7 @@ internal class DrawOp(
 internal val KINDS: Map<String, Kind> =
     mapOf(
         // Fork: SUPER DESKTOP, drawn by the :superdesktop module.
-        "SuperDesktop" to Kind(setOf("id"), Children.NONE),
+        "SuperDesktop" to Kind(setOf("id", "kind"), Children.NONE),
         "Column" to Kind(setOf("gap", "align", "justify", "scroll"), Children.UI),
         "Row" to Kind(setOf("gap", "align", "justify", "wrap"), Children.UI),
         "Flow" to Kind(setOf("gap", "align", "justify"), Children.UI),

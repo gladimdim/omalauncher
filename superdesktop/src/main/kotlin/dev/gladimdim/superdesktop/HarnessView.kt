@@ -41,6 +41,7 @@ internal fun HarnessView(
     onOpen: (Bridge, Harness) -> Unit,
     onKeys: (Bridge, Harness, String, Boolean, () -> Unit) -> Unit,
     leave: (() -> Unit)?,
+    onWidget: ((Bridge, Harness) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val c = host.colors
@@ -76,6 +77,7 @@ internal fun HarnessView(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (leave != null) Action(leaveLabel, host, onClick = leave)
             Action("open in app", host) { onOpen(b, h) }
+            if (onWidget != null) Action("＋ widget", host) { onWidget(b, h) }
         }
     }
 }

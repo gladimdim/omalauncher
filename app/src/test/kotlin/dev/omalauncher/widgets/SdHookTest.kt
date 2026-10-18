@@ -32,6 +32,19 @@ class SdHookTest {
         }
     }
 
+    @Test fun terminalWidgetsCompile() {
+        val dir = kotlin.io.path.createTempDirectory("sd").toFile()
+        try {
+            val id = dev.gladimdim.superdesktop.SdPages.newId()
+            dev.gladimdim.superdesktop.SdPages.newTerminalWidget(android.app.Application(), dir, id = id)
+            Compiler.compile(File(dir, "superdesktop-terminal-$id.owl").readText())
+        } catch (e: CompileError) {
+            fail("a SUPER DESKTOP terminal widget doesn't compile: ${e.message}")
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun elementTakesOnlyItsId() {
         val err = runCatching { Compiler.compile(page.replace("{ id: \"home\" }", "{ id: \"home\"; color: accent }")) }.exceptionOrNull()
         assertTrue("SuperDesktop should reject properties it doesn't draw", err is CompileError)
