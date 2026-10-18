@@ -1,0 +1,12 @@
+widget "SUPER DESKTOP" {
+  page: 2
+  size: 9x99
+  minSize: 4x4
+  padding: 0
+
+  meta { owl: 9; description: "Your SUPER DESKTOP computers and their AI terminals, as a whole home page."; version: "0.1"; license: "MIT"; category: "tools" }
+
+  // Fork: drawn by the :superdesktop module. It fills its page; a full page goes to the next one with room.
+  // The id keys this page's settings (which computers, which terminal), so a copy needs an id of its own.
+  SuperDesktop { id: "home" }
+}

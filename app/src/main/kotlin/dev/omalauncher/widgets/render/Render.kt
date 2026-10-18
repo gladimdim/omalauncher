@@ -321,6 +321,7 @@ private fun Element(
     val mod = common(p, if (el.kind == "Popup") null else parent)
     val sized = SIZING.any { p.has(it) }
     when (el.kind) {
+        "SuperDesktop" -> SdElement(p, mod)
         "Column" -> {
             val gap = (p.observe("gap")?.num() ?: 4.0).dp
             val align = p.observe("align")?.toString()

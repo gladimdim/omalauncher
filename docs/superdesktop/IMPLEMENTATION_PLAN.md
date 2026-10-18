@@ -12,6 +12,37 @@ Branches on `origin` (gladimdim/omalauncher):
 Source of the bridge client: `~/GitHub/OmarchyAILauncher/android/app/src/main/java/com/omarchy/ailauncher/`
 (called **SD** below). Bridge protocol: `~/GitHub/OmarchyAILauncher/PROTOCOL.md` (wire v3).
 
+## Status
+
+- [x] Phase 0: fork builds; `dev.omalauncher.sd`, named "SD Launcher" (via
+  `app/src/{debug,release}/AndroidManifest.xml` overlays, no main manifest edit);
+  `scripts/sd-sync.sh`.
+- [x] Phase 1: hook, `:superdesktop` module, placeholder tile, checked on a
+  Xiaomi 2602BPC18G (Android 16). Findings below.
+- [x] 5.1 guard test (`SdHookTest`), done early.
+- [ ] Phase 2 next: bridge client and pairing.
+
+### Phase 1 findings (2026-10-18)
+
+- **Adding a page**: the launcher has no gallery for bundled examples (long-press
+  on home offers "create with an agent", the store, themes and settings). So the
+  page ships as a default widget, `assets/widgets/90-superdesktop.owl`
+  (`id: "home"`). Defaults are written on every start, existing installs too,
+  and never come back once deleted. More pages come from the tile's own
+  "＋ New page" (3.4).
+- **Placement**: a file asking for a full page (`page: 2`) goes to the next page
+  with room. `9x99` is clamped to the grid: 357×606 dp on this phone, all grid
+  rows. The space under it is the launcher's recent-apps strip.
+- **Gestures**: horizontal swipes over the tile turn pages both ways; vertical
+  scroll inside works; nothing in the tile fights long-press.
+- **Keyboard**: the `TileField` handover works. The tile gets the accent focus
+  border and shrinks above the keyboard (606 → 436 dp); Back releases it.
+- **Lifecycle**: only the **current** page is composed. A neighbouring page is
+  disposed as soon as you leave it. So live connections follow the visible
+  page, with a grace period (2.4).
+- **Release build**: R8-minified release runs and draws the tile.
+- **Not checked**: landscape and unfolded foldables (no foldable at hand).
+
 ## Facts the plan relies on
 
 Checked against upstream `06d4b48` (Release 0.8.1):
@@ -25,7 +56,7 @@ Checked against upstream `06d4b48` (Release 0.8.1):
   (`KINDS`), drawn by `when (el.kind)` in `Element()`,
   `app/src/main/kotlin/dev/omalauncher/widgets/render/Render.kt:255`.
   `Terminal` (`Render.kt:427`) is the precedent: a native view in a tile.
-- `ExamplesTest` compiles every file in `assets/widgets/examples`.
+- `ExamplesTest` compiles every `.owl` file under `assets/widgets`.
   `readmeNamesEveryBuiltinAndAction` checks builtins and actions only, not
   element kinds, so the README needs no edit.
 - Text fields on tiles hand the keyboard over through `LocalHomeTiles` and
@@ -113,7 +144,7 @@ interface SdHost {
 
 **1.4 Spike tile.** `SuperDesktopTile` draws a placeholder: the id, the
 tile size, a scrollable column of 50 rows in theme colors, one text field.
-Example `app/src/main/assets/widgets/examples/sd-page.owl`:
+Shipped as the default widget `app/src/main/assets/widgets/90-superdesktop.owl` (see findings):
 ```
 widget "SUPER DESKTOP" {
   meta { owl: 9; description: "SUPER DESKTOP harnesses on a home page" }
@@ -126,13 +157,13 @@ widget "SUPER DESKTOP" {
 `version`, `license` or `category`.)
 
 **1.5 Verify, and write down the answers in DESIGN.md:**
-- [ ] How the user adds an example to home (the gallery flow), and whether adding it twice works.
-- [ ] `9x99` fills the page in portrait, landscape and on an unfolded foldable, and doesn't push extra rows onto the page. If it does, find the real clamp and pick the size from `cols`/`rows`.
-- [ ] Horizontal swipes over the tile still turn pages; vertical scroll works.
-- [ ] The text field gets the keyboard, the tile lifts above it, and tapping outside releases it.
-- [ ] The theme changes live.
-- [ ] Which neighbouring pages stay composed (log `DisposableEffect` enter and leave per id), to size the connection lifetime.
-- [ ] A release build with R8 runs.
+- [x] How the user adds an example to home (the gallery flow), and whether adding it twice works.
+- [x] `9x99` fills the page in portrait, landscape and on an unfolded foldable, and doesn't push extra rows onto the page. If it does, find the real clamp and pick the size from `cols`/`rows`.
+- [x] Horizontal swipes over the tile still turn pages; vertical scroll works.
+- [x] The text field gets the keyboard, the tile lifts above it, and tapping outside releases it.
+- [ ] The theme changes live. (Not tried yet; colors are read from `Palette.current`, which is snapshot state.)
+- [x] Which neighbouring pages stay composed (log `DisposableEffect` enter and leave per id), to size the connection lifetime.
+- [x] A release build with R8 runs.
 
 ## Phase 2: bridge client and pairing (1 d)
 
@@ -167,7 +198,9 @@ makes the tile show "not paired".
   the tiles collecting it;
 - while anything collects, one `WS /api/v1/harnesses/stream` per PC; on
   failure, poll `GET /api/v1/harnesses` every 5 s with SD's back-off;
-- close all sockets 10 s after the last collector leaves or on `ON_STOP`;
+- close all sockets 10 s after the last collector leaves or on `ON_STOP`.
+  Only the visible page is composed, so the grace period is what keeps a quick
+  swipe away and back from reconnecting;
 - reuse one OkHttp client per pinned PC.
 
 Tests: the parser against a captured document (save one from a real bridge
@@ -250,7 +283,7 @@ screen, and swiping away and back resumes within a second.
 
 ## Phase 5: hardening and sync automation (0.5–1 d)
 
-**5.1 Guard test**, `app/src/test/.../SdHookTest.kt`: compile `sd-page.owl`,
+**5.1 Guard test**, `app/src/test/.../SdHookTest.kt`: compile `90-superdesktop.owl`,
 assert it has a `SuperDesktop` element, and assert `Schema.KINDS` contains
 it. It fails right after a rebase that lost the hook.
 

@@ -18,7 +18,7 @@ android {
     ndkVersion = prootNdk
 
     defaultConfig {
-        applicationId = "dev.omalauncher"
+        applicationId = "dev.omalauncher.sd"
         minSdk = 29
         targetSdk = 37
         versionCode = 17
@@ -86,6 +86,7 @@ dependencies {
     implementation(libs.androidsvg)
     implementation(libs.zxing.core)
     implementation(project(":owl"))
+    implementation(project(":superdesktop"))
     testImplementation(libs.junit)
     // android.jar only has stubs of org.json.
     testImplementation(libs.org.json)
