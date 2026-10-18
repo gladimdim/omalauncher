@@ -21,6 +21,8 @@ internal class DrawOp(
 /** Nodes: their own properties, and what they may contain. */
 internal val KINDS: Map<String, Kind> =
     mapOf(
+        // Fork: SUPER DESKTOP, drawn by the :superdesktop module.
+        "SuperDesktop" to Kind(setOf("id"), Children.NONE),
         "Column" to Kind(setOf("gap", "align", "justify", "scroll"), Children.UI),
         "Row" to Kind(setOf("gap", "align", "justify", "wrap"), Children.UI),
         "Flow" to Kind(setOf("gap", "align", "justify"), Children.UI),

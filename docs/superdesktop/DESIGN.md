@@ -89,8 +89,10 @@ launcher's FileObserver loads it within a second.
 | `owl/…/lang/Schema.kt` | `"SuperDesktop" to Kind(setOf("id"), Children.NONE)` as the **first** entry of `KINDS` (upstream appends new kinds at the end, so the first line rarely conflicts) |
 | `app/…/widgets/render/Render.kt` | one branch, first in `Element`'s `when`: `"SuperDesktop" -> SdElement(p, inst, mod)`, where `SdElement` lives in a fork-only file in `app/` (`widgets/render/SdHook.kt`) and adapts launcher types (Palette, LocalHomeTiles, widgets dir) to the module's `SdHost` |
 
-Plus a new asset, `assets/widgets/examples/sd-page.owl`, so the page shows in
-the add-widget gallery. It is a new file, so it never conflicts.
+Plus a new asset, `assets/widgets/90-superdesktop.owl`: a default widget, so
+the launcher writes it into the widgets folder on start (new and existing
+installs) and never brings it back once deleted. It is a new file, so it never
+conflicts. (The launcher has no gallery for bundled examples.)
 `SdHook.kt` is also a new file: it can break when upstream renames launcher
 types, but it can't conflict.
 
@@ -110,7 +112,8 @@ Rules that keep the diff small:
   (home arrange owns it) and horizontal drags outside a focused terminal
   (page swipes own them).
 - **Live only when visible**: open sockets while the page is composed (the
-  current page and its neighbours), close on `ON_STOP`. One stream per PC
+  current page only: Omalauncher disposes every other page), close 10 s after
+  the page leaves and on `ON_STOP`. One stream per PC
   however many pages show it.
 - **TLS**: reuse BridgeTls: pinned SHA-256 of the leaf cert, hostname
   `super-desktop.local`. Tokens are encrypted at rest; never written into
@@ -156,7 +159,7 @@ What can break, and where to look:
 - The grid's size clamping changes: the page file's `size: 9x99` may need a
   new value.
 
-A test in `:app` that compiles `sd-page.owl` and checks that `SuperDesktop` is
+A test in `:app` that compiles `90-superdesktop.owl` and checks that `SuperDesktop` is
 a known element catches the first and third cases right after a rebase.
 
 ## Open decisions
