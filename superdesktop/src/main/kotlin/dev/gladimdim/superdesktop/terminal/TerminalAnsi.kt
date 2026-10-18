@@ -116,6 +116,49 @@ internal class AnsiRenderer(
 
     private var entries = HashMap<Key, Entry>()
 
+    /** Styled lines of the last [renderLines], by their key: an unchanged line keeps its instance, so a list can skip it. */
+    private var lineTexts = HashMap<Key, AnnotatedString>()
+
+    /**
+     * [lines] styled one by one. A line seen in the last frame with the same text and starting style returns the
+     * same [AnnotatedString] instance as then, so only new lines cost anything to draw.
+     */
+    fun renderLines(lines: List<String>): List<AnnotatedString> {
+        val next = HashMap<Key, Entry>(entries.size.coerceAtLeast(16))
+        val nextTexts = HashMap<Key, AnnotatedString>(lineTexts.size.coerceAtLeast(16))
+        var style = TerminalAnsi.Style()
+        val out = ArrayList<AnnotatedString>(lines.size)
+        for (line in lines) {
+            val key = Key(style, line)
+            val entry =
+                next[key] ?: entries[key] ?: run {
+                    val runs = ArrayList<TerminalAnsi.Run>()
+                    Entry(runs, TerminalAnsi.parseInto(line, style, palette, runs))
+                }
+            next[key] = entry
+            val text = nextTexts[key] ?: lineTexts[key] ?: buildAnnotatedString { appendRuns(entry.runs) }
+            nextTexts[key] = text
+            out += text
+            style = entry.end
+        }
+        entries = next
+        lineTexts = nextTexts
+        return out
+    }
+
+    private fun AnnotatedString.Builder.appendRuns(runs: List<TerminalAnsi.Run>) {
+        for (r in runs) {
+            val s = r.style
+            val fg = if (s.inverse) s.background ?: background else s.foreground
+            val bg = if (s.inverse) s.foreground ?: foreground else s.background
+            if (fg == null && bg == null && !s.bold) {
+                append(r.text)
+            } else {
+                withStyle(SpanStyle(color = fg ?: Color.Unspecified, background = bg ?: Color.Unspecified, fontWeight = if (s.bold) FontWeight.Bold else null)) { append(r.text) }
+            }
+        }
+    }
+
     fun render(value: String): AnnotatedString {
         val next = HashMap<Key, Entry>(entries.size.coerceAtLeast(16))
         var style = TerminalAnsi.Style()
@@ -129,16 +172,7 @@ internal class AnsiRenderer(
                         Entry(runs, TerminalAnsi.parseInto(line, style, palette, runs))
                     }
                 next[key] = entry
-                for (r in entry.runs) {
-                    val s = r.style
-                    val fg = if (s.inverse) s.background ?: background else s.foreground
-                    val bg = if (s.inverse) s.foreground ?: foreground else s.background
-                    if (fg == null && bg == null && !s.bold) {
-                        append(r.text)
-                    } else {
-                        withStyle(SpanStyle(color = fg ?: Color.Unspecified, background = bg ?: Color.Unspecified, fontWeight = if (s.bold) FontWeight.Bold else null)) { append(r.text) }
-                    }
-                }
+                appendRuns(entry.runs)
                 style = entry.end
             }
             entries = next
