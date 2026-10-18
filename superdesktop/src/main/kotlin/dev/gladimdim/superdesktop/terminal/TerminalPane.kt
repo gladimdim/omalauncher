@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.gladimdim.superdesktop.Label
@@ -52,7 +53,7 @@ import kotlinx.coroutines.withContext
 private val MAX_SP = 11f
 private val MIN_SP = 7f
 
-/** A monospace cell is about this much of the font size wide. */
+/** A monospace cell is about this much of the font size wide; measured from the real font when possible. */
 private const val CELL_EM = 0.6f
 
 /** A frame ready to draw: its styled lines (unchanged ones keep their instance) and the width of its widest, in cells. */
@@ -107,11 +108,35 @@ internal fun TerminalPane(
             .border(if (active) 2.dp else 1.dp, if (active) c.focusBorder else c.border, shape),
     ) {
         val density = LocalDensity.current
-        val fit = with(density) { ((maxWidth - 16.dp).toPx() / (columns * CELL_EM)).toSp().value }
+        // The real advance of a monospace cell at the readable size, measured once per font.
+        val measurer = rememberTextMeasurer()
+        val readable = remember(host.mono) { TextStyle(fontFamily = host.mono, fontSize = MAX_SP.sp, lineHeight = (MAX_SP * 1.25f).sp) }
+        val cellEm =
+            remember(host.mono, density) {
+                val px = measurer.measure("M".repeat(40), readable).size.width / 40f
+                (px / with(density) { MAX_SP.sp.toPx() }).takeIf { it.isFinite() && it > 0 } ?: CELL_EM
+            }
+        val innerWidth = maxWidth - 16.dp
+        val innerHeight = maxHeight - 16.dp
+
+        // Ask the computer to size the pane to this tile at the readable font, so lines fit without panning.
+        // The size waits for 150 ms of calm: the keyboard and resize animations change it many times.
+        val grid =
+            with(density) {
+                TerminalViewportGrid.fit(innerWidth.toPx(), innerHeight.toPx(), cellEm * MAX_SP.sp.toPx(), (MAX_SP * 1.25f).sp.toPx())
+            }
+        val owner = remember { Any() }
+        LaunchedEffect(b.key, id, grid) {
+            delay(150)
+            SdTerminals.size(b, id, owner, grid)
+        }
+        DisposableEffect(b.key, id) { onDispose { SdTerminals.size(b, id, owner, null) } }
+
+        val fit = with(density) { (innerWidth.toPx() / (columns * cellEm)).toSp().value }
         val size = fit.coerceIn(MIN_SP, MAX_SP).sp
         val style = remember(c.foreground, host.mono, size) { TextStyle(color = c.foreground, fontFamily = host.mono, fontSize = size, lineHeight = size * 1.25f) }
-        // Wide enough for the widest line (with a margin for the font's real advance), so panning reaches its end.
-        val contentWidth = maxOf(maxWidth, with(density) { (columns * CELL_EM * size.toPx() * 1.08f).toDp() } + 16.dp)
+        // Wide enough for the widest line, so panning reaches its end when a line is still wider than the tile.
+        val contentWidth = maxOf(maxWidth, with(density) { (columns * cellEm * size.toPx() * 1.02f).toDp() } + 16.dp)
         val list = rememberLazyListState()
         val horizontal = rememberScrollState()
         // Follow new output while at the bottom; stay put once scrolled up to read.
