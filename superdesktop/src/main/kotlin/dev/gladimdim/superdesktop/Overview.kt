@@ -90,8 +90,8 @@ internal fun ComputerHeader(
     Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(7.dp).background(feedColor(feed, host), CircleShape))
         Spacer(Modifier.width(8.dp))
-        Label(b.name, host, c.foreground, 13, bold = true)
-        Spacer(Modifier.weight(1f))
+        Label(b.name, host, c.foreground, 13, bold = true, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
         Label(feedNote(feed), host, c.muted, 11)
     }
 }

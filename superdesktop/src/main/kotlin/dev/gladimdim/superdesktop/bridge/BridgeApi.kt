@@ -102,6 +102,23 @@ class BridgeApi(
             }
         }
 
+    /**
+     * Harness [id]'s live pane: a frame with `tailAnsi` (its last 300 lines, colors included) whenever it changes,
+     * then `status: EXITED` and a close once the session ends. The caller closes it.
+     */
+    fun terminalStream(
+        id: String,
+        listener: WebSocketListener,
+    ): WebSocket =
+        client.newWebSocket(
+            Request
+                .Builder()
+                .url("wss://" + baseUrl.substringAfter("://") + "/api/v1/harnesses/$id/stream?ansiOnly=1")
+                .header("Authorization", "Bearer $token")
+                .build(),
+            listener,
+        )
+
     /** Types [text] into harness [id]'s terminal and, with [enter], submits it. At most 4 KiB. */
     suspend fun sendKeys(
         id: String,
