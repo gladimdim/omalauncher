@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -65,7 +66,27 @@ fun SuperDesktopTile(
             SdPages.load(context)
         }
     }
+    // The launcher also draws widgets off screen, for their preview images, where there's nothing to tap and no
+    // Back: there a tile is a still picture, and opens no connection.
+    if (LocalOnBackPressedDispatcherOwner.current == null) {
+        PreviewTile(kind, host, modifier)
+        return
+    }
     if (kind == "terminal") TerminalWidget(id ?: "terminal", host, modifier) else PageTile(id, host, modifier)
+}
+
+/** What a SUPER DESKTOP tile looks like in a preview image: its name and what it shows, in the theme's colors. */
+@Composable
+private fun PreviewTile(
+    kind: String?,
+    host: SdHost,
+    modifier: Modifier,
+) {
+    val c = host.colors
+    Column(modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Label("SUPER DESKTOP", host, c.accent, 15, bold = true)
+        Label(if (kind == "terminal") "One AI terminal, live" else "Your computers' AI terminals, live", host, c.muted, 12, lines = 2)
+    }
 }
 
 /**

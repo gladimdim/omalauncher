@@ -27,6 +27,8 @@ Built on **Omalauncher 0.9.0** (was 0.8.1).
   of looking live.
 
 ### Fixed
+- The launcher no longer restarts when it draws a terminal widget's preview image: SD tiles draw a still
+  picture there (no Back to handle, no connection opened).
 - Buttons with symbols (+, ⌨, ⚙, ⇄, ↗) are the same height as the others.
 - Symbols the phone has no font for (Claude Code's ⏵⏵) show as close substitutes instead of boxes.
 
