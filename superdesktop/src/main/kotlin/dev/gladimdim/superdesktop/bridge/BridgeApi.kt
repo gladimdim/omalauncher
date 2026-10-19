@@ -132,6 +132,44 @@ class BridgeApi(
         Unit
     }
 
+    /** The harness's prompts, newest first (SUPER DESKTOP 1.3.0 and later). */
+    suspend fun prompts(id: String): List<PromptEntry> =
+        withContext(Dispatchers.IO) {
+            client.newBuilder().callTimeout(20, TimeUnit.SECONDS).build().newCall(authed("/api/v1/harnesses/$id/prompts").build()).execute().use { response ->
+                if (response.code == 401) throw NotPairedException()
+                val body = response.body?.string().orEmpty()
+                if (response.code == 404) {
+                    val gone = runCatching { JSONObject(body).optString("error") }.getOrNull() == "no_such_session"
+                    throw IOException(if (gone) "This terminal is no longer running on the computer." else "Prompt history needs SUPER DESKTOP 1.3.0 or newer on the computer.")
+                }
+                if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
+                parsePrompts(body)
+            }
+        }
+
+    /**
+     * Sends [text] with [items] (images and files) to harness [id]. [requestId] makes the one submission
+     * safe from replays. A computer without the route answers the empty probe with 404, and nothing is sent.
+     */
+    suspend fun attachmentPrompt(
+        id: String,
+        text: String,
+        items: List<Attachment>,
+        requestId: String,
+    ) = withContext(Dispatchers.IO) {
+        require(items.size in 1..MAX_ATTACHMENTS) { "1 to $MAX_ATTACHMENTS attachments" }
+        require(items.sumOf { it.bytes.size.toLong() } <= MAX_ATTACHMENT_BYTES) { "Attachments are limited to 16 MB per prompt" }
+        val url = "/api/v1/harnesses/$id/attachment-prompt"
+        val probe = client.newCall(authed(url).post("{}".toRequestBody(json)).build()).execute().use { it.code }
+        if (probe == 404) throw IOException("Update SUPER DESKTOP on the computer to send files and images. Nothing was sent.")
+        if (probe == 401) throw NotPairedException()
+        val body = AttachmentBody(text, requestId, items)
+        val timeout = minOf(190_000L, 45_000L + body.contentLength() / 125)
+        client.newBuilder().callTimeout(timeout, TimeUnit.MILLISECONDS).retryOnConnectionFailure(false).build()
+            .newCall(authed(url).post(body).build()).execute().use { it.json() }
+        Unit
+    }
+
     /** Starts [agentType] in [workspace] (the computer's current one when null); returns the new harness id. */
     suspend fun createHarness(
         agentType: String,

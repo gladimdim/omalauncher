@@ -184,6 +184,21 @@ Omalauncher's. The 512 px image is `docs/superdesktop/media/icon-512.png`.
   keyboard. Faces have no tile, so `LocalHomeTiles` is null there and the keyboard
   handover is the face's `screenInset` instead. Not yet checked on the phone.
 
+### 1.1.0 additions (2026-10-19)
+
+Picked from a comparison with the SUPER DESKTOP app's inventory; all use what the
+bridge already sends (no protocol change): done/needs-you cues (`Cues.kt`), y/n/PgUp/PgDn
+keys, drafts (`SdDrafts`), prompt history (`GET /harnesses/<id>/prompts`, `History.kt`),
+OFFLINE cards, glyph substitutes (`Glyphs` in `TerminalAnsi.kt`), Wake-on-LAN (`wake`
+in the list document, `SdWake`, ported from the app), and a share target
+(`share/ShareActivity`, `POST /harnesses/<id>/attachment-prompt` or `/keys`, ported
+body format). Release notes: `docs/superdesktop/CHANGELOG.md`.
+
+Next: Pro. The SD app would expose its Pro status through an exported provider that
+checks the caller's signing certificate (Play re-signs the app, so a plain signature
+permission won't match); SD Launcher would gate the same actions. Needs an SD app
+release first.
+
 ## Facts the plan relies on
 
 Checked against upstream `06d4b48` (Release 0.8.1):

@@ -248,6 +248,7 @@ private fun PageTile(
                                     say("Closed ${harness.sessionTitle ?: harness.agentName}")
                                 }
                             },
+                            onWake = { pc -> act("Wake") { say(SdWake.wake(context, pc)) } },
                             modifier = m,
                         )
                     }

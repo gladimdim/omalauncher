@@ -26,6 +26,30 @@
                 <data android:scheme="superdesktop" android:host="pair" />
             </intent-filter>
         </activity>
+        <!-- Android's share menu: text, images and files to a harness on a paired computer. -->
+        <activity
+            android:name="dev.gladimdim.superdesktop.share.ShareActivity"
+            android:exported="true"
+            android:label="SUPER DESKTOP"
+            android:taskAffinity="com.gladimdim.sdlauncher.share"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+        </activity>
         <!-- Scans the computer's pairing QR: zxing's scanner, edge to edge and free to rotate. -->
         <activity
             android:name="dev.gladimdim.superdesktop.pair.QrScanActivity"

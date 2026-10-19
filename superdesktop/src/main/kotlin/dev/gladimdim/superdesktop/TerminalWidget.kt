@@ -2,6 +2,7 @@ package dev.gladimdim.superdesktop
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
@@ -173,15 +176,21 @@ private fun Locked(
     val c = host.colors
     val context = LocalContext.current
     val h = feed?.doc?.harnesses?.firstOrNull { it.id == pin.harness }
+    val status = h?.status ?: "UNKNOWN"
+    val stale = feed != null && feed.state != Feed.State.LIVE
+    val flash = rememberDoneFlash(pin, status)
     var active by remember(pin) { mutableStateOf(false) }
     val promptFocus = remember { FocusRequester() }
-    var prompt by remember(pin) { mutableStateOf("") }
+    // The draft survives leaving the page, a restart and a failed send.
+    var prompt by remember(pin) { mutableStateOf(SdDrafts.get(context, pin.computer, pin.harness)) }
+    LaunchedEffect(prompt) { SdDrafts.put(context, pin.computer, pin.harness, prompt) }
     BackHandler(enabled = active) { active = false }
 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.size(7.dp).background(statusColor(h?.status ?: "UNKNOWN", host), CircleShape))
+        Box(Modifier.size(7.dp).background(lerp(statusColor(status, host), c.green, flash), CircleShape))
         Label(h?.let { it.sessionTitle ?: it.agentName } ?: "SUPER DESKTOP", host, c.foreground, 12, bold = true, modifier = Modifier.weight(1f))
-        Label(listOfNotNull(b?.name, h?.status?.lowercase()).joinToString(" · "), host, c.muted, 10)
+        val state = if (stale) "offline" else h?.status?.let { statusLabel(it).lowercase() }
+        Label(listOfNotNull(b?.name, state).joinToString(" · "), host, if (needsYou(status) && !stale) c.yellow else c.muted, 10)
         if (b != null && h != null) KeyboardButton(host, active, promptFocus) { active = it }
         Action("⇄", host, onClick = onUnlock)
         if (b != null && h != null) Action("↗", host) { openInApp(context, b, h) }
@@ -198,7 +207,16 @@ private fun Locked(
                 Action("pick another", host, onClick = onUnlock)
             }
         else -> {
-            TerminalPane(b, pin.harness, host, active, onActivate = { active = true }, modifier = modifier)
+            // Waiting for a decision frames the terminal in yellow; finishing flashes it green once.
+            val frame = cueBorder(status, flash, Color.Transparent, host)
+            TerminalPane(
+                b,
+                pin.harness,
+                host,
+                active,
+                onActivate = { active = true },
+                modifier = modifier.border(if (frame == Color.Transparent) 0.dp else 2.dp, frame, host.shape(8.dp)),
+            )
             if (active) {
                 KeyRow(host, onKey = { text, enter -> act("Send") { SdLive.api(b).sendKeys(pin.harness, text, enter) } }, onDone = { active = false })
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

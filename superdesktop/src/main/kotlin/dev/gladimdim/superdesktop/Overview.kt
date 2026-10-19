@@ -17,8 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.gladimdim.superdesktop.bridge.Bridge
@@ -36,6 +39,7 @@ internal fun Overview(
     onOpen: (Bridge, Harness) -> Unit,
     onAskClose: (String?) -> Unit,
     onClose: (Bridge, Harness) -> Unit,
+    onWake: (Bridge) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -44,12 +48,13 @@ internal fun Overview(
         LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             for (b in computers) {
                 val feed = feeds[b.key] ?: Feed(Feed.State.CONNECTING)
-                item(key = "pc:" + b.key) { ComputerHeader(b, feed, host) }
+                item(key = "pc:" + b.key) { ComputerHeader(b, feed, host, onWake = { onWake(b) }) }
                 items(feed.doc?.harnesses.orEmpty(), key = { b.key + it.id }) { h ->
                     val key = b.key + h.id
                     HarnessCard(
                         h,
                         host,
+                        stale = feed.state != Feed.State.LIVE,
                         confirmClose = closing == key,
                         onOpen = { onOpen(b, h) },
                         onAskClose = { onAskClose(if (closing == key) null else key) },
@@ -85,14 +90,22 @@ internal fun ComputerHeader(
     b: Bridge,
     feed: Feed,
     host: SdHost,
+    onWake: (() -> Unit)? = null,
 ) {
     val c = host.colors
+    val context = LocalContext.current
+    // ⏻ only for a computer that's offline and once told us its network cards.
+    val canWake = onWake != null && feed.state == Feed.State.OFFLINE && remember(b.key, feed.state) { SdWake.targets(context, b) != null }
     Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(7.dp).background(feedColor(feed, host), CircleShape))
         Spacer(Modifier.width(8.dp))
         Label(b.name, host, c.foreground, 13, bold = true, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(8.dp))
         Label(feedNote(feed), host, c.muted, 11)
+        if (canWake) {
+            Spacer(Modifier.width(8.dp))
+            Action("⏻ wake", host, color = c.yellow) { onWake?.invoke() }
+        }
     }
 }
 
@@ -152,6 +165,7 @@ internal fun Harness.tail(lines: Int) =
 private fun HarnessCard(
     h: Harness,
     host: SdHost,
+    stale: Boolean,
     confirmClose: Boolean,
     onOpen: () -> Unit,
     onAskClose: () -> Unit,
@@ -160,11 +174,15 @@ private fun HarnessCard(
     val c = host.colors
     val dot = statusColor(h.status, host)
     val shape = host.shape(10.dp)
+    val flash = rememberDoneFlash(h.id, h.status)
+    val frame = if (confirmClose) c.red else cueBorder(h.status, flash, c.border, host)
     Column(
         Modifier
             .fillMaxWidth()
+            // While its computer is offline, the card is what was last seen: dimmed and labelled.
+            .alpha(if (stale) 0.55f else 1f)
             .background(c.surface.copy(alpha = 0.6f), shape)
-            .border(1.dp, if (confirmClose) c.red else c.border, shape)
+            .border(if (needsYou(h.status) || flash > 0f) 1.5.dp else 1.dp, frame, shape)
             .clickable(onClick = onOpen)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -173,7 +191,7 @@ private fun HarnessCard(
             Box(Modifier.size(8.dp).background(dot, CircleShape))
             Spacer(Modifier.width(8.dp))
             Label(h.sessionTitle ?: h.agentName, host, c.foreground, 13, bold = true, modifier = Modifier.weight(1f))
-            Label(h.status, host, dot, 11)
+            Label(if (stale) "OFFLINE" else statusLabel(h.status), host, if (stale) c.muted else dot, 11)
             Spacer(Modifier.width(10.dp))
             Box(Modifier.clickable(onClick = onAskClose).padding(horizontal = 4.dp)) { Label("✕", host, c.muted, 13) }
         }

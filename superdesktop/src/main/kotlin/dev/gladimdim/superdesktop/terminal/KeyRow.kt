@@ -21,6 +21,10 @@ internal val TERMINAL_KEYS =
         "←" to "\u001b[D",
         "→" to "\u001b[C",
         "^C" to "\u0003",
+        "y" to "y",
+        "n" to "n",
+        "PgUp" to "\u001b[5~",
+        "PgDn" to "\u001b[6~",
     )
 
 /** Keys a phone keyboard lacks, for the active terminal; ⏎ submits, "done" lets the page go. */

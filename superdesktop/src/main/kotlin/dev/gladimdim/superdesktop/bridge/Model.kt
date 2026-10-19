@@ -77,11 +77,30 @@ data class Usage(
     val limits: List<UsageLimit>,
 )
 
-/** A whole GET /api/v1/harnesses document, also every message of its stream. */
+/** One network card a computer reported for Wake-on-LAN; [wakeOnLan] is `enabled`, `disabled` or `unknown`. */
+@Immutable
+data class WakeTarget(
+    val networkInterface: String,
+    val kind: String,
+    val mac: String,
+    val address: String,
+    val broadcast: String,
+    val wakeOnLan: String,
+)
+
+/** A whole GET /api/v1/harnesses document, also every message of its stream. [wake] is null from computers without it. */
 @Immutable
 data class HarnessDocument(
     val harnesses: List<Harness>,
     val usage: List<Usage>,
+    val wake: List<WakeTarget>? = null,
+)
+
+/** One prompt from a harness's history; [at] is RFC 3339 text or null. */
+@Immutable
+data class PromptEntry(
+    val text: String,
+    val at: String?,
 )
 
 class NotPairedException : IOException("not paired")
@@ -138,5 +157,31 @@ internal fun parseHarnessDocument(root: JSONObject): HarnessDocument {
                     },
             )
         }
-    return HarnessDocument(harnesses, usage)
+    return HarnessDocument(harnesses, usage, parseWakeTargets(root.optJSONObject("wake")))
+}
+
+internal fun parseWakeTargets(wake: JSONObject?): List<WakeTarget>? {
+    val array = wake?.optJSONArray("interfaces") ?: return null
+    return (0 until array.length()).mapNotNull { array.optJSONObject(it) }.mapNotNull {
+        val mac = it.optString("mac").lowercase()
+        if (macBytes(mac) == null) return@mapNotNull null
+        WakeTarget(it.optString("interface"), it.optString("kind"), mac, it.optString("address"), it.optString("broadcast"), it.optString("wakeOnLan", "unknown"))
+    }
+}
+
+/** `aa:bb:cc:dd:ee:ff` (or with dashes) as six bytes; null for anything else, all zeros or all ones. */
+internal fun macBytes(mac: String): ByteArray? {
+    val parts = mac.split(':', '-')
+    if (parts.size != 6 || parts.any { it.length != 2 }) return null
+    val bytes = parts.map { it.toIntOrNull(16) ?: return null }.map { it.toByte() }.toByteArray()
+    return bytes.takeUnless { b -> b.all { it == 0.toByte() } || b.all { it == 0xFF.toByte() } }
+}
+
+internal fun parsePrompts(body: String): List<PromptEntry> {
+    val rows = JSONObject(body).optJSONArray("prompts")
+    return (0 until (rows?.length() ?: 0)).mapNotNull { i ->
+        val row = rows?.optJSONObject(i) ?: return@mapNotNull null
+        val text = (if (row.isNull("text")) null else row.opt("text") as? String)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+        PromptEntry(text.take(8192), if (row.isNull("at")) null else row.opt("at") as? String)
+    }.take(200)
 }

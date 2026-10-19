@@ -123,7 +123,9 @@ internal class AnsiRenderer(
      * [lines] styled one by one. A line seen in the last frame with the same text and starting style returns the
      * same [AnnotatedString] instance as then, so only new lines cost anything to draw.
      */
-    fun renderLines(lines: List<String>): List<AnnotatedString> {
+    fun renderLines(lines: List<String>): List<AnnotatedString> = renderLinesRaw(lines.map(Glyphs::drawable))
+
+    private fun renderLinesRaw(lines: List<String>): List<AnnotatedString> {
         val next = HashMap<Key, Entry>(entries.size.coerceAtLeast(16))
         val nextTexts = HashMap<Key, AnnotatedString>(lineTexts.size.coerceAtLeast(16))
         var style = TerminalAnsi.Style()
@@ -177,5 +179,27 @@ internal class AnsiRenderer(
             }
             entries = next
         }
+    }
+}
+
+/**
+ * Swaps symbols the phone has no font for (Claude Code's ⏵⏵ shows as boxes) for close ones it can draw.
+ * Only characters the phone lacks are swapped; the answer is asked once per character.
+ */
+internal object Glyphs {
+    private val substitutes =
+        mapOf(
+            '⏵' to '▸', '⏴' to '◂', '⏶' to '▴', '⏷' to '▾', '⏩' to '»', '⏪' to '«', '⏫' to '▲', '⏬' to '▼',
+            '⏺' to '●', '⏹' to '■', '⏸' to '‖', '⏯' to '▶', '⏳' to '⌛', '⏱' to '◷', '⏲' to '◷', '⎿' to '└', '⎯' to '─',
+        )
+    private val paint by lazy { android.graphics.Paint().apply { typeface = android.graphics.Typeface.MONOSPACE } }
+    private val known = HashMap<Char, Boolean>()
+
+    private fun missing(c: Char): Boolean =
+        synchronized(known) { known.getOrPut(c) { runCatching { !paint.hasGlyph(c.toString()) }.getOrDefault(true) } }
+
+    fun drawable(line: String): String {
+        if (line.none { it in substitutes }) return line
+        return buildString(line.length) { for (c in line) append(substitutes[c]?.takeIf { missing(c) } ?: c) }
     }
 }

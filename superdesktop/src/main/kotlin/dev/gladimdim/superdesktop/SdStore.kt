@@ -59,6 +59,21 @@ object SdStore {
         key: String,
     ) = write(context, load(context).filterNot { it.key == key })
 
+    /** A small value kept encrypted next to the pairings, such as a computer's wake cards. */
+    @Synchronized fun putSecret(
+        context: Context,
+        key: String,
+        value: String,
+    ) {
+        val prefs = runCatching { prefs(context) }.getOrNull() ?: return
+        if (prefs.getString(key, null) != value) prefs.edit().putString(key, value).apply()
+    }
+
+    @Synchronized fun secret(
+        context: Context,
+        key: String,
+    ): String? = runCatching { prefs(context).getString(key, null) }.getOrNull()
+
     private fun write(
         context: Context,
         list: List<Bridge>,
