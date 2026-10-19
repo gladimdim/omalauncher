@@ -284,8 +284,7 @@ internal object Notes {
     @Synchronized fun of(page: String): Pair<String, Boolean>? = notes[page]?.takeIf { System.currentTimeMillis() - it.third < 5000 }?.let { it.first to it.second }
 }
 
-internal fun openPairing(context: Context) =
-    context.startActivity(Intent(context, PairingActivity::class.java).putExtra(PairingActivity.EXTRA_SCAN, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+internal fun openPairing(context: Context) = context.startActivity(Intent(context, PairingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 
 /** Hands harness [h] to the SUPER DESKTOP app's terminal, when it's installed and paired with the same computer. */
 internal fun openInApp(

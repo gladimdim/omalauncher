@@ -89,8 +89,6 @@ class PairingActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         take(intent)
         setContent { Screen() }
-        // Opened to pair a new computer: go straight to the camera; back from it shows paste as the alternative.
-        if (savedInstanceState == null && intent?.getBooleanExtra(EXTRA_SCAN, false) == true && intent?.data == null) scan()
     }
 
     private fun scan() =
@@ -232,9 +230,4 @@ class PairingActivity : ComponentActivity() {
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     ) { Label(text, color, 14) }
-
-    companion object {
-        /** Opens the camera right away, as "pair a computer" does. */
-        const val EXTRA_SCAN = "dev.gladimdim.superdesktop.SCAN"
-    }
 }
