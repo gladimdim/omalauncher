@@ -110,6 +110,37 @@ object SdPages {
         )
     }
 
+    /**
+     * Writes a SUPER DESKTOP face: the dashboard as a whole home page left of page 1, on the wallpaper
+     * behind a veil so text stays readable, ending above the navigation bar or the keyboard.
+     */
+    fun newFace(
+        widgetsDir: File,
+        id: String = newId(),
+        page: Int = 0,
+    ): String {
+        File(widgetsDir, "superdesktop-face-$id.owl").writeText(
+            """
+            |face "SUPER DESKTOP" {
+            |  meta { owl: 10; description: "Your SUPER DESKTOP computers and their AI terminals, as a whole home page."; version: "0.1"; license: "MIT"; category: "tools" }
+            |
+            |  page: $page
+            |  padding: 0
+            |  background: alpha(background, 0.82)
+            |
+            |  // Made by SUPER DESKTOP. The id keys this face's settings; remove it in settings › pages.
+            |  Column {
+            |    fill: true
+            |    SuperDesktop { id: "$id"; weight: 1 }
+            |    Spacer { height: screenInset }
+            |  }
+            |}
+            |
+            """.trimMargin(),
+        )
+        return id
+    }
+
     fun newId() = "sd-" + Random.nextInt(0x1000000).toString(16).padStart(6, '0')
 
     private fun encode(c: PageConfig) =

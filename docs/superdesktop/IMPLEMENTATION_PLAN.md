@@ -171,6 +171,19 @@ renders it (`make.py` writes the SVG layers, `build.sh` the PNGs per density) in
 the debug and release builds; its `mipmap-anydpi/ic_launcher.xml` overrides
 Omalauncher's. The 512 px image is `docs/superdesktop/media/icon-512.png`.
 
+### Omalauncher 0.9.0 and SD faces (2026-10-19)
+
+- Rebased onto Omalauncher 0.9.0 (`77c86ac`, 33 commits: faces, owl 10). Our 16
+  commits applied without conflicts although upstream changed `Render.kt`,
+  `Schema.kt`, `HomeMenu.kt` and `app/build.gradle.kts`; all tests passed.
+  SD Launcher 1.1.0 (101).
+- SD faces: "super desktop [ face ]" in the long-press menu writes
+  `superdesktop-face-<id>.owl`, a `face` (owl 10) at `page: 0`, left of page 1:
+  the SuperDesktop element over `alpha(background, 0.82)`, ending with
+  `Spacer { height: screenInset }` so the prompt clears the navigation bar and the
+  keyboard. Faces have no tile, so `LocalHomeTiles` is null there and the keyboard
+  handover is the face's `screenInset` instead. Not yet checked on the phone.
+
 ## Facts the plan relies on
 
 Checked against upstream `06d4b48` (Release 0.8.1):

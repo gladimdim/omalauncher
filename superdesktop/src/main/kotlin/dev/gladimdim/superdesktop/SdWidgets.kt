@@ -35,4 +35,14 @@ object SdWidgets {
         Notes.put(id, "A new SUPER DESKTOP page: ⚙ picks its computers and harness", error = false)
         return SdPages.newPage(widgetsDir, id, page)
     }
+
+    /** A SUPER DESKTOP face: the dashboard as a whole home page, left of page 1 (or the next empty page there). */
+    fun addFace(
+        widgetsDir: File,
+        page: Int = 0,
+    ): String {
+        val id = SdPages.newId()
+        Notes.put(id, "SUPER DESKTOP as a face: ⚙ picks its computers and harness", error = false)
+        return SdPages.newFace(widgetsDir, id, page)
+    }
 }

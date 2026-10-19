@@ -45,6 +45,18 @@ class SdHookTest {
         }
     }
 
+    @Test fun facesCompile() {
+        val dir = kotlin.io.path.createTempDirectory("sd").toFile()
+        try {
+            val id = dev.gladimdim.superdesktop.SdPages.newFace(dir)
+            Compiler.compile(File(dir, "superdesktop-face-$id.owl").readText())
+        } catch (e: CompileError) {
+            fail("a SUPER DESKTOP face doesn't compile: ${e.message}")
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun elementTakesOnlyItsId() {
         val err = runCatching { Compiler.compile(page.replace("{ id: \"home\" }", "{ id: \"home\"; color: accent }")) }.exceptionOrNull()
         assertTrue("SuperDesktop should reject properties it doesn't draw", err is CompileError)

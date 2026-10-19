@@ -15,7 +15,7 @@ import dev.omalauncher.LauncherData
 
 // Fork: SUPER DESKTOP's row in the home long-press menu, drawn like "create with …" above it.
 
-/** Adds a SUPER DESKTOP terminal widget or page to the page that was long-pressed. */
+/** Adds a SUPER DESKTOP terminal widget or page to the page that was long-pressed, or a face left of page 1. */
 @Composable
 internal fun SdMenuRow(state: LauncherState) {
     val context = LocalContext.current
@@ -30,6 +30,10 @@ internal fun SdMenuRow(state: LauncherState) {
             BracketAction("page", Palette.accent) {
                 state.homeMenuOpen = false
                 SdWidgets.addPage(LauncherData.widgetsDir(context), state.currentPage)
+            }
+            BracketAction("face", Palette.accent) {
+                state.homeMenuOpen = false
+                SdWidgets.addFace(LauncherData.widgetsDir(context))
             }
         }
     }
