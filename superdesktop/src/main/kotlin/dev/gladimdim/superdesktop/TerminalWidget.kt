@@ -116,7 +116,7 @@ internal fun TerminalWidget(
             pin == null -> {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Label("Pick a terminal", host, c.accent, 13, bold = true, modifier = Modifier.weight(1f))
-                    Action("＋ start", host) { creating = true }
+                    Action("+ start", host) { creating = true }
                 }
                 Picker(all, feeds, host, onPick = { b, h -> lock(PageConfig.Pinned(b.key, h.id)) }, modifier = body)
             }

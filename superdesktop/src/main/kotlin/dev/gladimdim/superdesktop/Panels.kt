@@ -65,8 +65,8 @@ internal fun SettingsPanel(
         Heading("pages and widgets", host)
         Label("Each has settings of its own. A terminal widget locks to one harness; resize it like any widget.", host, c.muted, 11, lines = 3)
         Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Action("＋ page", host, onClick = onNewPage)
-            Action("＋ terminal widget", host, onClick = onNewWidget)
+            Action("+ page", host, onClick = onNewPage)
+            Action("+ terminal widget", host, onClick = onNewWidget)
         }
 
         Heading("paired computers", host)

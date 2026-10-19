@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,7 +71,23 @@ internal fun Action(
             .then(if (strong) Modifier.background(c, shape) else Modifier.border(1.dp, if (enabled) host.colors.border else c.copy(alpha = 0.4f), shape))
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 10.dp, vertical = 5.dp),
-    ) { Label(text, host, if (strong) host.colors.background else c, 12) }
+        contentAlignment = Alignment.Center,
+    ) {
+        // A fixed line box: symbols the mono font lacks (⌨ ⚙ ⇄ ↗) come from a fallback font with taller
+        // metrics, which would otherwise make that button taller than its neighbours.
+        BasicText(
+            text,
+            style =
+                TextStyle(
+                    color = if (strong) host.colors.background else c,
+                    fontFamily = host.mono,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
+                ),
+            maxLines = 1,
+        )
+    }
 }
 
 /** A section's small heading, as in the launcher's settings. */

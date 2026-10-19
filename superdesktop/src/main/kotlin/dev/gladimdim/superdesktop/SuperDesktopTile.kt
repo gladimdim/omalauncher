@@ -165,7 +165,7 @@ private fun PageTile(
                 all.isEmpty() -> Unit
                 panel != Panel.NONE -> Action("done", host) { panel = Panel.NONE }
                 else -> {
-                    if (config.pinned == null && opened == null) Action("＋ new", host) { panel = Panel.CREATE }
+                    if (config.pinned == null && opened == null) Action("+ new", host) { panel = Panel.CREATE }
                     Action("⚙", host) { panel = Panel.SETTINGS }
                 }
             }

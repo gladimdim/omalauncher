@@ -81,7 +81,7 @@ internal fun HarnessView(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (leave != null) Action(leaveLabel, host, onClick = leave)
             Action("open in app", host) { onOpen(b, h) }
-            if (onWidget != null) Action("＋ widget", host) { onWidget(b, h) }
+            if (onWidget != null) Action("+ widget", host) { onWidget(b, h) }
         }
     }
 }
