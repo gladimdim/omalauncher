@@ -71,7 +71,7 @@ object SdWake {
         val targets = targets(context, bridge) ?: return "Wake needs SUPER DESKTOP 1.5.0 or newer on $name, connected once while it was on."
         if (targets.isEmpty()) return "$name reported no network card that can wake it."
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
-        val local = localNetwork(connectivity) ?: return "Connect this phone to the same Wi-Fi as $name to wake it."
+        val local = runCatching { localNetwork(connectivity) }.getOrNull() ?: return "Connect this phone to the same Wi-Fi as $name to wake it."
         val sent = runCatching { withContext(Dispatchers.IO) { send(local, targets) } }.getOrDefault(0)
         if (sent == 0) return "Couldn't send the wake packet. Check this phone's Wi-Fi."
         return if (targets.all { it.wakeOnLan == "disabled" }) {

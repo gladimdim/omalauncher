@@ -16,6 +16,8 @@ data class PageConfig(
     val computers: Set<String>? = null,
     /** The one harness it shows, or null for every harness of its computers. */
     val pinned: Pinned? = null,
+    /** Four independently selected usage statistics; null until the first live snapshot chooses defaults. */
+    val usageSlots: List<String>? = null,
 ) {
     @Immutable
     data class Pinned(
@@ -31,15 +33,18 @@ object SdPages {
     private const val FILE = "sd_pages"
 
     private val state = MutableStateFlow<Map<String, PageConfig>>(emptyMap())
+    private val initialized = MutableStateFlow(false)
     private var loaded = false
 
     val pages: StateFlow<Map<String, PageConfig>> get() = state
+    val ready: StateFlow<Boolean> get() = initialized
 
     @Synchronized fun load(context: Context) {
         if (loaded) return
         val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         state.value = prefs.all.mapNotNull { (id, raw) -> runCatching { id to decode(JSONObject(raw as String)) }.getOrNull() }.toMap()
         loaded = true
+        initialized.value = true
     }
 
     @Synchronized fun set(
@@ -81,6 +86,16 @@ object SdPages {
         return id
     }
 
+    /** A resizable usage header with four independently configurable statistics. */
+    fun newUsageWidget(
+        widgetsDir: File,
+        id: String = newId(),
+        page: Int = 1,
+    ): String {
+        write(widgetsDir, id, "superdesktop-usage-$id.owl", page, "6x3", "3x2", "usage")
+        return id
+    }
+
     private fun write(
         widgetsDir: File,
         id: String,
@@ -90,11 +105,16 @@ object SdPages {
         minSize: String,
         kind: String?,
     ) {
-        val what = if (kind == "terminal") "One SUPER DESKTOP terminal, live on the home screen." else "Your SUPER DESKTOP computers and their AI terminals, as a whole home page."
+        val what = when (kind) {
+            "terminal" -> "One SUPER DESKTOP terminal, live on the home screen."
+            "usage" -> "Tokens, sessions and plan limits from your SUPER DESKTOP computers."
+            else -> "Your SUPER DESKTOP computers and their AI terminals, as a whole home page."
+        }
+        val name = if (kind == "usage") "SUPER DESKTOP usage" else "SUPER DESKTOP"
         val element = if (kind == null) "SuperDesktop { id: \"$id\" }" else "SuperDesktop { id: \"$id\"; kind: \"$kind\" }"
         File(widgetsDir, file).writeText(
             """
-            |widget "SUPER DESKTOP" {
+            |widget "$name" {
             |  page: $page
             |  size: $size
             |  minSize: $minSize
@@ -143,15 +163,17 @@ object SdPages {
 
     fun newId() = "sd-" + Random.nextInt(0x1000000).toString(16).padStart(6, '0')
 
-    private fun encode(c: PageConfig) =
+    internal fun encode(c: PageConfig) =
         JSONObject().apply {
             c.computers?.let { put("computers", JSONArray(it.toList())) }
             c.pinned?.let { put("pinned", JSONObject().put("computer", it.computer).put("harness", it.harness)) }
+            c.usageSlots?.let { put("usageSlots", JSONArray(List(4) { i -> it.getOrElse(i) { "" } })) }
         }
 
-    private fun decode(o: JSONObject) =
+    internal fun decode(o: JSONObject) =
         PageConfig(
             computers = o.optJSONArray("computers")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() },
             pinned = o.optJSONObject("pinned")?.let { PageConfig.Pinned(it.getString("computer"), it.getString("harness")) },
+            usageSlots = o.optJSONArray("usageSlots")?.let { a -> List(4) { i -> if (a.isNull(i)) "" else a.optString(i, "") } },
         )
 }

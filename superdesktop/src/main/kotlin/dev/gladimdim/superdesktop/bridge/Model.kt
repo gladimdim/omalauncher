@@ -67,6 +67,7 @@ data class HarnessType(
 data class UsageLimit(
     val label: String,
     val used: Double?,
+    val resetsAt: String? = null,
 )
 
 @Immutable
@@ -75,6 +76,12 @@ data class Usage(
     val name: String,
     val ready: Boolean,
     val limits: List<UsageLimit>,
+    val updatedAt: String? = null,
+    val todayTokens: Long? = null,
+    val todaySessions: Long? = null,
+    val todayPrompts: Long? = null,
+    val totalSessions: Long? = null,
+    val totalPrompts: Long? = null,
 )
 
 /** One network card a computer reported for Wake-on-LAN; [wakeOnLan] is `enabled`, `disabled` or `unknown`. */
@@ -111,6 +118,9 @@ class PairException(
 
 /** JSON null is absence, not the text "null". */
 private fun JSONObject.text(key: String): String? = if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
+
+/** Missing/unknown counters stay unknown; zero is a real measurement. */
+private fun JSONObject.count(key: String): Long? = if (isNull(key)) null else optLong(key, -1).takeIf { it >= 0 }
 
 internal fun parseAddresses(values: JSONArray?): List<BridgeAddress> =
     (0 until (values?.length() ?: 0)).mapNotNull { i ->
@@ -153,8 +163,14 @@ internal fun parseHarnessDocument(root: JSONObject): HarnessDocument {
                     (0 until (limits?.length() ?: 0)).mapNotNull { j ->
                         val l = limits?.optJSONObject(j) ?: return@mapNotNull null
                         val used = l.optDouble("percentUsed", Double.NaN)
-                        UsageLimit(l.optString("label", "Limit"), used.takeIf { it.isFinite() }?.coerceIn(0.0, 1.0))
+                        UsageLimit(l.optString("label", "Limit"), used.takeIf { it.isFinite() }?.coerceIn(0.0, 1.0), l.text("resetsAt"))
                     },
+                updatedAt = p.text("updatedAt"),
+                todayTokens = p.count("todayTokens"),
+                todaySessions = p.count("todaySessions"),
+                todayPrompts = p.count("todayPrompts"),
+                totalSessions = p.count("totalSessions"),
+                totalPrompts = p.count("totalPrompts"),
             )
         }
     return HarnessDocument(harnesses, usage, parseWakeTargets(root.optJSONObject("wake")))

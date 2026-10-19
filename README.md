@@ -1,5 +1,29 @@
 # Omalauncher
 
+## SUPER DESKTOP fork (SD Launcher)
+
+This fork adds SUPER DESKTOP pages, terminal widgets and usage widgets to
+Omalauncher's Android home screen. Pair your Linux PCs from a SUPER DESKTOP
+page; the launcher shares those connections across its widgets.
+
+To add a **usage widget**, long-press the home screen → **super desktop →
+[ usage ]**, or open a SUPER DESKTOP page's **⚙ → + usage widget**. Tap any
+of its four cards to choose **computer → provider → statistic**. The widget's
+**⚙** configures all four cards and can pair another computer. Each widget
+keeps its own choices, and each card can follow a different PC.
+
+Available statistics match the SUPER DESKTOP Android app's header: provider
+plan limits with percentage remaining and reset time, tokens/sessions/prompts
+today, total sessions/prompts, and live active/running/finished/idle session
+counts. Live counts can follow one PC or all paired PCs; provider counters
+stay separate per PC. Missing statistics and offline PCs show **—**, not zero.
+Provider data depends on what SUPER DESKTOP on that PC reports. Updates share
+the existing live connections while the widget is visible; no Linux install on
+the phone, new permission or bridge update is needed. Long-press the widget to
+move or resize it.
+
+The upstream Omalauncher overview follows.
+
 An Android home screen with the look of [Omarchy](https://omarchy.org), and an
 optional Arch Linux ARM system next to your phone apps. Omalauncher runs the
 system under proot, without root, and is its Wayland compositor: every Linux

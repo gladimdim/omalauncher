@@ -57,6 +57,25 @@ class SdHookTest {
         }
     }
 
+    @Test fun usageWidgetsCompileAndHaveIndependentSettings() {
+        val dir = kotlin.io.path.createTempDirectory("sd-usage").toFile()
+        try {
+            val first = dev.gladimdim.superdesktop.SdWidgets.addUsage(dir, page = 3)
+            val second = dev.gladimdim.superdesktop.SdWidgets.addUsage(dir, page = 1)
+            assertTrue(first != second)
+            for (id in listOf(first, second)) {
+                val source = File(dir, "superdesktop-usage-$id.owl").readText()
+                Compiler.compile(source)
+                assertTrue(source.contains("kind: \"usage\""))
+                assertTrue(source.contains("id: \"$id\""))
+                assertTrue(source.contains("minSize: 3x2"))
+            }
+            assertTrue(File(dir, "superdesktop-usage-$first.owl").readText().contains("page: 3"))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     @Test fun elementTakesOnlyItsId() {
         val err = runCatching { Compiler.compile(page.replace("{ id: \"home\" }", "{ id: \"home\"; color: accent }")) }.exceptionOrNull()
         assertTrue("SuperDesktop should reject properties it doesn't draw", err is CompileError)

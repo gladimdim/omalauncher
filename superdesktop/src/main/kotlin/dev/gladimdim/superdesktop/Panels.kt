@@ -36,6 +36,7 @@ internal fun SettingsPanel(
     onConfig: (PageConfig) -> Unit,
     onNewPage: () -> Unit,
     onNewWidget: () -> Unit,
+    onNewUsage: () -> Unit,
     onPair: () -> Unit,
     onForget: (Bridge) -> Unit,
     modifier: Modifier = Modifier,
@@ -70,6 +71,7 @@ internal fun SettingsPanel(
             Action("+ page", host, onClick = onNewPage)
             Action("+ terminal widget", host, onClick = onNewWidget)
         }
+        Action("+ usage widget", host, onClick = onNewUsage)
 
         Heading("paired computers", host)
         for (b in bridges) {

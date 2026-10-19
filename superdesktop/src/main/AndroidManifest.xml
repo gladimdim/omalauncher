@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Wake-on-LAN picks the phone's Wi-Fi or Ethernet network for its broadcast (SdWake.kt). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application>
         <!-- Loads paired computers and page settings in the background at start; not reachable from outside. -->

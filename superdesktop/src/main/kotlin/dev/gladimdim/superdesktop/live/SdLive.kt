@@ -75,6 +75,22 @@ object SdLive {
         return e.feed
     }
 
+    /**
+     * Drops the backoff and tries every address again now, starting with [host] (one a probe found answering) when
+     * given, keeping the last document on screen meanwhile.
+     */
+    @Synchronized fun retry(
+        bridge: Bridge,
+        host: String? = null,
+    ) {
+        val e = entries[bridge.key] ?: return
+        if (e.users == 0) return
+        e.job?.cancel()
+        if (host != null) e.host = host
+        e.feed.value = e.feed.value.copy(state = Feed.State.CONNECTING, error = null)
+        e.job = scope.launch { run(e) }
+    }
+
     /** [bridge]'s API at the address its feed reached last. */
     @Synchronized fun api(bridge: Bridge) = bridge.api(entries[bridge.key]?.host ?: bridge.host)
 
@@ -115,7 +131,7 @@ object SdLive {
     /** Stream, poll while the stream is down, and move between the computer's addresses when one stops answering. */
     private suspend fun run(e: Entry) {
         val policy = HarnessFeedPolicy(System::currentTimeMillis)
-        var hostIndex = 0
+        var hostIndex = e.bridge.hosts().indexOf(e.host).coerceAtLeast(0)
         while (scope.isActive) {
             val bridge = e.bridge
             val hosts = bridge.hosts()

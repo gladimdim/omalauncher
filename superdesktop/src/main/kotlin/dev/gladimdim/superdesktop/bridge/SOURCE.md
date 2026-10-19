@@ -12,6 +12,7 @@ Ported from the SUPER DESKTOP Android app, `~/GitHub/OmarchyAILauncher`
 | `terminal/TerminalViewport.kt` | `TerminalViewport.kt` | copied |
 | `terminal/TerminalAnsi.kt` | `TerminalAnsi.kt` | parser copied, Compose spans instead of Android spans |
 | `pair/QrScanActivity.kt` | `QrScanActivity.kt` | copied, insets via AndroidX |
+| `ConnectionProbe.kt` | `ConnectionProbe.kt` | written here first, then carried to the app |
 | `Model.kt` | `HarnessApi.kt`, `BridgeConnection.kt`, `UsageHeader.kt` | slimmer models and parsers of the same JSON |
 
 Protocol: `PROTOCOL.md` in that repository (wire v3). When the app's client

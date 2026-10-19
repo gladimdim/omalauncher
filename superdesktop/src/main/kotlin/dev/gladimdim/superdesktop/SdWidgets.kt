@@ -9,6 +9,9 @@ import java.io.File
  * and leaves the new widget a note saying what to do next.
  */
 object SdWidgets {
+    /** Four usage cards, each free to follow a different computer and provider. */
+    fun addUsage(widgetsDir: File, page: Int): String = SdPages.newUsageWidget(widgetsDir, page = page)
+
     /** A terminal widget, 6x4 and resizable; it asks which harness to lock to, unless [lockTo] says. */
     fun addTerminal(
         context: Context,

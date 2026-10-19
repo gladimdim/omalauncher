@@ -40,6 +40,7 @@ internal fun Overview(
     onAskClose: (String?) -> Unit,
     onClose: (Bridge, Harness) -> Unit,
     onWake: (Bridge) -> Unit,
+    onRetry: (Bridge) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -48,7 +49,7 @@ internal fun Overview(
         LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             for (b in computers) {
                 val feed = feeds[b.key] ?: Feed(Feed.State.CONNECTING)
-                item(key = "pc:" + b.key) { ComputerHeader(b, feed, host, onWake = { onWake(b) }) }
+                item(key = "pc:" + b.key) { ComputerHeader(b, feed, host, onWake = { onWake(b) }, onRetry = { onRetry(b) }) }
                 items(feed.doc?.harnesses.orEmpty(), key = { b.key + it.id }) { h ->
                     val key = b.key + h.id
                     HarnessCard(
@@ -91,10 +92,11 @@ internal fun ComputerHeader(
     feed: Feed,
     host: SdHost,
     onWake: (() -> Unit)? = null,
+    onRetry: (() -> Unit)? = null,
 ) {
     val c = host.colors
     val context = LocalContext.current
-    // ⏻ only for a computer that's offline and once told us its network cards.
+    // wake only for a computer that's offline and once told us its network cards.
     val canWake = onWake != null && feed.state == Feed.State.OFFLINE && remember(b.key, feed.state) { SdWake.targets(context, b) != null }
     Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(7.dp).background(feedColor(feed, host), CircleShape))
@@ -102,9 +104,13 @@ internal fun ComputerHeader(
         Label(b.name, host, c.foreground, 13, bold = true, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(8.dp))
         Label(feedNote(feed), host, c.muted, 11)
+        if (onRetry != null && (feed.state == Feed.State.OFFLINE || feed.state == Feed.State.NOT_PAIRED)) {
+            Spacer(Modifier.width(8.dp))
+            Action("retry", host) { onRetry() }
+        }
         if (canWake) {
             Spacer(Modifier.width(8.dp))
-            Action("⏻ wake", host, color = c.yellow) { onWake?.invoke() }
+            Action("wake", host, color = c.yellow) { onWake?.invoke() }
         }
     }
 }

@@ -1,5 +1,33 @@
 # SD Launcher changelog
 
+## 1.2.0 (103)
+
+Built on **Omalauncher 0.9.0**.
+
+### New
+- **Usage widgets.** Long-press home → super desktop **[ usage ]**, or use a
+  SUPER DESKTOP page's **⚙ → + usage widget**. Four configurable cards show
+  plan limits, reset times, tokens, sessions and prompts, with a separate
+  computer/provider/statistic choice for each card. Live session counts can
+  follow one PC or all paired PCs. Each widget keeps its own settings and
+  resizes down to 3×2 cells; smaller widgets scroll. Offline/missing values
+  show **—**, and incomplete all-PC totals are unavailable. Uses the existing
+  bridge feed and permissions; no desktop update is needed.
+- **Retry an offline PC, and see why it's offline.** An offline PC's row has
+  **retry**. It opens a popup that walks every address of the PC step by step —
+  the phone's network, name lookup, TCP, TLS and the pinned certificate, the
+  pairing token — with timings and a plain explanation of what failed. The
+  live feed then reconnects at once on the address that answered, without
+  waiting out the backoff (up to 30 s). Close it with **close** or Back. On
+  Android 17 it also warns when the launcher's **local network** setting is
+  off, since LAN addresses then time out.
+
+### Fixed
+- **Wake works.** Pressing **wake** on an offline PC failed with a
+  ConnectivityService permission error; the launcher now asks for network
+  state, which Android grants at install. The button reads **wake**, without
+  the ⏻ symbol the launcher's font lacked.
+
 ## 1.1.0 (102)
 
 Built on **Omalauncher 0.9.0** (was 0.8.1).

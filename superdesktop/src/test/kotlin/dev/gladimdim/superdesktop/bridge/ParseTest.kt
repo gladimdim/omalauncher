@@ -45,4 +45,21 @@ class ParseTest {
             listOf(BridgeAddress("192.168.1.42", "lan", true), BridgeAddress("100.1.2.3", "tailscale", true), BridgeAddress("127.0.0.1", "loopback", true)))
         assertEquals(listOf("192.168.1.42", "100.1.2.3"), b.hosts())
     }
+
+    @Test fun existingUsageCountersAndTimestampsAreOptionalAndKeepZeroDistinctFromUnknown() {
+        val doc = parseHarnessDocument(JSONObject("""{"usage":[{"id":"codex","ready":true,
+          "todayTokens":3000000000,"todaySessions":0,"todayPrompts":null,"totalSessions":-1,"totalPrompts":42,
+          "updatedAt":"2026-10-19T10:00:00Z","limits":[{"label":"5h","percentUsed":0.2,"resetsAt":"2026-10-19T15:00:00Z"}]
+        },{"id":"claude"}]}"""))
+        val usage = doc.usage.first()
+        assertEquals(3_000_000_000, usage.todayTokens)
+        assertEquals(0L, usage.todaySessions)
+        assertNull(usage.todayPrompts)
+        assertNull(usage.totalSessions)
+        assertEquals(42L, usage.totalPrompts)
+        assertEquals("2026-10-19T10:00:00Z", usage.updatedAt)
+        assertEquals("2026-10-19T15:00:00Z", usage.limits.single().resetsAt)
+        assertNull(doc.usage.last().todayTokens)
+        assertNull(doc.usage.last().updatedAt)
+    }
 }

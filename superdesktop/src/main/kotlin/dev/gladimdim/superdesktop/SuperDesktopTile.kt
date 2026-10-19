@@ -4,8 +4,13 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,7 +51,8 @@ private enum class Panel { NONE, SETTINGS, CREATE }
 
 /**
  * A SUPER DESKTOP widget. [kind] `terminal` is one harness's terminal at any size, locked to it once picked;
- * anything else is a page of every harness. [id] keys its settings, so every widget has its own.
+ * `usage` is four configurable statistics; anything else is a page of every harness.
+ * [id] keys its settings, so every widget has its own.
  */
 @Composable
 fun SuperDesktopTile(
@@ -72,7 +78,11 @@ fun SuperDesktopTile(
         PreviewTile(kind, host, modifier)
         return
     }
-    if (kind == "terminal") TerminalWidget(id ?: "terminal", host, modifier) else PageTile(id, host, modifier)
+    when (kind) {
+        "terminal" -> TerminalWidget(id ?: "terminal", host, modifier)
+        "usage" -> UsageWidget(id ?: "usage", host, modifier)
+        else -> PageTile(id, host, modifier)
+    }
 }
 
 /** What a SUPER DESKTOP tile looks like in a preview image: its name and what it shows, in the theme's colors. */
@@ -85,7 +95,11 @@ private fun PreviewTile(
     val c = host.colors
     Column(modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Label("SUPER DESKTOP", host, c.accent, 15, bold = true)
-        Label(if (kind == "terminal") "One AI terminal, live" else "Your computers' AI terminals, live", host, c.muted, 12, lines = 2)
+        Label(when (kind) {
+            "terminal" -> "One AI terminal, live"
+            "usage" -> "Tokens, sessions & plan limits from your PCs"
+            else -> "Your computers' AI terminals, live"
+        }, host, c.muted, 12, lines = 2)
     }
 }
 
@@ -120,6 +134,9 @@ private fun PageTile(
     /** The harness opened from the list, shown in the tile until "back". */
     var opened by remember { mutableStateOf<PageConfig.Pinned?>(null) }
     var closing by remember { mutableStateOf<String?>(null) }
+
+    /** The computer whose connection the popup is probing. */
+    var probing by remember { mutableStateOf<String?>(null) }
     // Kept outside the tile: writing a new page's file makes the launcher rebuild this one.
     val said = Notes.of(page)
     var note by remember { mutableStateOf(said?.first) }
@@ -178,116 +195,139 @@ private fun PageTile(
         }
     }
 
-    Column(modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Label("SUPER DESKTOP", host, c.accent, 15, bold = true)
-            Spacer(Modifier.weight(1f))
+    Box(modifier) {
+        Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Label("SUPER DESKTOP", host, c.accent, 15, bold = true)
+                Spacer(Modifier.weight(1f))
+                when {
+                    all.isEmpty() -> Unit
+                    panel != Panel.NONE -> Action("done", host) { panel = Panel.NONE }
+                    else -> {
+                        if (config.pinned == null && opened == null) Action("+ new", host) { panel = Panel.CREATE }
+                        Action("⚙", host) { panel = Panel.SETTINGS }
+                    }
+                }
+            }
+            val body = Modifier.fillMaxWidth().weight(1f)
             when {
-                all.isEmpty() -> Unit
-                panel != Panel.NONE -> Action("done", host) { panel = Panel.NONE }
-                else -> {
-                    if (config.pinned == null && opened == null) Action("+ new", host) { panel = Panel.CREATE }
-                    Action("⚙", host) { panel = Panel.SETTINGS }
-                }
-            }
-        }
-        val body = Modifier.fillMaxWidth().weight(1f)
-        when {
-            bridges == null -> Spacer(body)
-            all.isEmpty() -> NoComputers(host, body) { openPairing(context) }
-            panel == Panel.SETTINGS ->
-                SettingsPanel(
-                    config,
-                    all,
-                    feeds,
-                    host,
-                    onConfig = { SdPages.set(context, page, it) },
-                    onNewPage = {
-                        act("New page") {
-                            // The launcher shows a new widget's page as soon as its file lands, so the new page says what it is.
-                            withContext(Dispatchers.IO) { SdWidgets.addPage(host.widgetsDir, (host.page() ?: 1) + 1) }
-                        }
-                    },
-                    onNewWidget = {
-                        act("New widget") {
-                            withContext(Dispatchers.IO) { SdWidgets.addTerminal(context, host.widgetsDir, host.page() ?: 1) }
-                        }
-                    },
-                    onPair = { openPairing(context) },
-                    onForget = { b -> act("Forget") { withContext(Dispatchers.IO) { SdStore.remove(context, b.key) } } },
-                    modifier = body,
-                )
-            panel == Panel.CREATE ->
-                CreatePanel(
-                    shown,
-                    host,
-                    onStart = { b, type, folder ->
-                        act("Start ${type.name}") {
-                            SdLive.api(b).createHarness(type.id, folder)
-                            panel = Panel.NONE
-                            say("Started ${type.name} on ${b.name}")
-                        }
-                    },
-                    modifier = body,
-                )
-            config.pinned != null -> {
-                val pin = config.pinned
-                val b = shown.firstOrNull { it.key == pin.computer }
-                val feed = b?.let { feeds[it.key] }
-                HarnessView(
-                    b,
-                    feed?.doc?.harnesses?.firstOrNull { it.id == pin.harness },
-                    feed,
-                    host,
-                    leaveLabel = "show every harness",
-                    onOpen = { pc, h -> openInApp(context, pc, h) },
-                    onKeys = ::keys,
-                    leave = { SdPages.set(context, page, config.copy(pinned = null)) },
-                    onWidget = ::addWidget,
-                    modifier = body,
-                )
-            }
-            else ->
-                BoxWithConstraints(body) {
-                    // A wide tile (an unfolded phone, a tablet, landscape) shows the list and the open harness side by side.
-                    val wide = maxWidth >= 600.dp
-                    val b = opened?.let { o -> shown.firstOrNull { it.key == o.computer } }
-                    val feed = b?.let { feeds[it.key] }
-                    val h = feed?.doc?.harnesses?.firstOrNull { it.id == opened?.harness }
-                    val list = @Composable { m: Modifier ->
-                        Overview(
-                            shown,
-                            feeds,
-                            host,
-                            closing,
-                            onOpen = { pc, harness -> opened = PageConfig.Pinned(pc.key, harness.id) },
-                            onAskClose = { closing = it },
-                            onClose = { pc, harness ->
-                                closing = null
-                                act("Close") {
-                                    SdLive.api(pc).closeHarness(harness.id)
-                                    say("Closed ${harness.sessionTitle ?: harness.agentName}")
-                                }
-                            },
-                            onWake = { pc -> act("Wake") { say(SdWake.wake(context, pc)) } },
-                            modifier = m,
-                        )
-                    }
-                    val view = @Composable { m: Modifier ->
-                        HarnessView(b, h, feed, host, leaveLabel = if (wide) "close" else "back", onOpen = { pc, harness -> openInApp(context, pc, harness) }, onKeys = ::keys, leave = { opened = null }, onWidget = ::addWidget, modifier = m)
-                    }
-                    when {
-                        wide && opened != null ->
-                            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                list(Modifier.weight(0.42f).fillMaxHeight())
-                                view(Modifier.weight(0.58f).fillMaxHeight())
+                bridges == null -> Spacer(body)
+                all.isEmpty() -> NoComputers(host, body) { openPairing(context) }
+                panel == Panel.SETTINGS ->
+                    SettingsPanel(
+                        config,
+                        all,
+                        feeds,
+                        host,
+                        onConfig = { SdPages.set(context, page, it) },
+                        onNewPage = {
+                            act("New page") {
+                                // The launcher shows a new widget's page as soon as its file lands, so the new page says what it is.
+                                withContext(Dispatchers.IO) { SdWidgets.addPage(host.widgetsDir, (host.page() ?: 1) + 1) }
                             }
-                        opened != null -> view(Modifier.fillMaxSize())
-                        else -> list(Modifier.fillMaxSize())
-                    }
+                        },
+                        onNewWidget = {
+                            act("New widget") {
+                                withContext(Dispatchers.IO) { SdWidgets.addTerminal(context, host.widgetsDir, host.page() ?: 1) }
+                            }
+                        },
+                        onNewUsage = {
+                            act("New usage widget") {
+                                withContext(Dispatchers.IO) { SdWidgets.addUsage(host.widgetsDir, host.page() ?: 1) }
+                            }
+                        },
+                        onPair = { openPairing(context) },
+                        onForget = { b -> act("Forget") { withContext(Dispatchers.IO) { SdStore.remove(context, b.key) } } },
+                        modifier = body,
+                    )
+                panel == Panel.CREATE ->
+                    CreatePanel(
+                        shown,
+                        host,
+                        onStart = { b, type, folder ->
+                            act("Start ${type.name}") {
+                                SdLive.api(b).createHarness(type.id, folder)
+                                panel = Panel.NONE
+                                say("Started ${type.name} on ${b.name}")
+                            }
+                        },
+                        modifier = body,
+                    )
+                config.pinned != null -> {
+                    val pin = config.pinned
+                    val b = shown.firstOrNull { it.key == pin.computer }
+                    val feed = b?.let { feeds[it.key] }
+                    HarnessView(
+                        b,
+                        feed?.doc?.harnesses?.firstOrNull { it.id == pin.harness },
+                        feed,
+                        host,
+                        leaveLabel = "show every harness",
+                        onOpen = { pc, h -> openInApp(context, pc, h) },
+                        onKeys = ::keys,
+                        leave = { SdPages.set(context, page, config.copy(pinned = null)) },
+                        onWidget = ::addWidget,
+                        modifier = body,
+                    )
                 }
+                else ->
+                    BoxWithConstraints(body) {
+                        // A wide tile (an unfolded phone, a tablet, landscape) shows the list and the open harness side by side.
+                        val wide = maxWidth >= 600.dp
+                        val b = opened?.let { o -> shown.firstOrNull { it.key == o.computer } }
+                        val feed = b?.let { feeds[it.key] }
+                        val h = feed?.doc?.harnesses?.firstOrNull { it.id == opened?.harness }
+                        val list = @Composable { m: Modifier ->
+                            Overview(
+                                shown,
+                                feeds,
+                                host,
+                                closing,
+                                onOpen = { pc, harness -> opened = PageConfig.Pinned(pc.key, harness.id) },
+                                onAskClose = { closing = it },
+                                onClose = { pc, harness ->
+                                    closing = null
+                                    act("Close") {
+                                        SdLive.api(pc).closeHarness(harness.id)
+                                        say("Closed ${harness.sessionTitle ?: harness.agentName}")
+                                    }
+                                },
+                                onWake = { pc -> act("Wake") { say(SdWake.wake(context, pc)) } },
+                                onRetry = { pc -> probing = pc.key },
+                                modifier = m,
+                            )
+                        }
+                        val view = @Composable { m: Modifier ->
+                            HarnessView(b, h, feed, host, leaveLabel = if (wide) "close" else "back", onOpen = { pc, harness -> openInApp(context, pc, harness) }, onKeys = ::keys, leave = { opened = null }, onWidget = ::addWidget, modifier = m)
+                        }
+                        when {
+                            wide && opened != null ->
+                                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    list(Modifier.weight(0.42f).fillMaxHeight())
+                                    view(Modifier.weight(0.58f).fillMaxHeight())
+                                }
+                            opened != null -> view(Modifier.fillMaxSize())
+                            else -> list(Modifier.fillMaxSize())
+                        }
+                    }
+            }
+            note?.let { Label(it, host, if (failed) c.red else c.muted, 11, lines = 2) }
         }
-        note?.let { Label(it, host, if (failed) c.red else c.muted, 11, lines = 2) }
+        val probed = probing?.let { k -> all.firstOrNull { it.key == k } }
+        if (probed != null) {
+            BackHandler { probing = null }
+            // A dimmed backdrop that keeps taps off the list beneath; only "close" or Back ends the probe.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(c.background.copy(alpha = 0.7f))
+                    .clickable(remember { MutableInteractionSource() }, null) {}
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                ProbePanel(probed, feeds[probed.key], host, onClose = { probing = null }, modifier = Modifier.fillMaxWidth())
+            }
+        }
     }
 }
 
