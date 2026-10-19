@@ -18,6 +18,7 @@ Built on **Omalauncher 0.9.0** (was 0.8.1).
   network, and Wake-on-LAN enabled on the PC.
 - **Fuller key row.** y, n, PgUp and PgDn join esc, tab, arrows, ^C and ⏎.
 - **Drafts are kept** per harness across pages, restarts and failed sends.
+- **Every working folder** the PC offers when starting a harness, in a scrollable list (was the first 6).
 - **New app icon:** the SUPER DESKTOP thunderbolt mascot.
 
 ### Better connection

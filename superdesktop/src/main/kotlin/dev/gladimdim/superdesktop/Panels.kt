@@ -1,5 +1,6 @@
 package dev.gladimdim.superdesktop
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -137,9 +139,23 @@ internal fun CreatePanel(
         error?.let { Label(it, host, c.red, 12, lines = 3) }
         Heading("folder", host)
         Field(folder, { folder = it }, host, "folder on ${computer.name}", Modifier.fillMaxWidth())
-        val matches = folders.filter { it != folder && (folder.isBlank() || it.contains(folder.substringAfterLast('/'), ignoreCase = true)) }.take(6)
-        for (f in matches.ifEmpty { folders.filter { it != folder }.take(6) }) {
-            Label(f, host, c.muted, 12, modifier = Modifier.fillMaxWidth().clickable { folder = f }.padding(vertical = 5.dp))
+        val matches = folders.filter { it != folder && (folder.isBlank() || it.contains(folder.substringAfterLast('/'), ignoreCase = true)) }
+        val shown = matches.ifEmpty { folders.filter { it != folder } }
+        if (shown.isNotEmpty()) {
+            // Every folder the computer offers, in a box of its own that scrolls inside the panel.
+            val shape = host.shape(6.dp)
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .border(1.dp, c.border, shape)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            ) {
+                for (f in shown) {
+                    Label(f, host, c.muted, 12, modifier = Modifier.fillMaxWidth().clickable { folder = f }.padding(vertical = 7.dp))
+                }
+            }
         }
         Row(Modifier.padding(top = 8.dp)) {
             Action("start ${type?.name ?: ""}".trim(), host, strong = true, enabled = type != null && folder.isNotBlank()) {
