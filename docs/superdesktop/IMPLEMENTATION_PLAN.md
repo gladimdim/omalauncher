@@ -171,6 +171,14 @@ renders it (`make.py` writes the SVG layers, `build.sh` the PNGs per density) in
 the debug and release builds; its `mipmap-anydpi/ic_launcher.xml` overrides
 Omalauncher's. The 512 px image is `docs/superdesktop/media/icon-512.png`.
 
+### Omalauncher 0.11.0 (2026-10-21)
+
+- Merged (not rebased) upstream `51d604f` (0.10.0, 0.10.1, 0.11.0; ~80 commits:
+  drawer.owl, layout.toml, panels, keybar.owl, owl 11/12) into `superdesktop`, so
+  the branch needed no force-push. One conflict, `Schema.kt`'s `KINDS`: kept the
+  `SuperDesktop` node beside Column's new `lazy` and `reverse`. owl 166, app 161,
+  superdesktop 28 tests passed. SD Launcher 1.3.0 (104).
+
 ### Omalauncher 0.9.0 and SD faces (2026-10-19)
 
 - Rebased onto Omalauncher 0.9.0 (`77c86ac`, 33 commits: faces, owl 10). Our 16

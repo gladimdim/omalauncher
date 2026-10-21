@@ -1,5 +1,26 @@
 # SD Launcher changelog
 
+## 1.3.0 (104)
+
+Built on **Omalauncher 0.11.0** (was 0.9.0). No SUPER DESKTOP changes; the bridge
+is unchanged, so it works with the same desktop versions as 1.2.0.
+
+### From Omalauncher 0.10 and 0.11
+- **The app drawer and the terminal key bar are owl files** (drawer.owl,
+  keybar.owl) that you or an agent can edit, with stock fallbacks. Settings ›
+  style shows the key bar's state and sets its gaps and border width.
+- **Home's layout is a file**: ~/.config/omalauncher/home/layout.toml lists the
+  pages and where every widget, app and folder sits; edits to it move home.
+- **Swipe panels**: owl 11 `panel` files open on a swipe up or down.
+- **Owl 12**: encrypted `secret` state, password inputs, PUT/PATCH/DELETE
+  requests, base64 helpers, and widgets that press keys in Linux windows.
+- **Safer widgets**: requests send headers only to the server they name, and a
+  runaway regex, a huge value or a stuck stream can't freeze the launcher.
+- **Linux install** checks for about 3 GB of free space first and can be cancelled.
+- **Fixes**: a crash from the store's panels tab, a crash when going home during
+  a backup, backups on phones with Linux, status bar icon colours after a
+  rotation, store preview memory use, and Files with broken links.
+
 ## 1.2.0 (103)
 
 Built on **Omalauncher 0.9.0**.
