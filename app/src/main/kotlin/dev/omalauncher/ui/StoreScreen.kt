@@ -103,7 +103,7 @@ fun StoreScreen(
             onBack = if (alone != null) back else LocalPanelBack.current,
             actions = {
                 if (alone == null) {
-                    KindToggle(kind) {
+                    KindToggle(kind, engine.markets.map { it.kind }) {
                         kind = it
                         open = null
                         message = null
@@ -169,10 +169,12 @@ fun StoreScreen(
 @Composable
 private fun KindToggle(
     kind: OwlKind,
+    /** The kinds the store has; panels have none. */
+    kinds: List<OwlKind>,
     onPick: (OwlKind) -> Unit,
 ) {
     Row(Modifier.padding(end = 4.dp).frame(1.dp, Palette.border, radius = 14.dp).clip(RoundedCornerShape(14.dp))) {
-        for (k in OwlKind.entries) {
+        for (k in kinds) {
             val label = "${k.word}s"
             val on = k == kind
             BasicText(
@@ -534,7 +536,7 @@ private fun Detail(
                     when (market.kind) {
                         OwlKind.Widget -> "add to page $page"
                         OwlKind.Face -> "add as a face"
-                        OwlKind.App -> "install"
+                        OwlKind.App, OwlKind.Panel, OwlKind.Keybar -> "install"
                     },
                     Palette.accent,
                     onInstall,
@@ -552,7 +554,7 @@ private fun Detail(
     }
 }
 
-/** Where an added widget, face or app went. */
+/** Where an added widget, face, app or panel went. */
 @Composable
 internal fun AddedMark(kind: OwlKind) =
     BasicText(
@@ -560,6 +562,9 @@ internal fun AddedMark(kind: OwlKind) =
             OwlKind.Widget -> "✓ on your home screen"
             OwlKind.Face -> "✓ left of your first page"
             OwlKind.App -> "✓ in your app drawer"
+            OwlKind.Panel -> "✓ in gesture settings"
+            // Shown only as keybar.owl, the file's name in the widgets folder.
+            OwlKind.Keybar -> "✓ in your widgets folder"
         },
         style = Mono.copy(color = Palette.green),
     )

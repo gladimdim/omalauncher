@@ -170,6 +170,9 @@ class Style(
         val SCREEN_GAPS_OUT = Setting.Number("screens.gaps-out", 6.0, 0.0..48.0, "Space in dp from full-screen panels (settings, style, the stores) to the screen's edges.")
         val SCREEN_BORDER_WIDTH = Setting.Number("screens.border-width", 2.0, 0.0..8.0, "How thick full-screen panels' outlines are, in dp.")
 
+        val KEYBAR_GAPS_OUT = Setting.Number("keybar.gaps-out", 6.0, 0.0..48.0, "Space in dp from the terminal key bar's frame to the screen's sides and the keyboard.")
+        val KEYBAR_BORDER_WIDTH = Setting.Number("keybar.border-width", 2.0, 0.0..8.0, "How thick the terminal key bar's frame is, in dp. 0 draws none.")
+
         val MONOCHROME_ICONS = Setting.Flag("icons.monochrome", false, "App icons as silhouettes in the accent color, as on Omarchy, rather than in their own colors.")
 
         val CORNER_SCALE = Setting.Number("corners.scale", 0.0, 0.0..2.0, "Multiplies every frame's corner radius: 0 square (Omarchy), 0.5 soft, 1 round like stock Android.")
@@ -184,6 +187,19 @@ class Style(
         val FONT = Setting.Text("font", SYSTEM_FONT, "The font family of the launcher's text and widgets: \"system\" is Android's monospace; fc-list :spacing=100 lists those Linux has.")
         val TERMINAL_FONT = Setting.Text("terminal.font", "JetBrains Mono", "The terminals' font family; fc-list :spacing=100 lists those installed.")
         val TERMINAL_TEXT = Setting.Number("terminal.text", 12.0, 6.0..32.0, "The terminals' em size in dp, before Android's font size: 10 smaller, 12 default, 14 larger.")
+
+        val SWIPE_UP =
+            Setting.Text(
+                "gestures.swipe-up",
+                "drawer.owl",
+                "The app drawer, which swiping up opens: a panel's file name in ~/.config/omalauncher/widgets, by default drawer.owl; \"none\" leaves only tapping the bar to open drawer.owl. One that's gone or doesn't compile falls back to drawer.owl, then to .stock-drawer.owl, the drawer as it ships.",
+            )
+        val SWIPE_DOWN =
+            Setting.Text(
+                "gestures.swipe-down",
+                "none",
+                "What swiping down on home opens: \"none\" nothing, or a panel's file name in ~/.config/omalauncher/widgets (\"my-panel.owl\"); one that's gone or doesn't compile opens nothing.",
+            )
     }
 
     /** A system bar's band on home; [name] is its section in the file. */
@@ -223,8 +239,8 @@ object StyleFile {
     val ALL: List<Setting<*>> =
         with(Style) {
             listOf(THEME, BACKGROUND, FONT, APP_TILES, RECENT_APPS, COLUMNS, FORCE_SINGLE_PAGE, GAPS_IN, GAPS_OUT, TILE_BORDER_WIDTH, TILE_BORDER, TILE_BORDER_FOCUSED) +
-                listOf(SCREEN_GAPS_OUT, SCREEN_BORDER_WIDTH, MONOCHROME_ICONS, CORNER_SCALE) +
-                listOf(STATUS_BAR_SHOWN) + STATUS_BAR.all + NAVIGATION_BAR.all + listOf(TERMINAL_FONT, TERMINAL_TEXT)
+                listOf(SCREEN_GAPS_OUT, SCREEN_BORDER_WIDTH, KEYBAR_GAPS_OUT, KEYBAR_BORDER_WIDTH, MONOCHROME_ICONS, CORNER_SCALE) +
+                listOf(STATUS_BAR_SHOWN) + STATUS_BAR.all + NAVIGATION_BAR.all + listOf(TERMINAL_FONT, TERMINAL_TEXT, SWIPE_UP, SWIPE_DOWN)
         }
 
     private val byKey = ALL.associateBy { it.key }

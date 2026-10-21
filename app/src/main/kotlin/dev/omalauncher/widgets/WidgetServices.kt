@@ -24,6 +24,8 @@ import android.os.StatFs
 import android.view.Display
 import android.view.HapticFeedbackConstants
 import android.view.View
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.ImageBitmap
 import dev.omalauncher.BuildConfig
@@ -37,17 +39,20 @@ import dev.omalauncher.MainActivity
 import dev.omalauncher.R
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.Agent
+import dev.omalauncher.linux.LinuxState
 import dev.omalauncher.linux.agentInvocation
 import dev.omalauncher.linux.GuestShell
 import dev.omalauncher.linux.Proot
 import dev.omalauncher.linux.ShellPool
 import dev.omalauncher.linux.ShellResult
+import dev.omalauncher.SecretBox
 import dev.omalauncher.openHttp
 import dev.omalauncher.openUrl
 import dev.omalauncher.readUpTo
 import dev.omalauncher.sha256Hex
 import dev.omalauncher.upgrade.writeAtomically
 import dev.omalauncher.widgets.lang.Builtins
+import dev.omalauncher.widgets.lang.KeyNames
 import dev.omalauncher.widgets.lang.Lst
 import dev.omalauncher.widgets.lang.Null
 import dev.omalauncher.widgets.lang.Num
@@ -57,7 +62,15 @@ import dev.omalauncher.widgets.lang.Value
 import dev.omalauncher.widgets.lang.WidgetError
 import dev.omalauncher.widgets.lang.bool
 import dev.omalauncher.androidAppKey
+import dev.omalauncher.OfferedShortcut
+import dev.omalauncher.ui.AppHandlers
+import dev.omalauncher.ui.ShortcutMenu
+import dev.omalauncher.ui.initials
 import dev.omalauncher.ui.AppHit
+import dev.omalauncher.ui.act
+import dev.omalauncher.ui.actionWords
+import dev.omalauncher.ui.kind
+import dev.omalauncher.ui.profileKind
 import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.SettingsPage
 import dev.omalauncher.ui.allApps
@@ -80,7 +93,11 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -91,6 +108,22 @@ import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
 private const val MAX_HTTP_BYTES = 1 shl 20
+
+/** Why a request whose response is over [MAX_HTTP_BYTES] failed; it isn't tried again any sooner than its interval. */
+internal const val HTTP_TOO_BIG = "the response is over 1 MB, more than a widget reads"
+
+private const val MAX_REDIRECTS = 5
+
+private val REDIRECTS = setOf(301, 302, 303, 307, 308)
+
+/**
+ * How often `android.drawer` changes at most. Icons load one at a time, and each changes `hasIcon`: without this a
+ * cold start would rebuild the drawer, and everything a panel works out from it, once for every icon.
+ */
+private const val DRAWER_EVERY_MS = 200L
+
+/** How many shortcuts from shortcuts(...) stay openable by key: a few menus' worth. */
+private const val MAX_OFFERED = 64
 
 /** Web images and sounds: largest download, how long a kept one is used without asking again, how long to wait after a failure, and the cache's size. */
 private const val MAX_FILE_BYTES = 8 shl 20
@@ -125,6 +158,9 @@ class WidgetServices(
 
     /** Opens launcher screens ("style" or "themes", "agents", "drawer"); set by the UI. */
     var launcherAction: ((String) -> Unit)? = null
+
+    /** What the drawer's long-press menu does, for appAction(...); set by the UI. */
+    internal var appHandlers: AppHandlers? = null
 
     /** The home screen's view, for haptic(): View haptics follow the user's touch feedback setting and need no permission; set by the UI. */
     var view: View? = null
@@ -164,6 +200,8 @@ class WidgetServices(
             "apps" -> apps()
             "agents" -> agents()
             "recent" -> recent()
+            "drawer" -> drawer()
+            "modifiers" -> modifiers()
             else -> throw WidgetError("unknown android source $name")
         }
 
@@ -178,6 +216,15 @@ class WidgetServices(
             "apps" -> snapshotFlow { apps() }
             "agents" -> snapshotFlow { agents() }
             "recent" -> snapshotFlow { recent() }
+            "modifiers" -> snapshotFlow { modifiers() }
+            // Linux's state is a flow of its own, not Compose state: a change of its word starts the drawer's anew.
+            "drawer" -> runtime.bootstrap.state.map(::linuxWord).distinctUntilChanged().flatMapLatest { snapshotFlow { drawer() } }
+                // The first at once, then the latest at most every DRAWER_EVERY_MS.
+                .conflate()
+                .transform {
+                    emit(it)
+                    delay(DRAWER_EVERY_MS)
+                }
             "battery" ->
                 callbackFlow {
                     val receiver =
@@ -206,36 +253,70 @@ class WidgetServices(
         return if (runtime.androidApps.cloned(serial)) "clone" else "work"
     }
 
+    /** Apps by package, in the drawer's order: a widget listing every app asks for each one's icon, and a scan per icon was O(n²). */
+    private val appsByPackage by derivedStateOf { runtime.androidApps.apps.groupBy { it.component.packageName } }
+
     /**
      * An app's icon as the drawer shows it (its silhouette with monochrome icons), badge included. By package, the launcher's
      * own profile first; `pkg@work` and `pkg@clone` ask for the copy in a work profile or a clone profile, and nothing else.
      */
     override fun appIcon(pkg: String): ImageBitmap? {
         val apps = runtime.androidApps
-        val name = pkg.substringBefore('@')
+        val copies = appsByPackage[pkg.substringBefore('@')] ?: return null
         val app =
             when (pkg.substringAfter('@', "")) {
-                "work" -> apps.apps.firstOrNull { it.component.packageName == name && it.work }
-                "clone" -> apps.apps.firstOrNull { it.component.packageName == name && it.clone }
-                "" -> apps.apps.firstOrNull { it.component.packageName == name && it.profile == null } ?: apps.apps.firstOrNull { it.component.packageName == name }
+                "work" -> copies.firstOrNull { it.work }
+                "clone" -> copies.firstOrNull { it.clone }
+                "" -> copies.firstOrNull { it.profile == null } ?: copies.first()
                 else -> null
             } ?: return null
         val key = androidAppKey(app.component, app.profile)
         return if (LauncherStyle.monochromeIcons) apps.masks[key] else apps.icons[key]
     }
 
-    override fun launcherIcon(key: String) = appIconOf(runtime, key, LauncherStyle.monochromeIcons)
+    override fun launcherIcon(key: String) =
+        offered[key]?.let { (_, s) -> if (LauncherStyle.monochromeIcons) s.mask else s.icon } ?: appIconOf(runtime, key, LauncherStyle.monochromeIcons)
+
+    /**
+     * Shortcuts handed out by shortcuts(...), by the key they got ("x:3"): open(...), appAction("pin", ...) and
+     * `icon:` take it. Each keeps the menu it came from, which opens and pins it as the drawer's own menu does.
+     */
+    private val offered = ConcurrentHashMap<String, Pair<ShortcutMenu, OfferedShortcut>>()
+    private var offeredCount = 0
+
+    override fun shortcuts(
+        key: String,
+        done: (Value) -> Unit,
+    ) {
+        val app = (hitOf(key) as? AppHit.Android)?.app
+        val menu = app?.let { appHandlers?.shortcuts?.invoke(it) } ?: return done(Lst(emptyList()))
+        scope.launch {
+            val list = withContext(Dispatchers.IO) { runCatching { menu.load() }.getOrDefault(emptyList()) }
+            // Only the latest few menus' keys stay: a key from a menu long closed opens nothing.
+            if (offered.size > MAX_OFFERED) offered.clear()
+            done(
+                Lst(
+                    list.map { s ->
+                        val k = "x:" + offeredCount++
+                        offered[k] = menu to s
+                        Obj(mapOf("key" to Str(k), "name" to Str(s.label), "icon" to Str("icon:$k")))
+                    },
+                ),
+            )
+        }
+    }
 
     override fun terminal(
         command: String?,
         fontSize: Double?,
     ) = runtime.terminals.create(command, fontSize)
 
-    override fun fileUpdates(path: String) = watchFile(guestFile(path))
+    // Resolved again for every read, so a folder swapped for a link out of Linux isn't followed.
+    override fun fileUpdates(path: String) = watchFile { guestFile(path) }
 
-    override fun guestFile(path: String): File {
+    override fun guestFile(path: String): File? {
         val p = if (path.startsWith("~/")) Proot.GUEST_HOME + "/" + path.removePrefix("~/") else path
-        return proot.hostFile(p)
+        return proot.guestFile(p)
     }
 
     /** The phone itself, which the guest can't identify: it has no DMI tables, and /system isn't mounted. */
@@ -254,16 +335,18 @@ class WidgetServices(
      * What a fetch shows about the phone, all from Android, so it works without Linux:
      * kernel, uptime, memory, storage, CPU, display, build, locale and the launcher itself.
      */
+    /** Max clock over the cores in kHz, read once: it doesn't change, and system() runs every interval. Some phones don't let apps read it. */
+    private val maxFreq by lazy {
+        (0 until java.lang.Runtime.getRuntime().availableProcessors()).mapNotNull { i ->
+            runCatching { File("/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_max_freq").readText().trim().toLong() }.getOrNull()
+        }.maxOrNull()
+    }
+
     private fun system(): Value {
         val memory = ActivityManager.MemoryInfo().also { context.getSystemService(ActivityManager::class.java).getMemoryInfo(it) }
         val data = StatFs(Environment.getDataDirectory().path)
         val display = context.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
         val mode = display?.mode
-        // Max clock per core in kHz; some phones don't let apps read it.
-        val maxFreq =
-            (0 until java.lang.Runtime.getRuntime().availableProcessors()).mapNotNull { i ->
-                runCatching { File("/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_max_freq").readText().trim().toLong() }.getOrNull()
-            }.maxOrNull()
         fun num(v: Long) = Num(v.toDouble())
         return Obj(
             mapOf(
@@ -363,17 +446,10 @@ class WidgetServices(
     private fun recent(): Value =
         Lst(
             recentApps(runtime, Builtins.MAX_LIST).map { hit ->
-                val kind =
-                    when (hit) {
-                        is AppHit.Android -> "android"
-                        is AppHit.Linux -> "linux"
-                        is AppHit.Owl -> "owl"
-                        is AppHit.Shortcut -> "shortcut"
-                    }
                 Obj(
                     mapOf(
                         "key" to Str(hit.key),
-                        "kind" to Str(kind),
+                        "kind" to Str(hit.kind),
                         "name" to Str(hit.label),
                         "icon" to Str("icon:" + hit.key),
                         "score" to Num(Math.round(runtime.usage.score(hit.key) * 10.0) / 10.0),
@@ -382,6 +458,48 @@ class WidgetServices(
                 )
             },
         )
+
+    /**
+     * The drawer for `source d = android.drawer`: `{apps, linux, monochrome, work, updates}`. `apps` is every app in the drawer's
+     * order (owl apps, Linux apps, shortcuts, Android apps, then the work profile's shortcuts and apps), each
+     * `{key, kind, name, label, icon, hasIcon, initials, profile, alias, paused, actions, score, last}`:
+     * - `label` what screen readers say for it ("WhatsApp work"), for an Image's `label`; `profile` as in `android.apps`; `alias` what search matches besides the name ("WhatsApp work");
+     * - `paused` for an app in a paused work profile; `actions` the words its long-press menu offers, for appAction(...);
+     * - `hasIcon` whether `icon` draws anything yet; without, the drawer shows `initials` on a badge, as it does a
+     *   silhouette when `monochrome`.
+     * `linux` is "installed", "installing" or "missing"; `work` is `{paused}` while there's a work profile, else null;
+     * `updates` counts the system updates waiting.
+     */
+    private fun drawer(): Value {
+        val apps = runtime.androidApps
+        val hits =
+            runtime.widgets.apps().map { AppHit.Owl(it) } + runtime.linuxApps.apps.map { AppHit.Linux(it) } +
+                apps.shortcuts.filter { !it.work }.map { AppHit.Shortcut(it) } + apps.apps.filter { !it.work }.map { AppHit.Android(it) } +
+                apps.shortcuts.filter { it.work }.map { AppHit.Shortcut(it) } + apps.apps.filter { it.work }.map { AppHit.Android(it) }
+        val list =
+            hits.take(Builtins.MAX_LIST).map { hit ->
+                Obj(
+                    mapOf(
+                        "key" to Str(hit.key),
+                        "kind" to Str(hit.kind),
+                        "name" to Str(hit.label),
+                        "label" to Str(hit.spoken),
+                        "icon" to Str("icon:" + hit.key),
+                        "profile" to (hit.profileKind?.let(::Str) ?: Null),
+                        "alias" to (hit.alias?.let(::Str) ?: Null),
+                        "paused" to bool(hit.paused(runtime)),
+                        // Whether `icon` draws anything: its silhouette, with monochrome icons. Without one, the drawer shows the initials.
+                        "hasIcon" to bool(appIconOf(runtime, hit.key, LauncherStyle.monochromeIcons) != null),
+                        "initials" to Str(initials(hit.label)),
+                        "actions" to Lst(hit.actionWords().map(::Str)),
+                        "score" to Num(Math.round(runtime.usage.score(hit.key) * 10.0) / 10.0),
+                        "last" to (runtime.usage.last(hit.key)?.let { Num((it / 1000).toDouble()) } ?: Null),
+                    ),
+                )
+            }
+        val work = if (apps.workProfiles.isEmpty()) Null else Obj(mapOf("paused" to bool(apps.workProfiles.any { apps.paused(it) })))
+        return Obj(mapOf("apps" to Lst(list), "linux" to Str(linuxWord(runtime.bootstrap.state.value)), "monochrome" to bool(LauncherStyle.monochromeIcons), "work" to work, "updates" to Num((runtime.updates.pending?.count ?: 0).toDouble())))
+    }
 
     /** Android hides the battery from the guest (/sys/class/power_supply), so expose it here. */
     private fun battery(): Value {
@@ -426,6 +544,9 @@ class WidgetServices(
         )
     }
 
+    /** `source m = android.modifiers`: how the extra keys hold each modifier, `{ctrl, alt, shift}`, each "off", "once" or "locked". */
+    private fun modifiers(): Value = Obj(runtime.keyboard.latches.mapValues { (_, m) -> Str(m.latch.name.lowercase()) })
+
     /** Runs a widget action: terminal, app, run, url, launcher, media, volume, notification, ... */
     override fun act(
         name: String,
@@ -436,6 +557,12 @@ class WidgetServices(
         if (args.firstOrNull() == Null) return
         val arg = args.firstOrNull()?.toString().orEmpty()
         if (name == "run") return run(arg) { done() }
+        // Keys go out as they're pressed, many a second while one repeats: nothing to refresh after them.
+        when (name) {
+            "pressKey" -> return KeyNames.combo(arg)?.let(runtime.keyboard::press) ?: Unit
+            "typeText" -> return runtime.keyboard.type(arg)
+            "latch" -> return runtime.keyboard.latch(arg, args.getOrNull(1)?.takeIf { it != Null }?.toString())
+        }
         when (name) {
             // Named after the command (btop, dua, ...) unless the widget passes a name.
             "terminal" -> runtime.terminal("$arg; exec bash", args.getOrNull(1)?.toString() ?: arg.substringBefore(' '))
@@ -454,6 +581,8 @@ class WidgetServices(
             "haptic" -> view?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             "open" -> openApp(arg)
             "ask" -> ask(arg, args.getOrNull(1)?.takeIf { it != Null }?.toString())
+            "appAction" -> args.getOrNull(1)?.takeIf { it != Null }?.let { appAction(arg, it.toString()) }
+            "workApps" -> workApps(arg)
         }
         // Anything the action changed should show up without waiting for the next interval.
         scope.launch {
@@ -475,32 +604,59 @@ class WidgetServices(
         headers: Map<String, String>,
         timeoutSeconds: Int,
         body: ByteArray?,
+        method: String,
     ): ShellResult =
         withContext(Dispatchers.IO) {
             if (!url.startsWith("https://") && !url.startsWith("http://")) return@withContext ShellResult("", "not an http(s) URL: $url", -1)
             try {
-                val connection = openHttp(url, timeoutSeconds * 1000, timeoutSeconds * 1000)
-                try {
-                    connection.setRequestProperty("User-Agent", "omalauncher-widgets")
-                    headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
-                    if (body != null) {
-                        connection.requestMethod = "POST"
-                        connection.doOutput = true
-                        connection.setFixedLengthStreamingMode(body.size)
-                        connection.outputStream.use { it.write(body) }
+                var target = URL(url)
+                var sendMethod = if (body != null) method else "GET"
+                var sendBody = body
+                // Followed here rather than by HttpURLConnection, which would take the widget's headers (an API key, a
+                // secret) along to whatever server a redirect names: they go only to the server the widget wrote out.
+                repeat(MAX_REDIRECTS + 1) {
+                    val connection = openHttp(target.toString(), timeoutSeconds * 1000, timeoutSeconds * 1000)
+                    try {
+                        connection.instanceFollowRedirects = false
+                        connection.setRequestProperty("User-Agent", "omalauncher-widgets")
+                        if (origin(target) == origin(URL(url))) headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
+                        connection.requestMethod = sendMethod
+                        // A DELETE usually has no body, and some servers refuse one.
+                        if (sendBody != null && (sendMethod != "DELETE" || sendBody.isNotEmpty())) {
+                            connection.doOutput = true
+                            connection.setFixedLengthStreamingMode(sendBody.size)
+                            connection.outputStream.use { it.write(sendBody) }
+                        }
+                        val code = connection.responseCode
+                        val location = connection.getHeaderField("Location")
+                        if (code in REDIRECTS && location != null) {
+                            val next = redirect(code, target, URL(target, location), sendMethod, sendBody)
+                            target = next.url
+                            sendMethod = next.method
+                            sendBody = next.body
+                            return@repeat
+                        }
+                        val stream = if (code >= 400) connection.errorStream else connection.inputStream
+                        // Widgets show a few values; a runaway response mustn't fill memory. One cut short would read as
+                        // what the server said, or as broken JSON taken for text: it fails instead.
+                        val bytes = stream?.use { it.readUpTo(MAX_HTTP_BYTES + 1) } ?: ByteArray(0)
+                        if (bytes.size > MAX_HTTP_BYTES) return@withContext ShellResult("", HTTP_TOO_BIG, -1)
+                        val text = String(bytes, Charsets.UTF_8)
+                        return@withContext if (code in 200..299) ShellResult(text.trimEnd(), "", code) else ShellResult(text.trimEnd(), connection.responseMessage.orEmpty(), code)
+                    } finally {
+                        connection.disconnect()
                     }
-                    val code = connection.responseCode
-                    val stream = if (code >= 400) connection.errorStream else connection.inputStream
-                    // Widgets show a few values; a runaway response mustn't fill memory.
-                    val body = stream?.use { String(it.readUpTo(MAX_HTTP_BYTES), Charsets.UTF_8) }.orEmpty()
-                    if (code in 200..299) ShellResult(body.trimEnd(), "", code) else ShellResult(body.trimEnd(), connection.responseMessage.orEmpty(), code)
-                } finally {
-                    connection.disconnect()
                 }
+                ShellResult("", "too many redirects", -1)
             } catch (e: IOException) {
                 ShellResult("", e.message ?: e.toString(), -1)
             }
         }
+
+
+    override fun seal(plain: ByteArray) = SecretBox.seal(plain)
+
+    override fun unseal(sealed: ByteArray) = SecretBox.unseal(sealed)
 
     /** Web images and sounds on disk, by the SHA-256 of their URL. */
     private val fileCache by lazy { File(context.cacheDir, "owl-files") }
@@ -624,10 +780,55 @@ class WidgetServices(
         context.packageManager.getLaunchIntentForPackage(arg)?.let { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)) }
     }
 
-    /** open(key): an app from `android.recent` or `android.agents`, or an `android.apps` key, opened as from the drawer. */
+    /**
+     * open(key): an app from `android.recent` or `android.agents`, or an `android.apps` key, opened as from the drawer: the
+     * drawer, or a panel open in its place or from the top, closes, and the bar's text goes.
+     */
     private fun openApp(key: String) {
+        offered[key]?.let { (menu, s) -> return menu.open(s) }
+        val hit = hitOf(key) ?: return
+        appHandlers?.launch?.invoke(hit) ?: hit.open(runtime)
+    }
+
+    /** appAction(word, key): the drawer's long-press menu entry [word] for the app [key], as `android.drawer` lists them. */
+    private fun appAction(
+        word: String,
+        key: String,
+    ) {
+        val handlers = appHandlers ?: return
+        // A shortcut from shortcuts(...): pinning is all its + in the drawer's menu does.
+        offered[key]?.let { (menu, s) ->
+            if (word == "pin") menu.pin(s)
+            return
+        }
+        hitOf(key)?.act(word, handlers)
+    }
+
+    /** Linux as `android.drawer` says it: "installed", "installing" (the drawer's offer says so) or "missing". */
+    private fun linuxWord(state: LinuxState) =
+        when (state) {
+            LinuxState.Installed -> "installed"
+            is LinuxState.Installing -> "installing"
+            else -> "missing"
+        }
+
+    /** The drawer's app with [key], as `android.drawer` and `android.recent` give it, or an `android.apps` key. */
+    private fun hitOf(key: String): AppHit? {
         val apps = allApps(runtime)
-        (apps.firstOrNull { it.key == key } ?: apps.firstOrNull { it.key == "a:$key" })?.open(runtime)
+        return apps.firstOrNull { it.key == key } ?: apps.firstOrNull { it.key == "a:$key" }
+    }
+
+    /** workApps("pause"), workApps("resume") or workApps("toggle"): the drawer's switch for work apps. */
+    private fun workApps(word: String) {
+        val apps = runtime.androidApps
+        if (apps.workProfiles.isEmpty()) return
+        apps.pauseWork(
+            when (word) {
+                "pause" -> true
+                "resume" -> false
+                else -> apps.workProfiles.none { apps.paused(it) }
+            },
+        )
     }
 
     /**
@@ -683,6 +884,35 @@ class WidgetServices(
                 .build()
         nm.notify(notificationId++, n)
     }
+}
+
+/** A widget's request after a redirect. */
+internal class Redirect(
+    val url: URL,
+    val method: String,
+    val body: ByteArray?,
+)
+
+/** A URL's scheme, host and port: a redirect that keeps them keeps the widget's headers. */
+internal fun origin(u: URL) = Triple(u.protocol, u.host.lowercase(), if (u.port == -1) u.defaultPort else u.port)
+
+/**
+ * The request a redirect [code] from [from] to [to] asks for, as browsers make it: 303 asks for a GET, as 301 and 302
+ * do for a POST; the others send the same again. Throws when it isn't followed: from https down to http, or a body
+ * (which may hold a secret, bound to the server the widget wrote out) to another server.
+ */
+internal fun redirect(
+    code: Int,
+    from: URL,
+    to: URL,
+    method: String,
+    body: ByteArray?,
+): Redirect {
+    if (to.protocol != "https" && to.protocol != "http") throw IOException("redirected to a URL that isn't http(s), not followed")
+    if (from.protocol == "https" && to.protocol == "http") throw IOException("redirected from https to http (${to.host}), not followed")
+    if (code == 303 || (code == 301 || code == 302) && method == "POST") return Redirect(to, "GET", null)
+    if (body != null && body.isNotEmpty() && origin(to) != origin(from)) throw IOException("redirected to another server (${to.host}), which would get the request's body: not followed")
+    return Redirect(to, method, body)
 }
 
 /** An embedded sound, `asset x = base64"..."`, for MediaPlayer. */

@@ -23,13 +23,13 @@ internal val KINDS: Map<String, Kind> =
     mapOf(
         // Fork: SUPER DESKTOP, drawn by the :superdesktop module.
         "SuperDesktop" to Kind(setOf("id", "kind"), Children.NONE),
-        "Column" to Kind(setOf("gap", "align", "justify", "scroll"), Children.UI),
+        "Column" to Kind(setOf("gap", "align", "justify", "scroll", "lazy", "reverse"), Children.UI),
         "Row" to Kind(setOf("gap", "align", "justify", "wrap"), Children.UI),
         "Flow" to Kind(setOf("gap", "align", "justify"), Children.UI),
         "Box" to Kind(setOf("align"), Children.UI),
-        "Grid" to Kind(setOf("columns", "gap"), Children.UI),
-        "Text" to Kind(setOf("text", "style", "color", "fontSize", "bold", "italic", "font", "align", "maxLines", "spans", "fontWeight", "letterSpacing"), Children.NONE),
-        "Image" to Kind(setOf("src", "fit", "tint"), Children.NONE),
+        "Grid" to Kind(setOf("columns", "gap", "lazy", "reverse"), Children.UI),
+        "Text" to Kind(setOf("text", "style", "color", "fontSize", "bold", "italic", "font", "align", "maxLines", "minLines", "spans", "fontWeight", "letterSpacing"), Children.NONE),
+        "Image" to Kind(setOf("src", "fit", "tint", "label"), Children.NONE),
         "Button" to Kind(setOf("text", "color"), Children.NONE),
         "Progress" to Kind(setOf("value", "max", "color", "track"), Children.NONE),
         "Ring" to Kind(setOf("value", "max", "color", "track", "thickness", "start", "sweep"), Children.NONE),
@@ -41,7 +41,7 @@ internal val KINDS: Map<String, Kind> =
         "Terminal" to Kind(setOf("command", "fontSize"), Children.NONE),
         // owl 4: input.
         "Slider" to Kind(setOf("value", "min", "max", "step", "color", "track", "live"), Children.NONE),
-        "Input" to Kind(setOf("text", "placeholder", "color", "fontSize", "clear", "focus", "underline"), Children.NONE),
+        "Input" to Kind(setOf("text", "placeholder", "color", "fontSize", "clear", "focus", "underline", "password"), Children.NONE),
         // owl 10: a menu over everything else, next to the node that holds it.
         "Popup" to Kind(setOf("position", "gap", "align"), Children.UI),
     )
@@ -49,7 +49,7 @@ internal val KINDS: Map<String, Kind> =
 internal val COMMON =
     setOf(
         "width", "height", "size", "fill", "weight", "padding", "background", "border", "borderColor",
-        "radius", "opacity", "rotation", "scale", "offset", "clip", "visible", "frost",
+        "radius", "opacity", "rotation", "scale", "offset", "clip", "visible", "frost", "repeats",
     )
 
 internal val ANIMATABLE = setOf("opacity", "rotation", "scale", "value", "color", "background")
@@ -115,11 +115,44 @@ internal val SINCE =
         // owl 10: the coding agents in Linux and the recent strip's apps, for a face with its own prompt bar.
         listOf("android.agents", "android.recent", "open", "ask", "Popup", "Input.underline").associateWith { 10 } +
         // owl 10: fonts of the widget's own, and Canvas text styled like a Text.
-        listOf(FONT_FILE, CANVAS_TEXT_STYLE).associateWith { 10 }
+        listOf(FONT_FILE, CANVAS_TEXT_STYLE).associateWith { 10 } +
+        // owl 11: panels, files a swipe on home opens (the app drawer is one), with the prompt bar's text; the drawer's
+        // apps and what their long-press menu does; long lists built as they scroll into view; the bar's search ranking;
+        // an app that hides the status bar.
+        listOf(PANEL_FILE, QUERY, "onKey", "android.drawer", "appAction", "workApps", "shortcuts", APP_STATUS_BAR).associateWith { 11 } +
+        listOf("Column.lazy", "Grid.lazy", "Column.reverse", "Grid.reverse", "Image.label", "Text.minLines", "rank", "strongMatch", "chunk").associateWith { 11 } +
+        // owl 12: how much of an app's top a camera cutout covers, once it hides the status bar.
+        mapOf("screenTop" to 12) +
+        // owl 12: the extra keys over the soft keyboard as a file; keys for the focused Linux window; touches as they go down.
+        listOf(KEYBAR_FILE, "pressKey", "typeText", "latch", "android.modifiers", "onPress", "onRelease", "repeats").associateWith { 12 } +
+        // owl 12: the launcher's gaps and border width, the extra keys' own in a keybar.
+        listOf("gapsIn", "gapsOut", "borderWidth").associateWith { 12 } +
+        // owl 12: requests other than POST; base64 text.
+        listOf(POST_METHOD, "toBase64", "fromBase64").associateWith { 12 } +
+        // owl 12: tokens kept encrypted, which only go into requests, and fields that hide what's typed.
+        listOf(SECRET, "Input.password").associateWith { 12 }
+
+/** `state x = null secret`, named like this in [SINCE]. */
+internal const val SECRET = "secret"
+
+/** `method:` on post(...), named like this in [SINCE]. */
+internal const val POST_METHOD = "method:"
+
+/** The methods post(...) sends. */
+internal val POST_METHODS = setOf("POST", "PUT", "PATCH", "DELETE")
 
 internal const val FACE_FILE = "face \"…\" { }"
 
+internal const val PANEL_FILE = "panel \"…\" { }"
+
+internal const val KEYBAR_FILE = "keybar \"…\" { }"
+
+/** A panel's read-only name for the prompt bar's text. */
+internal const val QUERY = "query"
+
 internal const val GRADIENT_BACKGROUND = "a gradient background"
+
+internal const val APP_STATUS_BAR = "an app's statusBar"
 
 internal const val FONT_FILE = "a font of its own"
 
@@ -149,10 +182,15 @@ internal val HANDLER_PARAMS =
     mapOf(
         "onTap" to listOf("x", "y"),
         "onLongPress" to listOf("x", "y"),
+        // As the finger goes down, and with `repeats: true` again while it stays: `repeat` counts from 0, the press.
+        "onPress" to listOf("x", "y", "repeat"),
+        "onRelease" to emptyList(),
         "onDrag" to listOf("dx", "dy", "x", "y"),
         "onChange" to listOf("value"),
         "onSubmit" to listOf("value"),
         "onDismiss" to emptyList(),
+        // A panel's, at its top: a key pressed in the prompt bar while it's open.
+        "onKey" to listOf("value"),
     )
 
 /** Handlers only some nodes have. */
@@ -162,7 +200,7 @@ internal val HANDLER_KINDS = mapOf("onChange" to setOf("Slider", "Input"), "onSu
 internal val TRIGGER_PARAMS = mapOf("on" to listOf("value", "old"))
 
 /** Data from the phone and the launcher; device is fixed, system is polled, the rest update as they change. */
-internal val ANDROID = setOf("battery", "device", "media", "notifications", "volume", "system", "alarm", "modes", "apps", "agents", "recent")
+internal val ANDROID = setOf("battery", "device", "media", "notifications", "volume", "system", "alarm", "modes", "apps", "agents", "recent", "drawer", "modifiers")
 
 /** The words an action's first value may be, when it's written out; [numbers] also allows a number. */
 internal class Words(
@@ -179,10 +217,13 @@ internal val ACTION_WORDS =
         // true and false also turn it on and off.
         "torch" to setOf("on", "off", "toggle").let { Words(it, "torch takes true, false, ${it.joinToString()}") },
         "notification" to setOf("open", "dismiss").let { Words(it, "notification takes ${it.joinToString()} and a notification's key") },
+        "appAction" to setOf("pin", "info", "uninstall", "remove", "edit", "share").let { Words(it, "appAction takes ${it.joinToString()} and an app's key") },
+        "workApps" to setOf("pause", "resume", "toggle").let { Words(it, "workApps takes ${it.joinToString()}") },
+        "latch" to KeyNames.latches.toSet().let { Words(it, "latch takes ${it.joinToString()}, and optionally once, locked or off") },
     )
 
 /** The tile's size, readable anywhere a declaration of the same name doesn't shadow it. */
-internal val TILE = setOf("cols", "rows", "tileWidth", "tileHeight", "screenWidth", "screenHeight", "screenInset", "corners")
+internal val TILE = setOf("cols", "rows", "tileWidth", "tileHeight", "screenWidth", "screenHeight", "screenInset", "screenTop", "corners", "gapsIn", "gapsOut", "borderWidth")
 
 /** Builtins that always give a number (or null, which reads as …). */
 internal val NUMBERS = setOf("int", "round", "floor", "ceil", "abs", "fixed", "len", "count", "sum", "min", "max", "clamp")

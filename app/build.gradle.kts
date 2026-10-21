@@ -21,8 +21,8 @@ android {
         applicationId = "com.gladimdim.sdlauncher"
         minSdk = 29
         targetSdk = 37
-        versionCode = 17
-        versionName = "0.9.0"
+        versionCode = 20
+        versionName = "0.11.0"
         ndk { abiFilters += "arm64-v8a" }
     }
 

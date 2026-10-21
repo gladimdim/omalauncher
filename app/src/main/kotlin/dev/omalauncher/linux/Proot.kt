@@ -45,6 +45,7 @@ class Proot(
             "$GUEST_HOME/.local/share/omarchy" to LauncherData.omarchyDir(context),
             "$GUEST_HOME/.config/omalauncher/widgets" to LauncherData.widgetsDir(context),
             "$GUEST_HOME/.config/omalauncher/style" to LauncherData.styleDir(context),
+            "$GUEST_HOME/.config/omalauncher/home" to LauncherData.homeDir(context),
             "$GUEST_HOME/.config/omarchy/themes" to LauncherData.userThemesDir(context),
             "$GUEST_HOME/.config/omarchy/backgrounds" to LauncherData.userBackgroundsDir(context),
         )
@@ -68,6 +69,22 @@ class Proot(
         }
         return File(rootfs, guestPath.removePrefix("/"))
     }
+
+    /** Where the guest can see: the rootfs and the binds, as real paths. */
+    private val visible by lazy { (listOf(rootfs) + binds.map { it.second }).map { it.canonicalFile } }
+
+    /** Whether [real], a canonical host file, is one the guest can see, rather than the launcher's own. */
+    fun guestVisible(real: File) = visible.any { real.startsWith(it) }
+
+    /** The guest's files as it sees them; see [GuestFs]. */
+    val guestFs by lazy { GuestFs(::hostFile, ::guestVisible) }
+
+    /**
+     * Where a guest path that Linux or a widget names is on the Android side, as the guest sees it:
+     * `..` stops at /, links are followed inside the guest. Null for a link in a loop or out of the
+     * guest, so no path reaches the launcher's own files ([hostFile] is for paths of our own).
+     */
+    fun guestFile(guestPath: String): File? = runCatching { guestFs.host(guestPath) }.getOrNull()
 
     /** The guest path of a host file, the reverse of [hostFile]; null if the guest can't see it. */
     fun guestPath(host: File): String? {
