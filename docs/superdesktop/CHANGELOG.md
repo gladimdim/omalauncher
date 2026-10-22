@@ -1,5 +1,14 @@
 # SD Launcher changelog
 
+## 1.3.1 (105)
+
+Built on **Omalauncher 0.11.0**, with upstream fixes since. No SUPER DESKTOP
+changes; the bridge is unchanged.
+
+- **Bigger store items**: the widget store, share links and pasted widgets take
+  widgets, faces and apps up to 1 MB instead of 256 KB, for apps that carry
+  their own data.
+
 ## 1.3.0 (104)
 
 Built on **Omalauncher 0.11.0** (was 0.9.0). No SUPER DESKTOP changes; the bridge
