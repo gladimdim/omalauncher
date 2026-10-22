@@ -151,7 +151,7 @@ class Review(
     }
 
     companion object {
-        const val MAX_BYTES = 256 * 1024
+        const val MAX_BYTES = 1024 * 1024
         val PATH = Regex("""(widget|face|app)s/([a-z0-9][a-z0-9-]{0,38})/([a-z0-9][a-z0-9-]{0,38})/\1\.owl""")
         private val VERSION = Regex("""\d+(\.\d+){0,2}""")
 
