@@ -37,6 +37,16 @@ class ConnectionProbeTest {
         assertNull(paired.withAddressesOf(PingInfo("rog", 3, "", listOf(tailscale))))
     }
 
+    @Test fun addressChoicesFollowTheTriedOrder() {
+        val addresses = listOf(BridgeAddress("192.168.50.27", "lan", true), BridgeAddress("100.91.62.40", "tailscale", true),
+            BridgeAddress("fd7a::1", "tailscale", false), BridgeAddress("127.0.0.1", "loopback", false))
+        val lan = Bridge("192.168.50.27", 8759, "t", "ab".repeat(32), "id", "rog", addresses)
+        assertEquals(listOf("192.168.50.27" to "lan", "100.91.62.40" to "tailscale"), lan.addressChoices())
+        // Picking Tailscale makes it the saved address, tried first.
+        assertEquals(listOf("100.91.62.40" to "tailscale", "192.168.50.27" to "lan"), lan.copy(host = "100.91.62.40").addressChoices())
+        assertEquals("rog.local" to "saved", lan.copy(host = "rog.local").addressChoices().first())
+    }
+
     @Test fun failuresInWords() {
         assertTrue("refused" in ConnectionProbe.explain(ConnectException("Connection refused")))
         assertTrue("No answer in time" in ConnectionProbe.explain(SocketTimeoutException("connect timed out")))

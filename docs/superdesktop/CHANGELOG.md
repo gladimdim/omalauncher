@@ -1,5 +1,16 @@
 # SD Launcher changelog
 
+## 1.5.0 (107)
+
+Built on **Omalauncher 0.12.0**, as 1.4.0. No SUPER DESKTOP changes; the bridge
+is unchanged.
+
+- **Pick a PC's address**: ⚙ → paired computers → **address** lists the PC's
+  saved addresses (Tailscale, LAN) in the order they're tried; the one you pick
+  is tried first, and the feed reconnects there at once. Each PC shows the
+  address its feed uses now ("via …"). When the picked address doesn't answer,
+  the others are still tried in turn. No bridge change.
+
 ## 1.4.0 (106)
 
 Built on **Omalauncher 0.12.0** (was 0.11.0), with upstream fixes since. No

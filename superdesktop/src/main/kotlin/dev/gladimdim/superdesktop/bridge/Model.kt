@@ -34,6 +34,9 @@ data class Bridge(
         (listOf(host) + addresses.filter { it.connectable && it.network == "tailscale" }.map { it.address } +
             addresses.filter { it.connectable && it.network != "loopback" }.map { it.address }).distinct()
 
+    /** Every address [hosts] tries, in order, with its network: `tailscale`, `lan`, or `saved` for a name typed at pairing. */
+    fun addressChoices(): List<Pair<String, String>> = hosts().map { h -> h to (addresses.firstOrNull { it.address == h }?.network ?: "saved") }
+
     /**
      * This computer with the addresses its ping [info] reported, or null when the ones [hosts] can use are unchanged
      * or [info] is another computer. A computer that turned Tailscale on after pairing becomes reachable through it.

@@ -39,10 +39,12 @@ internal fun SettingsPanel(
     onNewUsage: () -> Unit,
     onPair: () -> Unit,
     onForget: (Bridge) -> Unit,
+    onAddress: (Bridge, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = host.colors
     var forgetting by remember { mutableStateOf<String?>(null) }
+    var choosing by remember { mutableStateOf<String?>(null) }
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Heading("computers on this page", host)
         val all = bridges.map { it.key }.toSet()
@@ -75,8 +77,14 @@ internal fun SettingsPanel(
 
         Heading("paired computers", host)
         for (b in bridges) {
+            val feed = feeds[b.key]
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Label(b.name, host, c.foreground, 13, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Label(b.name, host, c.foreground, 13)
+                    val via = feed?.host?.takeIf { feed.state == Feed.State.LIVE }
+                    Label(if (via != null) "via $via" else "tries ${b.host} first", host, c.muted, 11)
+                }
+                Action("address", host, strong = choosing == b.key) { choosing = b.key.takeIf { choosing != it } }
                 if (forgetting == b.key) {
                     Action("keep", host) { forgetting = null }
                     Action("forget", host, color = c.red, strong = true) {
@@ -85,6 +93,15 @@ internal fun SettingsPanel(
                     }
                 } else {
                     Action("forget", host, color = c.muted) { forgetting = b.key }
+                }
+            }
+            if (choosing == b.key) {
+                Label("The address picked is tried first. When it doesn't answer, the others are tried in turn.", host, c.muted, 11, lines = 3)
+                for ((address, network) in b.addressChoices()) {
+                    val inUse = feed?.state == Feed.State.LIVE && feed.host == address
+                    Choice(address, host, address == b.host, note = if (inUse) "$network · in use" else network) {
+                        if (address != b.host) onAddress(b, address)
+                    }
                 }
             }
         }

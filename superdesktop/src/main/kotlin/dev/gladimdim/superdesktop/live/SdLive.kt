@@ -32,6 +32,8 @@ data class Feed(
     val state: State,
     val doc: HarnessDocument? = null,
     val error: String? = null,
+    /** The address the last document came from. */
+    val host: String? = null,
 ) {
     enum class State { CONNECTING, LIVE, OFFLINE, NOT_PAIRED }
 }
@@ -66,7 +68,8 @@ object SdLive {
         e.stop?.cancel()
         e.stop = null
         if (e.bridge != bridge) {
-            // Paired again: new token or addresses.
+            // Paired again, or another address picked to try first: new token or addresses.
+            if (bridge.host != e.bridge.host) e.host = bridge.host
             e.bridge = bridge
             e.job?.cancel()
             e.job = null
@@ -204,7 +207,7 @@ object SdLive {
                         received = true
                         e.host = host
                         policy.onMessage()
-                        e.feed.value = Feed(Feed.State.LIVE, doc)
+                        e.feed.value = Feed(Feed.State.LIVE, doc, host = host)
                     }
                     is Event.Ended -> return StreamEnd(received || event.end.received, event.end.httpCode, event.end.closeCode, event.end.closeReason)
                 }
@@ -226,7 +229,7 @@ object SdLive {
         while (System.currentTimeMillis() < until) {
             val online =
                 try {
-                    e.feed.value = Feed(Feed.State.LIVE, bridge.api(host).harnesses())
+                    e.feed.value = Feed(Feed.State.LIVE, bridge.api(host).harnesses(), host = host)
                     e.host = host
                     true
                 } catch (x: NotPairedException) {

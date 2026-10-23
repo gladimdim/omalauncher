@@ -238,6 +238,12 @@ private fun PageTile(
                         },
                         onPair = { openPairing(context) },
                         onForget = { b -> act("Forget") { withContext(Dispatchers.IO) { SdStore.remove(context, b.key) } } },
+                        onAddress = { b, address ->
+                            act("Address") {
+                                withContext(Dispatchers.IO) { SdStore.update(context, b, b.copy(host = address)) }
+                                say("${b.name}: tries $address first")
+                            }
+                        },
                         modifier = body,
                     )
                 panel == Panel.CREATE ->
