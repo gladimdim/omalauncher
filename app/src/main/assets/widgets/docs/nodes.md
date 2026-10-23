@@ -22,7 +22,7 @@ when lists reorder), and `let x = ...` inside any node.
 | `Canvas` | free drawing, see docs/drawing.md. Fills the space unless sized |
 | `Shader` | an AGSL shader, see docs/drawing.md. Fills the space unless sized |
 | `Spacer` | empty space: `size`, `width`, `height` or `weight` |
-| `Slider` | a horizontal slider: `value`, `min` (0), `max` (100), `step`, `color`, `track`, `live`. `onChange` gets the chosen `value` when the finger lifts, or at every step while dragging with `live: true`. Full width and 28 dp tall unless sized (owl 4) |
+| `Slider` | a horizontal slider: `value`, `min` (0), `max` (100), `step`, `color`, `track`, `live`. `onChange` gets the chosen `value` when the finger lifts, or at every step while dragging with `live: true`. With keys, Left and Right step it by `step`, else a twentieth of the range (a hundredth with Shift), each step sent to `onChange`. Full width and 28 dp tall unless sized (owl 4) |
 | `Input` | a one-line text field: `text` (what it shows; replaces what's typed when it changes), `placeholder`, `color`, `fontSize`, `clear: true` (empty it after submitting), `underline: false` (no line under it, for a field inside a frame of its own, owl 10), `password: true` (dots for what's typed, and a keyboard that neither suggests nor learns it, owl 12), `focus: true` (focus it and raise the keyboard when the screen opens, or when `focus` turns true; only in a `screen { }`, owl 6). `onChange` gets the text as `value` as it's typed, `onSubmit` when the keyboard's send key is pressed (owl 4) |
 | `Popup` | a menu over everything, the tile, the bar and other tiles, at the start of the node that holds it: `position: below` (the default) or `above`, kept on screen and on the other side when there's no room, `gap`, `align`. Show it with `visible`; a tap outside it or Back runs `onDismiss`, which it must have, so it can close: `Box { Text { text: "menu"; onTap: open = true }  Popup { visible: open; onDismiss: open = false; … } }`. Framed like the launcher's menus unless it has a `background` or `border`. It takes no room where it's written (owl 10) |
 | `Terminal` | a live terminal (foot) in the tile: `command` (default: the login shell), `fontSize` (points; foot.ini has 8). Fills the space unless sized. See below |
@@ -36,17 +36,27 @@ Every node also takes:
   (without `radius`, bordered elements follow the launcher's corner style: 0 for edge, 4 for soft, 8 for round;
   anything else matches it with `radius: 8 * corners`)
 - `opacity`, `rotation` (degrees), `scale`, `offset: [x, y]` (dp), `visible`
-- handlers: `onTap` (with `x`, `y`) and `onDrag` (with `dx`, `dy`, `x`, `y`); `onPress` as the finger goes down, before
+- handlers: `onTap` (with `x`, `y`) and `onDrag` (with `dx`, `dy`, `x`, `y`). Since owl 13, `drag: horizontal` (or
+  `vertical`) has `onDrag` take only moves along it, so a list it's in still scrolls the other way, and `onDragEnd` runs as
+  the finger lets go, with `vx` and `vy`, how fast it was moving in dp a second: a row that follows the finger with
+  `offset: [dragX, 0]` can go when it's let go far out or flicked (see `controls.owl`); `onPress` as the finger goes down, before
   it's a tap (with `x`, `y` and `repeat`), and `onRelease` when it lifts or moves on to a scroll (owl 12). `onPress` runs for
   every touch, the start of a scroll too, so in a list or anything else that scrolls, `onTap` is the one for a tap. With
   `repeats: true`, `onPress` runs again while the finger stays down, after 400 ms and then every 50 ms, as a keyboard's
   keys repeat: `repeat` is 0 for the press and counts up from there; `Slider` and `Input` also take
   `onChange`, and `Input` `onSubmit`, both with `value`; `Popup` takes `onDismiss`. In pages, apps and a widget's `screen { }`,
   `onLongPress` (with `x`, `y`, owl 10); on a tile, long-press belongs to the home screen, which uses it
-  to move and resize tiles
+  to move and resize tiles. With a keyboard or a gamepad, Tab and the arrows (the D-pad) move between the nodes that
+  have `onTap` or `onLongPress`, ringed in `accent`; Enter, Space or A taps one at its middle, and holding it, or Menu
+  (a gamepad's Select), long-presses it. What takes taps inside one that does, like a `[+]` in a tappable row or a
+  widget's buttons on its tile, is reached with Right from it, and Left from the first comes back out; Enter on a tile
+  whose widget has no `onTap` of its own goes inside too. Up and Down leave an `Input`. A Popup keeps the keys while
+  it's open and gives them back to the node a key opened it from as it closes
 - `animate prop: spring()` or `tween(300ms, "linear"/"in"/"out"/"ease")`, for `value`,
-  `opacity`, `rotation`, `scale`, `color` or `background`. For springs:
-  `spring(damping, stiffness)`
+  `opacity`, `rotation`, `scale`, `color` or `background`, and `offset` (owl 13). For springs:
+  `spring(damping, stiffness)`. While a node's own `onDrag` has the finger, its animated `offset` follows the finger
+  as it is; let go, it eases to where `onDragEnd` puts it, so a row swiped too little springs back. Only its own: an `onDrag` on a
+  parent or a child doesn't count, and the offset trails the finger on its spring
 
 `opacity`, `rotation`, `scale`, `offset`, colors and the contents of Canvas and
 Shader apply at draw time. Changing them, even every frame, costs no layout.
@@ -55,8 +65,10 @@ Shader apply at draw time. Changing them, even every frame, costs no layout.
 
 The tile's size is available as `cols` and `rows` (grid cells) and `tileWidth` and
 `tileHeight` (dp, including the tile padding). They change when the user resizes the
-tile, so a widget can pick a layout to fit (`if cols < 3 { ... } else { ... }`). They're
-`null` for a moment before the tile is laid out. A widget's own declaration named
+tile, so a widget can pick a layout to fit (`if (tileHeight ?? 999) < 185 { ... } else { ... }`).
+Decide by `tileWidth` and `tileHeight`, not `cols` and `rows`: a grid row is a different number
+of dp on every phone, so a 3-row tile on a tall phone has room a check like `rows < 4` throws
+away. They're `null` for a moment before the tile is laid out. A widget's own declaration named
 `rows` or `cols` takes precedence.
 
 `corners` is the user's corner style as a multiplier, not a radius: 0 (edge, square), 0.5
@@ -69,6 +81,11 @@ doesn't. It needs `meta { owl: 6 }`.
 `gapsIn`, `gapsOut` and `borderWidth` are the user's widget gaps and border width in dp, from settings › style: a
 widget with a frame of its own can space and outline it like home's tiles (`border: borderWidth`). In a keybar `gapsOut`
 and `borderWidth` are the terminal key bar's own settings instead. They need `meta { owl: 12 }`.
+
+`tileOpacity` and `tileFrost` are the glass of home's tiles, from settings › style: how much a widget covers the
+wallpaper, 0 (clear) to 1 (solid), and how much it blurs it in dp, 0 with frosted glass off. A face's windows, or a
+widget's cards, look like home's tiles with `background: alpha(background, tileOpacity); frost: tileFrost`, and follow
+the settings as they change. They need `meta { owl: 13 }`.
 
 ## Text in a Row
 
@@ -232,3 +249,5 @@ widget "shell" {
   is removed or its file changes. When `command` exits, the tile offers a restart;
   use `"btop; exec bash"` to fall back to a shell.
 - `padding: 0` lets the terminal fill the tile's frame.
+- Its background is see-through: the tile's glass (`widgets.opacity` in style.toml), or a `background`
+  behind it, shows where the program leaves the terminal's own. Cells a program colors, like a status line, stay solid.

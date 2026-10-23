@@ -14,8 +14,6 @@ private const val INITIALS = 300
 private const val SUBSTRING = 200
 private const val SUBSEQUENCE = 100
 
-private val WORD_BREAK = Regex("[^\\p{L}\\p{N}]+")
-
 /** Combining marks left behind by NFD, so "Café" and "cafe" compare equal. */
 private val MARKS = Regex("\\p{M}+")
 
@@ -26,8 +24,35 @@ fun foldAccents(s: String): String {
     return MARKS.replace(Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD), "")
 }
 
-/** The words of a string that's folded already. */
-private fun split(folded: String) = folded.split(WORD_BREAK).filter { it.isNotEmpty() }
+/**
+ * The words of a string that's folded already: its runs of letters and numbers. A scan rather than a regex split, which
+ * ran for nearly every app on every keystroke.
+ */
+private fun split(folded: String): List<String> {
+    val words = ArrayList<String>(4)
+    var start = -1
+    var i = 0
+    while (i < folded.length) {
+        val c = folded.codePointAt(i)
+        if (isWordChar(c)) {
+            if (start < 0) start = i
+        } else if (start >= 0) {
+            words += folded.substring(start, i)
+            start = -1
+        }
+        i += Character.charCount(c)
+    }
+    if (start >= 0) words += folded.substring(start)
+    return words
+}
+
+/** A letter or a number, as `\p{L}` and `\p{N}` are. */
+private fun isWordChar(c: Int) =
+    Character.isLetter(c) ||
+        when (Character.getType(c).toByte()) {
+            Character.DECIMAL_DIGIT_NUMBER, Character.LETTER_NUMBER, Character.OTHER_NUMBER -> true
+            else -> false
+        }
 
 private fun words(s: String) = split(foldAccents(s))
 

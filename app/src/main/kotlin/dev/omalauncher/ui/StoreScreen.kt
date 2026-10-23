@@ -65,7 +65,7 @@ import kotlinx.coroutines.launch
  * and one per installed coding agent), then reviewed widgets from the marketplace repo as a grid of
  * previews, with search and category tabs (and one for the newest). Faces and apps: the reviewed ones, the same way.
  * Tapping one opens its page, which shows what it installs and runs; from there a widget goes on the current page,
- * a face left of page 1 and an app in the drawer (or any of them updates).
+ * a face left of page 1 and an app in the drawer (or any of them updates). An installed app opens from its page too.
  */
 @Composable
 fun StoreScreen(
@@ -77,6 +77,8 @@ fun StoreScreen(
     onDismiss: () -> Unit,
     /** The kind it opens on. */
     initialKind: OwlKind = OwlKind.Widget,
+    /** Opens the installed app in this file, as the drawer does. */
+    onOpenApp: (String) -> Unit = {},
 ) {
     var kind by remember { mutableStateOf(initialKind) }
     val market = engine.market(kind)
@@ -127,6 +129,7 @@ fun StoreScreen(
                         page = page,
                         message = message,
                         modifier = modifier,
+                        onOpen = { market.installedVersion(e)?.let { onOpenApp(it.file) } },
                         onInstall = {
                             scope.launch {
                                 message = market.install(e, page)
@@ -181,7 +184,8 @@ private fun KindToggle(
                 label,
                 Modifier
                     .background(if (on) Palette.accent.copy(alpha = 0.15f) else Color.Transparent)
-                    .clickable(enabled = !on) { onPick(k) }
+                    // The shown one still takes a tap, doing nothing, so keys on it as it's picked stay there.
+                    .clickable { if (!on) onPick(k) }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 style = Mono.copy(color = if (on) Palette.accent else Palette.muted, fontSize = TextSize.Small),
             )
@@ -390,6 +394,27 @@ private fun rememberIcon(
     return icon
 }
 
+/**
+ * [e]'s preview the size a card draws it. Cards are at least 150 dp wide and, with an adaptive grid, under twice that and the gap;
+ * less their padding, a preview is [CardPreviewWidth] at most and [CardPreviewHeight] high, and a whole screen shows
+ * its top [CardPreviewHeight] / [CardPreviewMinWidth] of its width at most.
+ */
+@Composable
+private fun rememberCardPreview(
+    market: Market,
+    e: CatalogEntry,
+    theme: String?,
+): ImageBitmap? {
+    val (w, h) = with(LocalDensity.current) { CardPreviewWidth.roundToPx() to CardPreviewHeight.roundToPx() }
+    val top = if (market.kind == OwlKind.Widget) null else CardPreviewHeight / CardPreviewMinWidth
+    val preview by produceState<ImageBitmap?>(null, e.previewFor(theme), w, h) { value = market.thumbnail(e, theme, w, h, top) }
+    return preview
+}
+
+private val CardPreviewHeight = 104.dp
+private val CardPreviewMinWidth = 150.dp - 16.dp
+private val CardPreviewWidth = 150.dp * 2 + 8.dp - 16.dp
+
 /** A grid cell: the preview, the name, and whether it's installed; [selected] while its page shows beside the grid. */
 @Composable
 private fun Card(
@@ -400,7 +425,7 @@ private fun Card(
     selected: Boolean,
     onOpen: () -> Unit,
 ) {
-    val preview = rememberPreview(market, e, theme)
+    val preview = rememberCardPreview(market, e, theme)
     val busy = market.busy[e.id]
     val update = market.hasUpdate(e)
     val installed = market.installedVersion(e) != null
@@ -412,7 +437,7 @@ private fun Card(
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Box(Modifier.fillMaxWidth().height(104.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(CardPreviewHeight), contentAlignment = Alignment.Center) {
             if (preview != null && market.kind != OwlKind.Widget) {
                 // A whole phone screen would be a sliver this high: its top, as wide as the card, reads as the app or face.
                 Image(preview, null, Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.FillWidth)
@@ -468,7 +493,8 @@ private fun Screens(
 ) {
     // Until one has loaded, a slot is phone-shaped.
     val ratio = preview?.let { it.width.toFloat() / it.height } ?: PHONE_RATIO
-    val shot = Modifier.height(ScreenHeight).aspectRatio(ratio).frame(1.dp, Palette.border, radius = 8.dp).clip(RoundedCornerShape(8.dp))
+    // Keys stop at each, so the arrows go through them, the row scrolling to follow.
+    val shot = Modifier.height(ScreenHeight).aspectRatio(ratio).frame(1.dp, Palette.border, radius = 8.dp).clip(RoundedCornerShape(8.dp)).keyScrolled()
     LazyRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         item(key = "preview") { Box(shot.background(Palette.surface)) { preview?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit) } } }
         items(screens, key = { it }) { path ->
@@ -488,6 +514,7 @@ private fun Detail(
     page: Int,
     message: String?,
     modifier: Modifier,
+    onOpen: () -> Unit,
     onInstall: () -> Unit,
 ) = key(e.id) {
     val installed = market.installedVersion(e)
@@ -529,7 +556,14 @@ private fun Detail(
         when {
             busy != null -> BasicText(busy, style = Mono.copy(color = Palette.accent))
             !e.supported -> BasicText("needs a newer launcher (owl ${e.owl}); update the launcher to install it", style = Mono.copy(color = Palette.red, fontSize = TextSize.Small))
-            update -> BracketAction("update ${installed?.version} → ${e.version}", Palette.accent, onInstall)
+            update -> BracketAction("update ${installed?.version} → ${e.version}", Palette.accent, Modifier.passesKeys(), onInstall)
+            // An app opens from here, unless it waits for Linux.
+            installed != null && market.kind == OwlKind.App && (linux || !e.needsLinux) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AddedMark(market.kind)
+                    Spacer(Modifier.width(8.dp))
+                    BracketAction("open", Palette.accent, Modifier.takesPassedKeys(), onOpen)
+                }
             installed != null -> AddedMark(market.kind)
             else ->
                 BracketAction(
@@ -539,6 +573,8 @@ private fun Detail(
                         OwlKind.App, OwlKind.Panel, OwlKind.Keybar -> "install"
                     },
                     Palette.accent,
+                    // Keys on it wait out the install, for the open an app ends with.
+                    Modifier.passesKeys(),
                     onInstall,
                 )
         }
@@ -592,8 +628,11 @@ internal fun InstallDisclosure(
     notice: @Composable () -> Unit = {},
 ) {
     val packages = requires.entries.joinToString("; ") { (m, l) -> "$m: ${l.joinToString(", ")}" }.ifEmpty { "none" }
-    BasicText("installs packages: $packages", style = Mono.copy(fontSize = TextSize.Small))
-    notice()
-    BasicText(if (commands.isEmpty()) "runs no commands" else "runs these commands in Arch:", style = Mono.copy(fontSize = TextSize.Small))
+    // A stop for keys, at the end of a page that may have nothing else to scroll it there.
+    Column(Modifier.keyScrolled(around = true), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        BasicText("installs packages: $packages", style = Mono.copy(fontSize = TextSize.Small))
+        notice()
+        BasicText(if (commands.isEmpty()) "runs no commands" else "runs these commands in Arch:", style = Mono.copy(fontSize = TextSize.Small))
+    }
     for (c in commands) CodeBlock(c.trimEnd())
 }

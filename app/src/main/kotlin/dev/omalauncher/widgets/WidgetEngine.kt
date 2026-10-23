@@ -37,6 +37,8 @@ import dev.omalauncher.widgets.runtime.WidgetInstance
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -215,7 +217,7 @@ class WidgetEngine(
             installs.clear()
         }
         // Through the reload loop, so it never runs alongside a reload for a file change.
-        changes.trySend(Unit)
+        changes.trySend(false)
     }
 
     /** [spec] needs Linux, which isn't installed: it shows as a placeholder. */
@@ -487,8 +489,8 @@ class WidgetEngine(
         spec.program?.onTap?.run(inst.root, emptyList())
     }
 
-    /** Signals a change in [dir]; conflated, so a burst of writes reloads once. */
-    private val changes = Channel<Unit>(Channel.CONFLATED)
+    /** Signals a change in [dir], true for a file written there; conflated, so a burst of writes reloads once. */
+    private val changes = Channel<Boolean>(Channel.CONFLATED)
 
     @Suppress("unused") // Held so it isn't collected, which would stop the events.
     private var observer: FileObserver? = null
@@ -547,17 +549,18 @@ class WidgetEngine(
                         event: Int,
                         path: String?,
                     ) {
-                        if (path != null && path.endsWith(".owl")) changes.trySend(Unit)
+                        if (path != null && path.endsWith(".owl")) changes.trySend(true)
                     }
                 }.also { it.startWatching() }
             launch {
                 snapshotFlow { loaded }.first { it }
                 snapshotFlow { runtime.style.style[Style.COLUMNS] }.collect { layout.regrid(it, pages.map(::itemsOn)) }
             }
-            changes.trySend(Unit)
-            for (unit in changes) {
-                // Editors write in several steps (truncate, write, rename); let them finish.
-                delay(200)
+            changes.trySend(false)
+            for (written in changes) {
+                // Editors write in several steps (truncate, write, rename); let them finish. Only then: home waits on the
+                // first load, and on the one that starts the widgets that need Linux.
+                if (written) delay(200)
                 changes.tryReceive()
                 reload(withContext(Dispatchers.IO) { widgetFiles() })
             }
@@ -568,11 +571,12 @@ class WidgetEngine(
 
     private suspend fun reload(files: List<File>) {
         val old = specs.associateBy { it.file.name }
-        val changed = ArrayList<String>()
+        // Each file on its own thread: at startup every one compiles, and home waits for them all.
         val parsed =
             withContext(Dispatchers.IO) {
-                files.map { f -> old[f.name]?.takeIf { it.stamp == f.lastModified() } ?: compile(f, old[f.name]).also { changed += f.name } }
+                files.map { f -> async { old[f.name]?.takeIf { it.stamp == f.lastModified() } ?: compile(f, old[f.name]) } }.awaitAll()
             }
+        val changed = parsed.filter { old[it.file.name] !== it }.map { it.file.name }
         specs.clear()
         specs += parsed.sortedWith(compareBy({ it.page }, { it.order }, { it.file.name }))
         // Unchanged files keep their running instance; changed ones start fresh but keep their values.
@@ -620,10 +624,10 @@ class WidgetEngine(
         if (old.isNotEmpty() && files.isNotEmpty()) {
             for (name in old.keys - parsed.map { it.file.name }.toSet()) forget(name)
         }
-        checkDependencies(parsed)
         // Not at startup, when every file compiles: only what changed while the launcher runs, which is an agent at work.
         if (loaded) changed.forEach(::requestPreview)
         if (!loaded) {
+            runtime.drawOwlIcons(parsed.filter { it.kind == OwlKind.App })
             loaded = true
             // Before faces, page 1 could be emptied by moving its last tile away, and home opens on page 1: the first page
             // of tiles becomes it again.
@@ -631,6 +635,8 @@ class WidgetEngine(
             if (first != null && first != 1) arrangePages(pages)
             home.loaded()
         }
+        // A guest shell call: after home has its widgets rather than before.
+        checkDependencies(parsed)
     }
 
     /**

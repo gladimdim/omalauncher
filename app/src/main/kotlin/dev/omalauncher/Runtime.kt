@@ -9,6 +9,7 @@ import android.net.Uri
 import android.util.Log
 import android.view.KeyEvent
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -55,10 +56,13 @@ import dev.omalauncher.wayland.XdgToplevel
 import dev.omalauncher.widgets.Shortcut
 import dev.omalauncher.widgets.WidgetEngine
 import dev.omalauncher.widgets.WidgetSpec
+import dev.omalauncher.widgets.lang.Program
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -151,6 +155,10 @@ class Runtime(
         scope.launch {
             snapshotFlow { style.style[Style.FONT] }.drop(1).collect { launcherFont.apply() }
         }
+        // The recent strip's and home's pinned apps.
+        androidApps.iconsFirst = {
+            usage.recent.take(20).filter { it.startsWith("a:") }.mapTo(HashSet()) { it.substringAfter(':') } + widgets.shortcuts.items.mapNotNull(::androidKeyOf)
+        }
         androidApps.start()
         // Omarchy's Super bindings inside Linux windows; the home screen handles its own (see MainActivity).
         keyboard.onShortcut = { code ->
@@ -192,9 +200,13 @@ class Runtime(
                 launcherFiles.sync()
                 agents.load()
             }
+            // Linux apps are files on disk: listed now for the recent strip, not after Linux has started.
+            if (bootstrap.wanted) scope.launch { linuxApps.refresh() } else linuxApps.listed = true
+            // Widgets don't wait for the theme: they draw with the palette, which is already loaded, and the
+            // wallpaper decode is the slow part of themes.load().
+            widgets.start()
             themes.load()
             style.start()
-            widgets.start()
             // On the first-run screen the download is the screen's job, with progress.
             if (launcherReady) scope.launch { themes.ensureRelease() }
             if (bootstrap.wanted) runLinux { bootstrap.run() } else bootstrap.run()
@@ -400,6 +412,9 @@ class Runtime(
         if (screens == 0) proot.procShim.setActive(false)
     }
 
+    /** Whether every kind of app has been listed once: Android's, Linux's and owl's. Before, a list of them would be missing some. */
+    val appsListed get() = androidApps.listed && linuxApps.listed && widgets.loaded
+
     /** Rescans .desktop entries; see [LinuxAppCatalog.refresh]. */
     suspend fun refreshApps() {
         if (linux) linuxApps.refresh()
@@ -416,8 +431,14 @@ class Runtime(
         return if (mono) linuxApps.masks[id] else linuxApps.icons[id]
     }
 
-    /** Owl apps' icons and silhouettes, by their SVG (or image) and the accent they were drawn in: a theme change draws them anew. */
-    private val owlIcons = HashMap<Pair<String, Int>, Pair<ImageBitmap, ImageBitmap>?>()
+    /**
+     * Owl apps' icons and silhouettes, by their SVG (or image) and the accent they were drawn in: a theme change draws
+     * them anew, and drops the ones in the accent before once it has.
+     */
+    private val owlIcons = mutableStateMapOf<Pair<String, Int>, Pair<ImageBitmap, ImageBitmap>>()
+
+    /** Icons drawn, or being drawn, into [owlIcons]; those with nothing to draw stay here and out of it. */
+    private val owlIconsAsked = ConcurrentHashMap.newKeySet<Pair<String, Int>>()
 
     /**
      * An owl app's icon, or its silhouette; null if it has none. An SVG is drawn with `currentColor` in the theme's
@@ -430,14 +451,39 @@ class Runtime(
         val program = spec.program ?: return null
         val key = program.iconKey ?: return null
         val accent = Palette.accent.toArgb()
-        val size = (52 * context.resources.displayMetrics.density).toInt()
         val drawn =
-            owlIcons.getOrPut(key to accent) {
-                val image = program.iconImage
-                val bmp = if (image != null) decodeImageIcon(image, size) else decodeSvgIcon(program.icon!!, size, accent)
-                bmp?.let { it.asImageBitmap() to bitmapMask(it).asImageBitmap() }
+            owlIcons[key to accent] ?: run {
+                // Drawn off the main thread, as Android's icons are: an SVG is slow to draw, and a theme change drew all of them in one frame.
+                if (owlIconsAsked.add(key to accent)) {
+                    scope.launch {
+                        val icon = withContext(Dispatchers.Default) { drawOwlIcon(program, accent) } ?: return@launch
+                        owlIcons[key to accent] = icon
+                        owlIcons.keys.removeAll { it.first == key && it.second != accent }
+                        owlIconsAsked.removeAll { it.first == key && it.second != accent }
+                    }
+                }
+                // Until then, the one drawn in the accent before.
+                owlIcons.entries.firstOrNull { it.key.first == key }?.value
             }
         return if (mono) drawn?.second else drawn?.first
+    }
+
+    /** Draws [specs]' icons in the accent now, all at once off the main thread: at start, so home and the recent apps have them from the first frame. */
+    suspend fun drawOwlIcons(specs: List<WidgetSpec>) {
+        val accent = Palette.accent.toArgb()
+        val programs = specs.mapNotNull { it.program }.filter { p -> p.iconKey.let { it != null && owlIconsAsked.add(it to accent) } }
+        val drawn = withContext(Dispatchers.Default) { programs.map { p -> async { p.iconKey!! to drawOwlIcon(p, accent) } }.awaitAll() }
+        for ((key, icon) in drawn) if (icon != null) owlIcons[key to accent] = icon
+    }
+
+    private fun drawOwlIcon(
+        program: Program,
+        accent: Int,
+    ): Pair<ImageBitmap, ImageBitmap>? {
+        val size = (52 * context.resources.displayMetrics.density).toInt()
+        val image = program.iconImage
+        val bmp = if (image != null) decodeImageIcon(image, size) else decodeSvgIcon(program.icon!!, size, accent)
+        return bmp?.let { it.asImageBitmap() to bitmapMask(it).asImageBitmap() }
     }
 
     /**

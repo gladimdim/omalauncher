@@ -1,6 +1,7 @@
 package dev.omalauncher.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import dev.omalauncher.widgets.render.LocalHomeCovered
 import dev.omalauncher.widgets.render.LocalLongPressClaim
 import dev.omalauncher.widgets.render.LongPressClaim
 import androidx.compose.runtime.SideEffect
@@ -46,10 +47,14 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -340,6 +345,23 @@ internal fun HomeGrid(
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val claims = remember { LongPressClaim() }
+    // Each tile's composition, by its key, moves to wherever the tile is drawn: lifted, it goes above the pager and back
+    // keeping its state, rather than being made anew each way (a terminal tile its view).
+    val latestRender by rememberUpdatedState(render)
+    val tiles = remember { HashMap<String, @Composable (HomeItem, Modifier, Boolean) -> Unit>() }
+    val tile: @Composable (HomeItem, Modifier, Boolean) -> Unit =
+        remember {
+            { item, modifier, selected ->
+                tiles.getOrPut(item.key) { movableContentOf { i: HomeItem, m: Modifier, s: Boolean -> latestRender(i, m, s) } }(item, modifier, selected)
+            }
+        }
+    // Gone from home, their compositions go too.
+    val latestSlots by rememberUpdatedState(slots)
+    val latestItemsOn by rememberUpdatedState(itemsOn)
+    LaunchedEffect(tiles) {
+        snapshotFlow { latestSlots.flatten().flatMap(latestItemsOn).flatMapTo(HashSet()) { listOf(it.key) + (it as? Folder)?.apps?.map { a -> a.key }.orEmpty() } }
+            .collect { tiles.keys.retainAll(it) }
+    }
 
     BoxWithConstraints(modifier) {
         val density = LocalDensity.current
@@ -703,13 +725,20 @@ internal fun HomeGrid(
         ) {
             // A face's nodes say here when they take a long press, so the menu doesn't open for it too.
             CompositionLocalProvider(LocalLongPressClaim provides claims) {
-                HorizontalPager(pager, Modifier.fillMaxSize(), key = { slots.getOrNull(it)?.first() ?: -it }) { slot ->
+                // The pages either side are made ahead, so a swipe doesn't start by composing the one it brings in. Their
+                // animated widgets wait until some of the page shows.
+                val homeCovered = LocalHomeCovered.current
+                HorizontalPager(pager, Modifier.fillMaxSize(), beyondViewportPageCount = 1, key = { slots.getOrNull(it)?.first() ?: -it }) { slot ->
                     val shown = pagesAt(slot, slots)
                     val g = gridFor(shown, grid to wide)
-                    Row(Modifier.fillMaxSize()) {
-                        for (page in shown) {
-                            Box(Modifier.width(with(density) { g.width.toDp() }).fillMaxHeight()) {
-                                TiledPage(page, itemsOn(page), layout, g, arrange, selected, render, actions, onNoRoom, feed)
+                    val covered = remember(homeCovered, pager, slot) { { homeCovered() || pager.layoutInfo.visiblePagesInfo.none { it.index == slot } } }
+                    CompositionLocalProvider(LocalHomeCovered provides covered) {
+                        // Keys stay on the page showing: the first arrow on home went to the first page made, one of these.
+                        Row(Modifier.fillMaxSize().focusProperties { onEnter = { if (slot != pager.currentPage) cancelFocusChange() } }.focusGroup()) {
+                            for (page in shown) {
+                                Box(Modifier.width(with(density) { g.width.toDp() }).fillMaxHeight()) {
+                                    TiledPage(page, itemsOn(page), layout, g, arrange, selected, tile, actions, onNoRoom, feed)
+                                }
                             }
                         }
                     }
@@ -723,7 +752,7 @@ internal fun HomeGrid(
                 FolderPanel(
                     openFolder,
                     fg,
-                    render,
+                    tile,
                     arrange.carry?.item?.key,
                     naming = arrange.naming,
                     onName = { onRenameFolder(openFolder, it) },
@@ -735,7 +764,7 @@ internal fun HomeGrid(
             arrange.carry?.let { carry ->
                 val r = grid.rect(carry.item, carry.cell)
                 androidx.compose.runtime.key(carry.item.key) {
-                    render(
+                    tile(
                         carry.item,
                         Modifier
                             // The finger is read while placing, so following it doesn't recompose the pages.

@@ -29,6 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
@@ -251,8 +253,15 @@ internal fun RecentStrip(
     handlers: AppHandlers,
     modifier: Modifier = Modifier,
     vertical: Boolean = false,
+    /**
+     * Where keys go from its apps toward the grid: Up, or stood up on [side], across to it. On each, as the list's own
+     * focus group keeps it from reaching them from outside.
+     */
+    home: FocusRequester? = null,
+    side: HomeSide? = null,
 ) {
-    val apps = recentApps(runtime, 20)
+    // Not before every kind of app is listed: the ones missing would push in as their kind arrived.
+    val apps = if (runtime.appsListed) recentApps(runtime, 20) else emptyList()
     // Nothing opened yet: no strip, but its room stays, so home doesn't shift when the first app shows up.
     if (apps.isEmpty()) {
         Spacer(if (vertical) modifier.width(RecentStripHeight) else modifier.height(RecentStripHeight))
@@ -271,7 +280,9 @@ internal fun RecentStrip(
         val cells: LazyListScope.() -> Unit = {
             items(apps, key = { it.key }) { hit ->
                 val (icon, mask) = hit.icons(runtime)
-                StripCell(hit.label, icon, mask, onClick = { handlers.launch(hit) }, actions = { hit.actions(handlers) }, shortcuts = { hit.shortcutMenu(handlers) }, spoken = hit.spoken, paused = hit.paused(runtime))
+                Box(if (home != null) Modifier.focusProperties { toHome(side, home) } else Modifier) {
+                    StripCell(hit.label, icon, mask, onClick = { handlers.launch(hit) }, actions = { hit.actions(handlers) }, shortcuts = { hit.shortcutMenu(handlers) }, spoken = hit.spoken, paused = hit.paused(runtime))
+                }
             }
         }
         if (vertical) {
@@ -308,6 +319,7 @@ private fun StripCell(
             .size(48.dp)
             .alpha(if (paused) PausedAlpha else 1f)
             .clip(LauncherStyle.shape(12.dp))
+            .menuLongPresses { menuOpen = true }
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = {
@@ -418,6 +430,7 @@ internal fun SearchField(
         keyboardActions = KeyboardActions(onGo = { onGo() }),
         modifier =
             modifier
+                .leavesUpDown()
                 .fillMaxWidth()
                 .clip(LauncherStyle.shape(24.dp))
                 .background(Palette.surface)
@@ -462,8 +475,10 @@ private fun AppActions(
             }
         }
     Popup(popupPositionProvider = position, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
-        MenuItems(actions, onDismiss, minWidth = 160.dp, itemPadding = 12.dp, fontSize = TextSize.Item) {
-            if (menu != null) ShortcutRows(offered, menu, onDismiss, TextSize.Item)
+        Box(Modifier.holdsKeys()) {
+            MenuItems(actions, onDismiss, minWidth = 160.dp, itemPadding = 12.dp, fontSize = TextSize.Item) {
+                if (menu != null) ShortcutRows(offered, menu, onDismiss, TextSize.Item)
+            }
         }
     }
 }

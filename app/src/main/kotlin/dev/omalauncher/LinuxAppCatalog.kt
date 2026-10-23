@@ -1,8 +1,11 @@
 package dev.omalauncher
 
 import android.content.Context
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import dev.omalauncher.linux.LinuxApp
@@ -12,6 +15,8 @@ import dev.omalauncher.linux.resolveLinuxIcon
 import dev.omalauncher.ui.bitmapMask
 import dev.omalauncher.ui.decodeIcon
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** The guest's apps from their .desktop entries, with their icons; the Linux side of [AndroidAppCatalog]. */
@@ -30,13 +35,22 @@ class LinuxAppCatalog(
     /** The Icon= each of [icons] was loaded from, to notice an entry changing it. */
     private val iconNames = HashMap<String, String>()
 
+    /** Whether [apps] has been read once, or there's no Linux to read them from; like [AndroidAppCatalog.listed]. */
+    var listed by mutableStateOf(false)
+
+    /** One rescan at a time: at start one runs before Linux is up and another once it is, and both would draw the same icons. */
+    private val refreshing = Mutex()
+
     /** Rescans .desktop entries; the list only changes (and recomposes) when entries do. */
-    suspend fun refresh() {
+    suspend fun refresh() = refreshing.withLock { rescan() }
+
+    private suspend fun rescan() {
         val loaded = withContext(Dispatchers.IO) { loadLinuxApps(proot) }
         if (loaded != apps.toList()) {
             apps.clear()
             apps += loaded
         }
+        listed = true
         val ids = loaded.mapTo(HashSet()) { it.id }
         // An entry can change its Icon= under the same id: on a fresh install, pacman's micro.desktop
         // shows up before the launcher's Editor entry replaces it.
@@ -53,16 +67,14 @@ class LinuxAppCatalog(
         val missing = loaded.filter { it.icon != null && it.id !in icons }
         if (missing.isEmpty()) return
         val size = (52 * context.resources.displayMetrics.density).toInt()
-        val decoded =
-            withContext(Dispatchers.IO) {
-                missing.mapNotNull { app ->
-                    val file = resolveLinuxIcon(proot.rootfs, app.icon!!) ?: return@mapNotNull null
-                    decodeIcon(file, size)?.let { Triple(app, it.asImageBitmap(), bitmapMask(it).asImageBitmap()) }
-                }
-            }
-        for ((app, icon, mask) in decoded) {
-            icons[app.id] = icon
-            masks[app.id] = mask
+        // Each one as it's ready, rather than all once the last is: the recent strip shows as soon as the list is read.
+        for (app in missing) {
+            val decoded =
+                withContext(Dispatchers.IO) {
+                    resolveLinuxIcon(proot.rootfs, app.icon!!)?.let { decodeIcon(it, size) }?.let { it.asImageBitmap() to bitmapMask(it).asImageBitmap() }
+                } ?: continue
+            icons[app.id] = decoded.first
+            masks[app.id] = decoded.second
             iconNames[app.id] = app.icon!!
         }
     }

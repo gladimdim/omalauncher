@@ -6,6 +6,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import android.os.Build
+import android.os.SystemClock
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -45,10 +48,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -73,10 +79,18 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import dev.omalauncher.widgets.runtime.PicturePainter
 import dev.omalauncher.widgets.runtime.WidgetImage
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.focus.onFocusChanged
+import dev.omalauncher.ui.activateKeys
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -90,6 +104,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
@@ -103,6 +118,8 @@ import dev.omalauncher.ui.NerdSymbols
 import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.ui.frame
+import dev.omalauncher.ui.holdsKeys
+import dev.omalauncher.ui.keyActivated
 import dev.omalauncher.ui.TerminalView
 import dev.omalauncher.widgets.lang.Action
 import dev.omalauncher.widgets.lang.Builtins
@@ -218,6 +235,11 @@ val LocalLongPressClaim = staticCompositionLocalOf<LongPressClaim?> { null }
 /** Widget text, 13sp as widgets were made for, whatever size the launcher's own text is. */
 internal val WidgetMono get() = Mono.copy(fontSize = 13.sp)
 
+/** Animated widgets' frame rate: on a 120 Hz screen, twice it costs twice the battery for motion that looks the same. */
+private const val WIDGET_FPS = 60
+
+private const val TICK = 1_000_000_000L / WIDGET_FPS
+
 /** The widget's screen { } block, filling [modifier]; `screenWidth` and `screenHeight` follow its size. */
 @Composable
 fun WidgetScreen(
@@ -258,7 +280,8 @@ fun WidgetKeybar(
 /**
  * A frame clock for widgets that read `time`, only while they're on screen ([covered] is false)
  * and something still reads it: a `time` under an `if` that's false, like a backdrop drawn only
- * while music plays, stops it after a few frames, and the next read starts it again.
+ * while music plays, stops it after a few frames, and the next read starts it again. At most
+ * [WIDGET_FPS] frames a second, whatever the screen's rate.
  */
 @Composable
 private fun FrameClock(
@@ -269,6 +292,9 @@ private fun FrameClock(
         val start = withFrameNanos { it }
         var frame = 0L
         var unread = 0
+        // When the next tick is due. A frame up to a quarter of a tick early takes it, so a 60 Hz screen ticks on each
+        // frame, 90 Hz on two in three and 120 Hz on every other one.
+        var due = start
         while (true) {
             if (covered()) snapshotFlow { covered() }.first { !it }
             if (unread >= 3) {
@@ -276,6 +302,9 @@ private fun FrameClock(
                 unread = 0
             }
             withFrameNanos { now ->
+                if (now < due - TICK / 4) return@withFrameNanos
+                // Behind by more than a tick (covered, or a long frame): the next one is a tick from now.
+                due = if (now - due > TICK) now + TICK else due + TICK
                 // Widgets that draw slowly get half the frame rate instead of stalling the home screen.
                 if (inst.slow && frame++ % 2 != 0L) return@withFrameNanos
                 unread = if (inst.timeRead) 0 else unread + 1
@@ -357,6 +386,9 @@ private val SIZING = setOf("width", "height", "size", "fill", "weight")
 
 /** Lengths past this, in dp, are clamped: in a scrolling Column a bigger one can't be represented and fails the layout. */
 private const val MAX_DP = 4000.0
+
+/** A finger still this long, in ms, before it lifts lets go at rest: onDragEnd's vx and vy are 0. */
+private const val STOPPED_MS = 40L
 
 /** A padding in dp: Compose throws on a negative or NaN one. */
 private fun inset(n: Double) = (if (n >= 0) n.coerceAtMost(MAX_DP) else 0.0).dp
@@ -764,6 +796,8 @@ private fun common(
     parent: Any?,
 ): Modifier {
     var m: Modifier = Modifier
+    // While the node's own onDrag has the finger: an animated offset follows it rather than easing after it.
+    val held = remember { mutableStateOf(false) }
     p.observe("weight")?.num()?.toFloat()?.takeIf { it > 0f }?.let { w ->
         m =
             when (parent) {
@@ -781,10 +815,11 @@ private fun common(
     p.observe("width")?.num()?.let { m = m.width(it.coerceAtMost(MAX_DP).dp) }
     p.observe("height")?.num()?.let { m = m.height(it.coerceAtMost(MAX_DP).dp) }
     if (p.has("offset")) {
+        val offset = p.offset(held)
         m =
             m.offset {
-                val o = p.now("offset") as? Lst
-                IntOffset(((o?.items?.getOrNull(0)?.num() ?: 0.0) * density).toInt(), ((o?.items?.getOrNull(1)?.num() ?: 0.0) * density).toInt())
+                val o = offset()
+                IntOffset((o.x * density).toInt(), (o.y * density).toInt())
             }
     }
     val hasLayer = p.has("opacity") || p.has("rotation") || p.has("scale") || p.has("clip")
@@ -834,13 +869,16 @@ private fun common(
                 if (w > 0f) drawRoundRect(borderColor(), Offset(w / 2, w / 2), Size(size.width - w, size.height - w), r, style = Stroke(w))
             }
     }
-    m = m.then(handlers(p))
+    m = m.then(handlers(p, held))
     padding(p.observe("padding"))?.let { m = m.padding(it) }
     return m
 }
 
 @Composable
-private fun handlers(p: Props): Modifier {
+private fun handlers(
+    p: Props,
+    held: MutableState<Boolean>,
+): Modifier {
     val el = p.el
     if (el.handlers.isEmpty()) return Modifier
     val density = LocalDensity.current.density
@@ -868,16 +906,59 @@ private fun handlers(p: Props): Modifier {
                         },
                     onTap = tap?.let { a -> { o -> fire(a, o.x, o.y) } },
                 )
-            }
+            }.then(keyFocus(p, tap, long) { a, x, y -> fire(a, x, y) })
     }
     el.handlers["onDrag"]?.let { a ->
-        m = m.pointerInput(el, p.env) { detectDragGestures { change, drag -> change.consume(); fire(a, drag.x, drag.y, change.position.x, change.position.y) } }
+        val end = el.handlers["onDragEnd"]
+        // drag: horizontal or vertical takes only moves along it, so the list around the node still scrolls the other way (owl 13).
+        val axis = p.now("drag")?.toString()
+        m =
+            m.pointerInput(el, p.env, axis) {
+                val velocity = VelocityTracker()
+                // Where the drag has got to, from its moves: the node may move with the finger (offset: [dragX, 0]),
+                // so the finger's place on it says nothing about its speed.
+                var travelled = Offset.Zero
+                var lastMove = 0L
+                val start: (Offset) -> Unit = {
+                    held.value = true
+                    velocity.resetTracking()
+                    travelled = Offset.Zero
+                }
+                fun move(
+                    change: PointerInputChange,
+                    dx: Float,
+                    dy: Float,
+                ) {
+                    change.consume()
+                    travelled += Offset(dx, dy)
+                    lastMove = change.uptimeMillis
+                    velocity.addPosition(change.uptimeMillis, travelled)
+                    fire(a, dx, dy, change.position.x, change.position.y)
+                }
+                // A cancelled drag (the node went, another gesture took over) ends at rest, so nothing reads it as a flick.
+                fun ended(cancelled: Boolean) {
+                    // First, so what onDragEnd moves the node to animates there.
+                    held.value = false
+                    // A finger that stopped before it lifted lets go at rest, not at the speed it last moved: the tracker only
+                    // sees moves.
+                    val still = SystemClock.uptimeMillis() - lastMove > STOPPED_MS
+                    val v = if (cancelled || still) Velocity.Zero else velocity.calculateVelocity()
+                    end?.let { fire(it, v.x, v.y) }
+                }
+                when (axis) {
+                    "horizontal" -> detectHorizontalDragGestures(start, { ended(false) }, { ended(true) }) { change, dx -> move(change, dx, 0f) }
+                    "vertical" -> detectVerticalDragGestures(start, { ended(false) }, { ended(true) }) { change, dy -> move(change, 0f, dy) }
+                    else -> detectDragGestures(start, { ended(false) }, { ended(true) }) { change, drag -> move(change, drag.x, drag.y) }
+                }
+            }
     }
     // As the finger goes down, not up: a key acts at once, and with `repeats` again while held, as a keyboard's
     // keys do (owl 12). Touches aren't consumed, so onTap and onLongPress on the same node still see them.
     val press = el.handlers["onPress"]
     val release = el.handlers["onRelease"]
     if (press != null || release != null) {
+        // Keys press one with nothing to tap, like the terminal key bar's keys or a game's D-pad.
+        if (tap == null && long == null) m = m.then(keyPressed(p, press, release))
         m =
             m.pointerInput(el, p.env) {
                 coroutineScope {
@@ -911,6 +992,83 @@ private fun handlers(p: Props): Modifier {
             }
     }
     return m
+}
+
+/**
+ * A node with onPress or onRelease and nothing to tap: keys reach it as one that takes taps ([keyFocus]), and Enter
+ * presses it at its middle as it goes down, again as it repeats where it `repeats`, and lets it go as it lifts, or as
+ * keys move off it while it's held.
+ */
+@Composable
+private fun keyPressed(
+    p: Props,
+    press: Action?,
+    release: Action?,
+): Modifier {
+    val density = LocalDensity.current.density
+    val bounds = remember { mutableStateOf(IntSize.Zero) }
+    val held = remember { booleanArrayOf(false, false) }
+    fun run(n: Int) =
+        press?.run(p.env, listOf(Num((bounds.value.width / 2f / density).toDouble()), Num((bounds.value.height / 2f / density).toDouble()), Num(n.toDouble())))
+    fun letGo() {
+        if (!held[1]) return
+        held[1] = false
+        release?.run(p.env, emptyList())
+    }
+    return Modifier
+        .onSizeChanged { bounds.value = it }
+        .onFocusChanged {
+            held[0] = it.isFocused
+            if (!it.isFocused) letGo()
+        }.onPreviewKeyEvent { e ->
+            if (e.key !in activateKeys || !held[0]) return@onPreviewKeyEvent false
+            when (e.type) {
+                KeyEventType.KeyDown -> {
+                    val n = e.nativeKeyEvent.repeatCount
+                    if (n == 0) {
+                        held[1] = true
+                        run(0)
+                    } else if (held[1] && p.now("repeats")?.truthy == true) {
+                        run(n)
+                    }
+                }
+                KeyEventType.KeyUp -> letGo()
+            }
+            true
+        }.then(keyFocus(p, null, null) { _, _, _ -> })
+}
+
+/**
+ * Lets a keyboard or a gamepad reach a node that takes taps (see [keyActivated]), ringed in the accent color while it
+ * has focus. A key taps it at its middle.
+ */
+@Composable
+private fun keyFocus(
+    p: Props,
+    tap: Action?,
+    long: Action?,
+    fire: (Action, Float, Float) -> Unit,
+): Modifier {
+    val haptics = LocalHapticFeedback.current
+    val claim = LocalLongPressClaim.current
+    val bounds = remember { mutableStateOf(IntSize.Zero) }
+    val radius = p.float("radius", (if (p.has("border")) 8f else 4f) * LauncherStyle.cornerScale)
+    fun at(a: Action) = fire(a, bounds.value.width / 2f, bounds.value.height / 2f)
+    return Modifier
+        .onSizeChanged { bounds.value = it }
+        .keyActivated(
+            onTap = tap?.let { { at(it) } },
+            onLongPress =
+                long?.let {
+                    {
+                        claim?.claim()
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        at(it)
+                    }
+                },
+            ring = true,
+            radius = radius,
+        )
 }
 
 /**
@@ -1080,7 +1238,7 @@ private fun PopupNode(
                 else -> Alignment.Start
             }
         Column(
-            (if (framed) mod else Modifier.frame(2.dp, Palette.accent, Palette.background).then(mod).then(if (p.has("padding")) Modifier else Modifier.padding(4.dp))),
+            (if (framed) mod else Modifier.frame(2.dp, Palette.accent, Palette.background).then(mod).then(if (p.has("padding")) Modifier else Modifier.padding(4.dp))).holdsKeys(),
             verticalArrangement = Arrangement.spacedBy(gap),
             horizontalAlignment = align,
         ) { Nodes(el.children, env, inst, this) }
