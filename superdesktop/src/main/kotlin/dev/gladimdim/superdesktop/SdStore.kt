@@ -54,6 +54,17 @@ object SdStore {
         bridge: Bridge,
     ) = write(context, load(context).filterNot { it.key == bridge.key } + bridge)
 
+    /** Replaces [bridge] with [next] only while it is still saved as it was, so a removal or new pairing is kept. */
+    @Synchronized fun update(
+        context: Context,
+        bridge: Bridge,
+        next: Bridge,
+    ) {
+        val list = load(context)
+        if (bridge !in list) return
+        write(context, list.map { if (it == bridge) next else it })
+    }
+
     @Synchronized fun remove(
         context: Context,
         key: String,

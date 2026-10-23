@@ -1,5 +1,6 @@
 package dev.gladimdim.superdesktop
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
@@ -23,11 +24,16 @@ internal fun rememberFeeds(bridges: List<Bridge>): Map<String, Feed> {
         key(b.key) {
             DisposableEffect(b) {
                 val flow = SdLive.acquire(b)
+                var addressesChecked = false
                 val job =
                     scope.launch {
                         flow.collect {
                             feeds[b.key] = it
                             it.doc?.wake?.let { wake -> launch(Dispatchers.IO) { SdWake.rememberIfChanged(context, b, wake) } }
+                            if (it.state == Feed.State.LIVE && !addressesChecked) {
+                                addressesChecked = true
+                                launch(Dispatchers.IO) { learnAddresses(context, b) }
+                            }
                         }
                     }
                 onDispose {
@@ -38,4 +44,13 @@ internal fun rememberFeeds(bridges: List<Bridge>): Map<String, Feed> {
         }
     }
     return feeds
+}
+
+/** Saves [b]'s current addresses once it answers, so its feed can fall back to Tailscale away from this Wi-Fi. */
+private suspend fun learnAddresses(
+    context: Context,
+    b: Bridge,
+) {
+    val info = runCatching { SdLive.api(b).ping() }.getOrNull() ?: return
+    b.withAddressesOf(info)?.let { SdStore.update(context, b, it) }
 }

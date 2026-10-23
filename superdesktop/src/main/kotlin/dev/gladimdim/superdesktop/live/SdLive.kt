@@ -135,7 +135,7 @@ object SdLive {
         while (scope.isActive) {
             val bridge = e.bridge
             val hosts = bridge.hosts()
-            val host = hosts[hostIndex % hosts.size]
+            var host = hosts[hostIndex % hosts.size]
             val wait =
                 if (policy.useStream()) {
                     val end = stream(e, bridge, host, policy)
@@ -144,7 +144,9 @@ object SdLive {
                         delay(30_000)
                         continue
                     }
-                    if (!end.received && end.httpCode == null) hostIndex++
+                    // Unreachable: poll the next address, not this one again. Polling the dead one and moving on
+                    // twice per round skipped every other address, so a LAN + Tailscale pair never tried Tailscale.
+                    if (!end.received && end.httpCode == null) host = hosts[++hostIndex % hosts.size]
                     policy.onStreamEnded(end.received, end.httpCode, end.closeCode, end.closeReason)
                 } else {
                     policy.pollOnlyRemaining()

@@ -25,6 +25,18 @@ class ConnectionProbeTest {
         assertFalse(ConnectionProbe.isIpLiteral("300.1.1.1"))
     }
 
+    @Test fun learnsTailscaleTurnedOnAfterPairing() {
+        val lan = BridgeAddress("192.168.50.27", "lan", true)
+        val tailscale = BridgeAddress("100.91.62.40", "tailscale", true)
+        val paired = Bridge("192.168.50.27", 8759, "t", "ab".repeat(32), "id", "rog", listOf(lan))
+        val learned = paired.withAddressesOf(PingInfo("rog", 3, "id", listOf(tailscale, lan)))!!
+        assertEquals(listOf("192.168.50.27", "100.91.62.40"), learned.hosts())
+        // Same served addresses (display-only IPv6 aside), another computer, or an old bridge: nothing to save.
+        assertNull(learned.withAddressesOf(PingInfo("rog", 3, "id", listOf(lan, tailscale, BridgeAddress("fd7a::1", "tailscale", false)))))
+        assertNull(paired.withAddressesOf(PingInfo("other", 3, "other-id", listOf(tailscale))))
+        assertNull(paired.withAddressesOf(PingInfo("rog", 3, "", listOf(tailscale))))
+    }
+
     @Test fun failuresInWords() {
         assertTrue("refused" in ConnectionProbe.explain(ConnectException("Connection refused")))
         assertTrue("No answer in time" in ConnectionProbe.explain(SocketTimeoutException("connect timed out")))

@@ -33,6 +33,17 @@ data class Bridge(
     fun hosts(): List<String> =
         (listOf(host) + addresses.filter { it.connectable && it.network == "tailscale" }.map { it.address } +
             addresses.filter { it.connectable && it.network != "loopback" }.map { it.address }).distinct()
+
+    /**
+     * This computer with the addresses its ping [info] reported, or null when the ones [hosts] can use are unchanged
+     * or [info] is another computer. A computer that turned Tailscale on after pairing becomes reachable through it.
+     */
+    fun withAddressesOf(info: PingInfo): Bridge? {
+        fun served(list: List<BridgeAddress>) = list.filter { it.connectable && it.network != "loopback" }.map { it.address to it.network }.toSet()
+        if (info.bridgeId.isBlank() || (bridgeId.isNotBlank() && bridgeId != info.bridgeId)) return null
+        if (bridgeId.isNotBlank() && served(addresses) == served(info.addresses)) return null
+        return copy(bridgeId = info.bridgeId, addresses = info.addresses)
+    }
 }
 
 /** One harness row of GET /api/v1/harnesses (PROTOCOL.md). Missing fields are null: newer bridges may add more. */
