@@ -1,5 +1,34 @@
 # SD Launcher changelog
 
+## 1.4.0 (106)
+
+Built on **Omalauncher 0.12.0** (was 0.11.0), with upstream fixes since. No
+SUPER DESKTOP changes; the bridge is unchanged, so it works with the same
+desktop versions as 1.3.1.
+
+### SUPER DESKTOP
+- **Tailscale away from home**: a PC paired on home Wi-Fi is reached over
+  Tailscale elsewhere. The feed moved two addresses per failed try, so a PC with
+  one LAN and one Tailscale address only ever retried the LAN one; it now tries
+  each in turn. The launcher also saves a PC's addresses while connected, so
+  Tailscale switched on after pairing is used later. Turn Tailscale on on the
+  phone.
+
+### From Omalauncher 0.12
+- **Control center**: controls.owl, for swiping down on home, with the phone's
+  switches, brightness, volume, Do Not Disturb, the torch, what's playing, the
+  next alarm and the notifications. Pick it in settings › gestures.
+- **Keyboards and gamepads** reach the whole launcher, with a focus ring;
+  Super+D opens the drawer, Super+T a terminal.
+- **Widgets' glass** is a setting: opacity and frosted glass in Style.
+- **Owl 13**: settings panels, Do Not Disturb levels, torch brightness, network
+  and SIM details, notification actions and replies.
+- **Faster**: home shows complete sooner after the launcher starts, swipes
+  between pages are smoother, and animated widgets draw at most 60 frames a second.
+- **Fixes**: Codex runs commands again under proot, agent updates no longer keep
+  old versions, a crash with some voice assistants, blank store previews on
+  Android 10 and 11, and very large widget images.
+
 ## 1.3.1 (105)
 
 Built on **Omalauncher 0.11.0**, with upstream fixes since. No SUPER DESKTOP
