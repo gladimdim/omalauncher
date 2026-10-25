@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.graphics.asImageBitmap
 import dev.omalauncher.ui.decodeSampled
-import dev.omalauncher.widgets.lang.Global
 import dev.omalauncher.widgets.lang.Program
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -205,7 +204,7 @@ internal class WidgetImages(
                     file.readBytes()
                 }
                 src.startsWith("https://") -> if (program.level < 8) return null else services.remoteFile(src)?.readBytes() ?: return null
-                else -> (program.globals.firstOrNull { it.name == src.removePrefix("asset:") } as? Global.Asset)?.bytes ?: return null
+                else -> program.asset(src.removePrefix("asset:")) ?: return null
             }
         if (isSvg(bytes)) return if (bytes.size <= MAX_SVG_BYTES) decodeSvg(bytes)?.let { WidgetImage.Vector(it) } else null
         // An asset is drawn at full size (minWidth too big to halve); either way, nothing over the cap is decoded at all.

@@ -47,8 +47,6 @@ import dev.omalauncher.ui.KeyboardSink
 import dev.omalauncher.ui.Mono
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.ui.linuxWindowInput
-import dev.omalauncher.ui.SystemBarsEffect
-import dev.omalauncher.ui.applySystemBars
 import dev.omalauncher.wayland.WindowRenderer
 import dev.omalauncher.wayland.XdgToplevel
 import kotlinx.coroutines.flow.first
@@ -58,7 +56,6 @@ import kotlinx.coroutines.flow.first
  * Recents card and behaves like a separate app.
  */
 class LinuxWindowActivity : InstantActivity() {
-    private val runtime get() = (application as App).runtime
     private var window: XdgToplevel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,9 +67,7 @@ class LinuxWindowActivity : InstantActivity() {
             return
         }
         this.window = window
-        applySystemBars(this, Palette.isLight)
         setInstantContent {
-            SystemBarsEffect(this@LinuxWindowActivity)
             AppWindow(runtime, window)
             BackHandler { backInstantly() }
             LaunchedEffect(window) {
@@ -201,7 +196,8 @@ private fun AppWindow(
                     .onSizeChanged { surfaceView?.visibleHeight = it.height },
             ) {
                 // Over the SurfaceView, which Compose's pointer input doesn't reach.
-                Box(Modifier.fillMaxSize().linuxWindowInput(runtime.wm, window))
+                // A tap on the prompt line brings the keyboard back, as the ⌨ button does.
+                Box(Modifier.fillMaxSize().linuxWindowInput(runtime.wm, window) { sink?.takeUnless { it.showing }?.show() })
                 Box(
                     Modifier
                         .align(Alignment.BottomEnd)

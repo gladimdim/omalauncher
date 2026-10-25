@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import dev.omalauncher.widgets.lang.textOrNull
 
 /**
  * The phone's notifications, for `source n = android.notifications`, and `notification(...)` to open, dismiss or
@@ -135,7 +136,7 @@ class Notifications(
                 if (!replies(action)) send(action.actionIntent)
             }
             "reply" -> {
-                val text = arg?.takeIf { it != Null }?.toString()?.takeIf { it.isNotBlank() } ?: return
+                val text = arg.textOrNull()?.takeIf { it.isNotBlank() } ?: return
                 val action = actions(sbn).firstOrNull(::replies) ?: return
                 val inputs = action.remoteInputs.filter { it.allowFreeFormInput }.toTypedArray()
                 val fill = Intent().addFlags(Intent.FLAG_RECEIVER_FOREGROUND)

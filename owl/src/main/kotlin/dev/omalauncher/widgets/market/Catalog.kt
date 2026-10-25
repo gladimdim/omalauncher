@@ -206,21 +206,7 @@ object Catalog {
     }
 
     /** A JSON string literal. */
-    fun q(s: String): String {
-        val sb = StringBuilder("\"")
-        for (c in s) {
-            when {
-                c == '"' -> sb.append("\\\"")
-                c == '\\' -> sb.append("\\\\")
-                c == '\n' -> sb.append("\\n")
-                c == '\r' -> sb.append("\\r")
-                c == '\t' -> sb.append("\\t")
-                c < ' ' -> sb.append("\\u%04x".format(c.code))
-                else -> sb.append(c)
-            }
-        }
-        return sb.append('"').toString()
-    }
+    fun q(s: String): String = Json.write(Str(s))!!
 
     /** Dotted versions compare numerically: 1.10 > 1.9. */
     fun compareVersions(

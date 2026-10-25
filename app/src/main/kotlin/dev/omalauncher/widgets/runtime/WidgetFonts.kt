@@ -7,7 +7,6 @@ import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import dev.omalauncher.sha256Hex
 import dev.omalauncher.upgrade.writeAtomically
-import dev.omalauncher.widgets.lang.Global
 import dev.omalauncher.widgets.lang.Program
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +58,7 @@ internal class WidgetFonts(
     private suspend fun load(src: String): FontFamily? {
         val file =
             when {
-                src.startsWith("asset:") -> (program.globals.firstOrNull { it.name == src.removePrefix("asset:") } as? Global.Asset)?.bytes?.let(::kept)
+                src.startsWith("asset:") -> program.asset(src.removePrefix("asset:"))?.let(::kept)
                 src.startsWith("https://") -> services.remoteFile(src)
                 else -> services.guestFile(src)?.takeIf { it.isFile }
             } ?: throw IllegalStateException(if (src.startsWith("https://")) "couldn't be downloaded" else "couldn't be found")

@@ -102,9 +102,6 @@ internal fun Runtime.gestureProblems(): List<Pair<String, List<String>>> {
     return panels + listOfNotNull(keys)
 }
 
-/** The panel the drawer shows: the one picked for swiping up, else drawer.owl, else the stock drawer. */
-internal fun Runtime.upPanel() = widgets.drawerPanel()
-
 /**
  * Dragging up opens the drawer under the finger and dragging down closes it, as on stock launchers: the panel
  * follows the drag and a fling or how far it got decides where it settles. Scrollables inside (a widget's

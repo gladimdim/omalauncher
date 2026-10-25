@@ -30,7 +30,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.PressGestureScope
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -140,8 +143,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.max
 import kotlin.math.min
+import dev.omalauncher.widgets.lang.textOrNull
 
 /** Whether the home screen is hidden (drawer, full-screen panel); animated widgets stop ticking while it is. */
 val LocalHomeCovered = staticCompositionLocalOf<() -> Boolean> { { false } }
@@ -192,7 +197,7 @@ fun WidgetContent(
             .then(if (insets != null) Modifier.windowInsetsPadding(insets) else Modifier)
             .padding(inset(program.padding)),
     ) {
-        CompositionLocalProvider(LocalLongPress provides program.isFace) {
+        CompositionLocalProvider(LocalLongPress provides program.isFace, LocalRipple provides program.isFace) {
             Nodes(program.root, inst.root, inst, this)
         }
     }
@@ -200,6 +205,9 @@ fun WidgetContent(
 
 /** Whether nodes here take long presses: in screens, apps and faces, not on a tile, where the home screen has them. */
 val LocalLongPress = staticCompositionLocalOf { false }
+
+/** Whether nodes that take taps ripple: in screens, apps, panels and faces, not on a widget's tile or in a key bar. */
+private val LocalRipple = staticCompositionLocalOf { false }
 
 /** Whether the Column around these nodes is as wide as its content, so its Texts are as wide as their text (see [columnHugs]). */
 private val LocalHug = staticCompositionLocalOf { false }
@@ -245,32 +253,29 @@ private const val TICK = 1_000_000_000L / WIDGET_FPS
 fun WidgetScreen(
     inst: WidgetInstance,
     modifier: Modifier = Modifier,
-) {
-    val nodes = inst.program.screen ?: return
-    if (inst.program.animated) FrameClock(inst) { false }
-    BoxWithConstraints(modifier) {
-        // Set before the nodes compose, so the first frame already has the size instead of null.
-        inst.setScreen(maxWidth.value.toDouble(), maxHeight.value.toDouble())
-        Column(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalLongPress provides true) {
-                Nodes(nodes, inst.root, inst, this)
-            }
-        }
-    }
-}
+) = ScreenNodes(inst, modifier, Modifier.fillMaxSize(), ripple = true)
 
 /** Extra keys (`keybar "…" { }`): their nodes over the soft keyboard, as wide as there's room for and as tall as they are. */
 @Composable
 fun WidgetKeybar(
     inst: WidgetInstance,
     modifier: Modifier = Modifier,
+) = ScreenNodes(inst, modifier, Modifier.fillMaxWidth(), ripple = false)
+
+@Composable
+private fun ScreenNodes(
+    inst: WidgetInstance,
+    modifier: Modifier,
+    column: Modifier,
+    ripple: Boolean,
 ) {
     val nodes = inst.program.screen ?: return
     if (inst.program.animated) FrameClock(inst) { false }
     BoxWithConstraints(modifier) {
+        // Set before the nodes compose, so the first frame already has the size instead of null.
         inst.setScreen(maxWidth.value.toDouble(), maxHeight.value.toDouble())
-        Column(Modifier.fillMaxWidth()) {
-            CompositionLocalProvider(LocalLongPress provides true) {
+        Column(column) {
+            CompositionLocalProvider(LocalLongPress provides true, LocalRipple provides ripple) {
                 Nodes(nodes, inst.root, inst, this)
             }
         }
@@ -671,7 +676,7 @@ private fun Element(
         }
         "Image" -> {
             // A src still loading is no image yet, not one named "null".
-            val src = p.observe("src")?.takeIf { it != Null }?.toString().orEmpty()
+            val src = p.observe("src").textOrNull().orEmpty()
             // Images on show are kept before others when there are more than a widget keeps.
             DisposableEffect(inst, src) {
                 inst.imageShown(src, true)
@@ -893,9 +898,14 @@ private fun handlers(
     val haptics = LocalHapticFeedback.current
     val claim = LocalLongPressClaim.current
     if (tap != null || long != null) {
+        // A ripple where it's pressed, except on a widget's tile and in a key bar.
+        val presses = remember { MutableInteractionSource() }
+        val ripple = LocalRipple.current
+        if (ripple) m = m.ripple(presses, p.float("radius", if (el.kind == "Button" || p.has("border")) 8f * LauncherStyle.cornerScale else 0f))
         m =
-            m.pointerInput(el, p.env, long != null) {
+            m.pointerInput(el, p.env, long != null, ripple) {
                 detectTapGestures(
+                    onPress = { o -> if (ripple) press(presses, o) },
                     onLongPress =
                         long?.let { a ->
                             { o ->
@@ -993,6 +1003,24 @@ private fun handlers(
     }
     return m
 }
+
+/**
+ * Tells [presses] of a press at [at] and its end. A touch that turns into a scroll within [PRESS_DELAY_MS] shows
+ * nothing, so a list doesn't flash under the finger; a tap quicker than that still shows the whole press.
+ */
+private suspend fun PressGestureScope.press(
+    presses: MutableInteractionSource,
+    at: Offset,
+) {
+    val early = withTimeoutOrNull(PRESS_DELAY_MS) { tryAwaitRelease() }
+    if (early == false) return
+    val press = PressInteraction.Press(at)
+    presses.emit(press)
+    val released = early ?: tryAwaitRelease()
+    presses.emit(if (released) PressInteraction.Release(press) else PressInteraction.Cancel(press))
+}
+
+private const val PRESS_DELAY_MS = 64L
 
 /**
  * A node with onPress or onRelease and nothing to tap: keys reach it as one that takes taps ([keyFocus]), and Enter
@@ -1125,7 +1153,7 @@ internal fun fontFamily(
     v: Value?,
     inst: WidgetInstance,
 ): FontFamily =
-    when (val name = v?.takeIf { it != Null }?.toString()) {
+    when (val name = v.textOrNull()) {
         null, "mono" -> LauncherStyle.font
         "sans" -> FontFamily.SansSerif
         "serif" -> FontFamily.Serif

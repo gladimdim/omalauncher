@@ -25,7 +25,9 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.security.DigestInputStream
 import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
+import kotlin.concurrent.thread
 
 private const val TAG = "bootstrap"
 private const val ROOTFS_URL = "http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
@@ -33,6 +35,9 @@ private const val TARBALL = "ArchLinuxARM-aarch64-latest.tar.gz"
 
 /** Attempts per network step before setup (or an update) reports a failure. */
 private const val NETWORK_TRIES = 3
+
+/** How long `echo | cat` may take in the guest before setup calls the phone's kernel broken; it takes well under a second. */
+private const val FORK_CHECK_SECONDS = 30L
 
 /** Room for the download (~830 MB). */
 private const val TARBALL_SPACE = 900_000_000L
@@ -187,6 +192,10 @@ class Bootstrap(
         listOf(
             Step("rootfs", Stage.Download, "Downloading Arch Linux ARM", network = true) { installRootfs() },
             Step("etc-2", Stage.Configure, "Configuring the system", network = false) { configure() },
+            // Only before the first setup: a phone where Linux already runs can fork.
+            Step("forks-1", Stage.Configure, "Checking that programs can start", network = false, isDone = { journal.setupComplete }) {
+                checkForks()
+            },
             Step("keyring-1", Stage.Configure, "Initializing pacman keyring", network = false) {
                 guest("pacman-key --init && pacman-key --populate archlinuxarm")
             },
@@ -628,6 +637,31 @@ class Bootstrap(
             tmp.delete()
             error("can't replace $target")
         }
+    }
+
+    /**
+     * Runs a pipeline, the smallest guest command that forks. Some custom ROM kernels (4.14, with Android's cgroup v2
+     * freezer backported but not its follow-up, upstream 05b289263772) make every fork of a traced process restart
+     * forever (#105), and the next step, pacman-key, would hang without a word. Such a phone gets an error naming the cause.
+     */
+    private fun checkForks() {
+        val process = proot.process("echo forks | cat").start()
+        val output = StringBuffer()
+        val reader = thread(isDaemon = true) { runCatching { process.inputStream.bufferedReader().forEachLine { output.appendLine(it) } } }
+        if (process.waitFor(FORK_CHECK_SECONDS, TimeUnit.SECONDS)) {
+            reader.join(1_000)
+            output.lines().forEach(log::add)
+            check(process.exitValue() == 0 && "forks" in output) { "Linux can't run commands here (exit ${process.exitValue()})" }
+            return
+        }
+        process.destroyForcibly()
+        // The guest shell is proot's tracee and outlives a killed proot.
+        proot.killAll()
+        log.add("a guest command that starts another one didn't finish in $FORK_CHECK_SECONDS s (kernel ${System.getProperty("os.version")})")
+        error(
+            "this phone's kernel stops Linux programs from starting other programs, so setup can't go on. " +
+                "custom ROMs with a 4.14 kernel need kernel commit 05b289263772 from their maintainer; see github issue #105",
+        )
     }
 
     private fun guest(script: String) {

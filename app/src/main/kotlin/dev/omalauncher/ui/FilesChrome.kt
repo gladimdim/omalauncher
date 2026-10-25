@@ -222,6 +222,6 @@ internal fun MenuPopup(
     alignment: Alignment = Alignment.TopEnd,
 ) {
     Popup(alignment = alignment, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
-        Box(Modifier.holdsKeys()) { MenuItems(items, onDismiss, minWidth = 200.dp, itemPadding = 13.dp, fontSize = TextSize.Item) }
+        Box(Modifier.holdsKeys()) { MenuItems(items, onDismiss, minWidth = 200.dp, itemPadding = 13.dp) }
     }
 }

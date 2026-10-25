@@ -147,9 +147,16 @@ class MainActivity : ComponentActivity() {
     /** Whether the launcher was out of sight since it was last in front: Home then only brings it back. */
     private var away = false
 
-    /** Pressing Home while already home closes the menu, like other launchers. */
+    /**
+     * Pressing Home while already home closes the menu, like other launchers; with nothing open, it goes back to
+     * page 1 (an open folder closes first). Coming back from an app keeps the page it was left on.
+     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        val nothingOpen =
+            state.drawer.value == 0f && state.pulled == null && !state.homeMenuOpen && state.shared == null &&
+                state.sharing == null && runtime.widgets.openScreen == null && state.editing == null
+        if (!away && nothingOpen && intent.hasCategory(Intent.CATEGORY_HOME)) state.onHomeAgain()
         state.close()
         // The swipe-down panel only for a Home pressed on home: coming back from an app opened from it keeps it.
         if (!away) state.closePull()

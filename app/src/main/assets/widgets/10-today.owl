@@ -3,7 +3,7 @@ widget "today" {
   order: 1
   size: 3x3
   minSize: 3x2
-  meta { description: "The date and the weather where you are, by IP or a city you type. Tap it for the next 24 hours, three days, wind, UV, sun and moon"; version: "1.1"; license: "MIT"; category: "world"; owl: 5 }
+  meta { description: "The date and the weather where you are, by IP or a city you type. Tap it for the next 24 hours, three days, wind, UV, sun and moon"; version: "1.1"; license: "MIT"; category: "world"; owl: 9 }
 
   source now = clock every 1m
   state city = "" persist
@@ -98,6 +98,7 @@ widget "today" {
       Spacer { height: 1; fill: width; background: alpha(muted, 0.25) }
       Spacer { height: 8 }
       // The next two days (icon from the noon reading), then sunrise and sunset.
+      // Each named from its own date: just after midnight, the forecast from before it still starts yesterday.
       Row {
         gap: 4
         align: center
@@ -106,7 +107,7 @@ widget "today" {
             gap: 0
             weight: 1
             align: center
-            Text { text: lower(fmtTime(now + 86400 * (i + 1), "EEE")); style: label; color: muted; align: center }
+            Text { text: lower(fmtTime(parseTime(d.date), "EEE")); style: label; color: muted; align: center }
             Text { text: weatherIcon(d.hourly[4].weatherCode, false); font: icon; fontSize: 18; align: center }
             Text { text: "${get(d, "maxtemp" + unit)}° ${get(d, "mintemp" + unit)}°"; style: small; align: center; maxLines: 1 }
           }
@@ -219,7 +220,7 @@ widget "today" {
           Row {
             gap: 8
             align: center
-            Text { text: i == 0 ? "today" : lower(fmtTime(now + 86400 * i, "EEE")); style: body; width: 52; maxLines: 1 }
+            Text { text: d.date == fmtTime(now, "yyyy-MM-dd") ? "today" : lower(fmtTime(parseTime(d.date), "EEE")); style: body; width: 52; maxLines: 1 }
             Text { text: weatherIcon(d.hourly[4].weatherCode, false); font: icon; fontSize: 20; width: 26; align: center }
             Text { text: "${max(d.hourly.map(h => num(h.chanceofrain)))}%"; style: small; color: blue; width: 40; align: end; maxLines: 1 }
             Text { text: "${lo}°"; style: small; color: muted; width: 36; align: end; maxLines: 1 }

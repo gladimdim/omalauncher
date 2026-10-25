@@ -1,6 +1,7 @@
 package dev.omalauncher.widgets.lang
 
 import java.util.Base64
+import kotlin.reflect.KMutableProperty0
 
 /**
  * Checks a parsed widget and compiles it: names resolve to slots, expressions
@@ -103,26 +104,24 @@ class Compiler private constructor(
     /** Each secret's servers, as `https://host:port`: it's kept only while the file sends it to these. */
     private val secretHosts = HashMap<String, MutableSet<String>>()
 
-    private fun <T> withSecrets(f: () -> T): T {
-        val was = secretOk
-        secretOk = true
+    /** Compiles [f] with [flag] set, as it was again after. */
+    private inline fun <T> setting(
+        flag: KMutableProperty0<Boolean>,
+        f: () -> T,
+    ): T {
+        val was = flag.get()
+        flag.set(true)
         try {
             return f()
         } finally {
-            secretOk = was
+            flag.set(was)
         }
     }
 
+    private fun <T> withSecrets(f: () -> T): T = setting(::secretOk, f)
+
     /** Compiles [f], part of a request's URL, where a secret may go as `enc(token)`. */
-    private fun <T> inRequestUrl(f: () -> T): T {
-        val was = inUrl
-        inUrl = true
-        try {
-            return f()
-        } finally {
-            inUrl = was
-        }
-    }
+    private fun <T> inRequestUrl(f: () -> T): T = setting(::inUrl, f)
 
     /**
      * Whether text put together now waits for each value in it: a URL, a command or an image's src with a value still
@@ -131,15 +130,7 @@ class Compiler private constructor(
     private var wholeOnly = false
 
     /** Compiles [f], what a request asks for, with [wholeOnly] set. */
-    private fun <T> whole(f: () -> T): T {
-        val was = wholeOnly
-        wholeOnly = true
-        try {
-            return f()
-        } finally {
-            wholeOnly = was
-        }
-    }
+    private fun <T> whole(f: () -> T): T = setting(::wholeOnly, f)
 
     /** Compiles [f] with secrets readable, but not sent: `token == null` only says whether it's set. */
     private fun <T> checking(f: () -> T): T {
@@ -264,15 +255,7 @@ class Compiler private constructor(
         if (v > (needs?.first ?: 1)) needs = Triple(v, feature, pos)
     }
 
-    private fun <T> chancy(f: () -> T): T {
-        val was = chance
-        chance = true
-        try {
-            return f()
-        } finally {
-            chance = was
-        }
-    }
+    private fun <T> chancy(f: () -> T): T = setting(::chance, f)
 
     private fun fail(
         msg: String,
@@ -363,7 +346,6 @@ class Compiler private constructor(
             meta = meta,
             level = level,
             size = props["size"]?.let { cells(it) },
-            isFace = isFace,
             statusBar = statusBar,
             kind = ast.kind,
             minSize = props["minSize"]?.let { cells(it) } ?: (1 to 1),
@@ -961,7 +943,7 @@ class Compiler private constructor(
         return WNode.Draw(
             c.name,
             c.args.map { a -> ex(a, scope) },
-            c.named.associate { (k, v) -> k to (enumOrNull(k, v, scope) ?: ex(v, scope)) },
+            c.named.associate { (k, v) -> k to (enumOrNull(k, v) ?: ex(v, scope)) },
             it.body?.let { b ->
                 noProps(b, c.name)
                 items(b.items, scope, Children.DRAW)
@@ -1084,7 +1066,6 @@ class Compiler private constructor(
     private fun enumOrNull(
         name: String,
         e: Expr,
-        scope: Scope,
     ): Ev? {
         val options = ENUMS[name] ?: return null
         // The word, even when a let, state, source or parameter has its name: `align: top` beside
@@ -1096,7 +1077,7 @@ class Compiler private constructor(
     private fun prop(
         p: Prop,
         scope: Scope,
-    ): Ev = enumOrNull(p.name, p.value, scope) ?: ex(p.value, scope)
+    ): Ev = enumOrNull(p.name, p.value) ?: ex(p.value, scope)
 
     private fun handler(
         h: Handler,

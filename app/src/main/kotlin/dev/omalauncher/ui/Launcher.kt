@@ -181,7 +181,7 @@ private fun DesktopScreen(
     LaunchedEffect(handlers) { runtime.widgets.appHandlers = handlers }
 
     // The drawer is a panel: the one picked for swiping up, drawer.owl, or the stock one, whichever runs first.
-    val drawer = runtime.upPanel()
+    val drawer = runtime.widgets.drawerPanel()
     // Panels live while they show, so their sources keep up; a panel's close() slides it away.
     val shownPanels by remember(state, drawer) {
         derivedStateOf { setOfNotNull(drawer?.takeIf { state.drawer.value > 0f }, state.pulled?.takeIf { state.pull.value > 0f }) }
@@ -189,7 +189,7 @@ private fun DesktopScreen(
     LaunchedEffect(shownPanels) { runtime.widgets.shownPanels = shownPanels }
     LaunchedEffect(state) {
         runtime.widgets.panelCloses.collect { name ->
-            if (name == state.pulled) state.closePull() else if (name == runtime.upPanel()) state.close()
+            if (name == state.pulled) state.closePull() else if (name == runtime.widgets.drawerPanel()) state.close()
         }
     }
 

@@ -46,7 +46,8 @@ Every node also takes:
   keys repeat: `repeat` is 0 for the press and counts up from there; `Slider` and `Input` also take
   `onChange`, and `Input` `onSubmit`, both with `value`; `Popup` takes `onDismiss`. In pages, apps and a widget's `screen { }`,
   `onLongPress` (with `x`, `y`, owl 10); on a tile, long-press belongs to the home screen, which uses it
-  to move and resize tiles. With a keyboard or a gamepad, Tab and the arrows (the D-pad) move between the nodes that
+  to move and resize tiles. A node with `onTap` or `onLongPress` ripples from where it's pressed, within its `radius`, in apps, panels, faces and screens; on a widget's tile and in a key bar it stays still.
+  With a keyboard or a gamepad, Tab and the arrows (the D-pad) move between the nodes that
   have `onTap` or `onLongPress`, ringed in `accent`; Enter, Space or A taps one at its middle, and holding it, or Menu
   (a gamepad's Select), long-presses it. What takes taps inside one that does, like a `[+]` in a tappable row or a
   widget's buttons on its tile, is reached with Right from it, and Left from the first comes back out; Enter on a tile
@@ -244,7 +245,8 @@ widget "shell" {
 
 - The tile is inert until tapped, so swipes still turn pages. Tapping it gives it
   the keyboard and its touches (drag scrolls, hold-and-drag selects). A tap
-  outside it, Back or another page lets go. The ⌨ button toggles the soft keyboard.
+  outside it, Back or another page lets go. The ⌨ button toggles the soft keyboard,
+  and a tap on the line with the terminal's cursor (its prompt) brings it back.
 - The terminal keeps running while its page is off screen. It ends when the widget
   is removed or its file changes. When `command` exits, the tile offers a restart;
   use `"btop; exec bash"` to fall back to a shell.

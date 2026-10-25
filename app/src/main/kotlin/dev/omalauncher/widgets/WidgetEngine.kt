@@ -72,6 +72,9 @@ class WidgetSpec(
     fun onPage(page: Int) = WidgetSpec(file, name, page, order, program, error, size, minSize, stamp, kind)
 }
 
+/** The owl app in file [file], as a pinned shortcut names it; null once it's gone or no longer an app. */
+fun List<WidgetSpec>.app(file: String) = firstOrNull { it.file.name == file && it.kind == OwlKind.App }
+
 /**
  * Loads widgets (`*.owl`) from [dir], ~/.config/omalauncher/widgets in the guest,
  * reloads files as they change, and runs each widget's sources while its
@@ -102,7 +105,11 @@ class WidgetEngine(
     /** `persist` values, launcher-side like the grid layout, so widget files stay the agent's. */
     private val stateDir = File(context.filesDir, "widget-state")
     val specs = mutableStateListOf<WidgetSpec>()
-    private val instances = HashMap<String, WidgetInstance>()
+    /**
+     * Observed: Linux coming up after the first load recomposes a tile that needs it before the reload starts its
+     * instance, and when that reload changes no spec nothing else would draw the tile again.
+     */
+    private val instances = mutableStateMapOf<String, WidgetInstance>()
     val layout = WidgetLayout(context)
     val shortcuts = Shortcuts(context, layout)
 
@@ -148,7 +155,7 @@ class WidgetEngine(
         scope.launch { for (m in markets) m.refresh() }
     }
 
-    /** Installs every store update, on the engine's scope: leaving settings doesn't stop it. */
+    /** Installs every store update but edited ones, which only the store replaces, on the engine's scope: leaving settings doesn't stop it. */
     fun updateAll() {
         if (updating) return
         updating = true
@@ -156,7 +163,7 @@ class WidgetEngine(
         scope.launch {
             try {
                 for (m in markets) {
-                    for (e in m.updates) {
+                    for (e in m.updates.filterNot(m::edited)) {
                         m.install(e, page = 0)?.let { updateError = "${e.name}: $it" }
                     }
                 }
@@ -231,7 +238,7 @@ class WidgetEngine(
 
     /** A running app with its spec, for its activity; null once it's removed or stops compiling. */
     fun appInstance(name: String): Pair<WidgetSpec, WidgetInstance>? {
-        val spec = specs.firstOrNull { it.file.name == name && it.kind == OwlKind.App } ?: return null
+        val spec = specs.app(name) ?: return null
         return instances[name]?.takeIf { it.program.kind == OwlKind.App }?.let { spec to it }
     }
 
@@ -311,6 +318,12 @@ class WidgetEngine(
         fileName: String,
         page: Int,
     ) = layout.setPage(fileName, page)
+
+    /**
+     * The user put [item] where it is: an app they pinned, or a widget with a page chosen on the phone (a store add, a
+     * share, a drag). A shipped widget is on its file's own `page:` until then.
+     */
+    fun placedOnPhone(item: HomeItem) = item !is WidgetItem || layout.page(item.key) != null
 
     /**
      * A widget with no room on its page moves to the next page with room at its size, or a new one after the last. A face
@@ -1044,7 +1057,9 @@ class WidgetEngine(
         const val GUEST_DIR = ".config/omalauncher/widgets"
 
         private const val AGENT_POINTER =
-            "# omalauncher\n\nThis Arch system runs inside an Android launcher. Home-screen widgets are `.owl` files in " +
+            "# omalauncher\n\nThis Arch system runs inside an Android launcher, omalauncher; its source is at " +
+                "https://github.com/SimonSchubert/omalauncher, should you need to understand how the launcher works. " +
+                "Home-screen widgets are `.owl` files in " +
                 "~/$GUEST_DIR, written in a small declarative language documented in README.md there (and docs/ next to it); so are apps for the " +
                 "app drawer (`app \"name\" { }`) and panels that swiping up or down on home opens (`panel \"name\" { }`, picked with " +
                 "gestures.swipe-up and gestures.swipe-down in ~/${StyleStore.GUEST_DIR}/style.toml). The app drawer is the panel " +

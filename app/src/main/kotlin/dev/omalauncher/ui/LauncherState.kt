@@ -100,6 +100,9 @@ class LauncherState {
     /** Home page to scroll to (e.g. from Super+number); consumed by the pager. */
     var requestedPage by mutableStateOf<Int?>(null)
 
+    /** Home pressed on home with nothing over it; set by the home screen, which closes a folder or goes to page 1. */
+    var onHomeAgain: () -> Unit = {}
+
     /** A composition scope: animations need its frame clock. Null until the UI is composed. */
     private var composeScope: CoroutineScope? = null
     private val scope get() = composeScope ?: CoroutineScope(Dispatchers.Main)

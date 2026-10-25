@@ -15,7 +15,7 @@ import dev.omalauncher.ui.decodeImageIcon
 import dev.omalauncher.ui.decodeSvgIcon
 import dev.omalauncher.upgrade.Versioned
 import dev.omalauncher.upgrade.mapEntries
-import dev.omalauncher.upgrade.writeAtomically
+import dev.omalauncher.upgrade.strings
 import dev.omalauncher.widgets.lang.OwlKind
 import dev.omalauncher.widgets.market.Catalog
 import dev.omalauncher.widgets.market.CatalogEntry
@@ -60,6 +60,8 @@ class Market(
         val version: String,
         val commands: List<String>,
         val requires: Map<String, List<String>>,
+        /** The installed file's SHA-256, to tell it from one the user edited; null in records kept before it was. */
+        val sha256: String? = null,
     )
 
     var entries by mutableStateOf<List<CatalogEntry>>(emptyList())
@@ -117,6 +119,24 @@ class Market(
     /** Installed ones with an update, from the last loaded catalog. */
     val updates get() = entries.filter { hasUpdate(it) }
 
+    /** Whether each installed file was edited, by its name, for the size and time it was checked at. */
+    private val editedFiles = HashMap<String, Pair<Pair<Long, Long>, Boolean>>()
+
+    /**
+     * Changed since it was installed, by the user or their agent, so an update would throw their changes away. One
+     * installed before installs were recorded with their hash may have been: it counts as edited.
+     */
+    fun edited(e: CatalogEntry): Boolean {
+        val i = installedVersion(e) ?: return false
+        val sha = i.sha256 ?: return true
+        val file = File(engine.dir, i.file)
+        val stamp = file.length() to file.lastModified()
+        editedFiles[i.file]?.takeIf { it.first == stamp }?.let { return it.second }
+        val edited = runCatching { Review.sha256(file.readBytes()) != sha }.getOrDefault(true)
+        editedFiles[i.file] = stamp to edited
+        return edited
+    }
+
     /** An update runs different commands or needs other packages than what the user approved. */
     fun changedSinceApproval(e: CatalogEntry) = installedVersion(e)?.let { it.commands != e.commands || it.requires != e.requires } == true
 
@@ -140,7 +160,7 @@ class Market(
                 engine.installDependenciesWhenLoaded(name)
                 File(engine.dir, name).writeBytes(bytes)
             }
-            installed[e.id] = Installed(e.id, name, e.version, e.commands, e.requires)
+            installed[e.id] = Installed(e.id, name, e.version, e.commands, e.requires, e.sha256)
             save()
             return null
         } catch (x: Exception) {
@@ -227,7 +247,7 @@ class Market(
     fun load() {
         if (loaded) return
         loaded = true
-        val data = Versioned.read(record.takeIf { it.exists() }?.readText(), VERSION) as? JSONObject ?: return
+        val data = Versioned.readFile(record, VERSION) ?: return
         installed.putAll(
             data.mapEntries { id, f ->
                 Installed(
@@ -236,12 +256,11 @@ class Market(
                     version = f.getString("version"),
                     commands = f.optJSONArray("commands")?.strings().orEmpty(),
                     requires = f.optJSONObject("requires")?.let { r -> r.keys().asSequence().associateWith { r.optJSONArray(it)?.strings().orEmpty() } }.orEmpty(),
+                    sha256 = f.optString("sha256").ifEmpty { null },
                 )
             },
         )
     }
-
-    private fun JSONArray.strings() = (0 until length()).map { getString(it) }
 
     private fun save() {
         val data = JSONObject()
@@ -252,10 +271,11 @@ class Market(
                     .put("file", i.file)
                     .put("version", i.version)
                     .put("commands", JSONArray(i.commands))
-                    .put("requires", JSONObject(i.requires.mapValues { JSONArray(it.value) } as Map<*, *>)),
+                    .put("requires", JSONObject(i.requires.mapValues { JSONArray(it.value) } as Map<*, *>))
+                    .apply { i.sha256?.let { put("sha256", it) } },
             )
         }
-        runCatching { writeAtomically(record, Versioned.write(VERSION, data).toByteArray()) }
+        runCatching { Versioned.writeFile(record, VERSION, data) }
     }
 }
 

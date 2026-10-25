@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -348,11 +349,15 @@ internal fun HomeGrid(
     // Each tile's composition, by its key, moves to wherever the tile is drawn: lifted, it goes above the pager and back
     // keeping its state, rather than being made anew each way (a terminal tile its view).
     val latestRender by rememberUpdatedState(render)
-    val tiles = remember { HashMap<String, @Composable (HomeItem, Modifier, Boolean) -> Unit>() }
+    val tiles = remember { HashMap<String, MovableTile>() }
     val tile: @Composable (HomeItem, Modifier, Boolean) -> Unit =
         remember {
             { item, modifier, selected ->
-                tiles.getOrPut(item.key) { movableContentOf { i: HomeItem, m: Modifier, s: Boolean -> latestRender(i, m, s) } }(item, modifier, selected)
+                // A tile whose page the pager set aside is made anew: moved, it brought its deactivated nodes along and
+                // crashed measuring or updating them (Play, 0.12.1).
+                val held = tiles[item.key]?.takeUnless { it.setAside }
+                val t = held ?: MovableTile { t, i, m, s -> latestRender(i, m.then(TileAttached(t)), s) }.also { tiles[item.key] = it }
+                t.content(item, modifier, selected)
             }
         }
     // Gone from home, their compositions go too.
@@ -620,14 +625,33 @@ internal fun HomeGrid(
                         val placed = if (side < shown.size) placedOn(page, g) else emptyList()
 
                         // An open folder takes every touch: a tap on an app opens it (the tile gets the tap),
-                        // a long-press lifts it to sort it in or drag it out, a tap on its name types a new one, a tap outside closes the folder. Its panel is centered on
-                        // the whole screen, even with two pages showing.
+                        // a long-press lifts it to sort it in or drag it out, or let go where it was shows its bar, a tap on its name types a new one,
+                        // a tap outside closes the folder. Its panel is centered on the whole screen, even with two pages showing.
                         val folderPage = shown.getOrNull(sideOf(arrange.folder, shown))
                         val open = folderPage?.let { p -> itemsOn(p).firstOrNull { it.key == arrange.folder } as? Folder }
                         if (open == null) arrange.folder = null
                         if (open != null && folderPage != null) {
                             val fg = FolderGeometry(size.width, g.height, g.cellW, g.cellH, g.gap, open.apps.size, this)
                             val hit = open.apps.indices.firstOrNull { fg.app(it).has(start) }
+                            // With one of its apps selected, as on home: the bar's taps are its buttons', the app drags at once, and any other touch puts it down.
+                            if (open.apps.any { it.key == sel }) {
+                                if (arrange.bar?.has(start) == true) return@awaitEachGesture
+                                down.consume()
+                                if (hit != null && open.apps[hit].key == sel) {
+                                    arrange.holding = true
+                                    val moved =
+                                        try {
+                                            moveDrag(down.id, start, open.apps[hit], Cell(0, 0, 1, 1), folderPage, fg.app(hit), fg)
+                                        } finally {
+                                            arrange.holding = false
+                                        }
+                                    if (moved) onSelect(null)
+                                } else {
+                                    onSelect(null)
+                                    trackUntilUp(down.id)
+                                }
+                                return@awaitEachGesture
+                            }
                             if (hit == null) {
                                 down.consume()
                                 if (!fg.panel.has(start)) arrange.folder = null
@@ -637,11 +661,13 @@ internal fun HomeGrid(
                             if (!awaitLongPress(down.id, start)) return@awaitEachGesture
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             arrange.holding = true
-                            try {
-                                moveDrag(down.id, start, open.apps[hit], Cell(0, 0, 1, 1), folderPage, fg.app(hit), fg)
-                            } finally {
-                                arrange.holding = false
-                            }
+                            val moved =
+                                try {
+                                    moveDrag(down.id, start, open.apps[hit], Cell(0, 0, 1, 1), folderPage, fg.app(hit), fg)
+                                } finally {
+                                    arrange.holding = false
+                                }
+                            if (!moved) onSelect(open.apps[hit].key)
                             return@awaitEachGesture
                         }
 
@@ -754,6 +780,9 @@ internal fun HomeGrid(
                     fg,
                     tile,
                     arrange.carry?.item?.key,
+                    selected = selected.takeIf { !arrange.holding },
+                    actions = actions,
+                    onBar = { arrange.bar = it },
                     naming = arrange.naming,
                     onName = { onRenameFolder(openFolder, it) },
                     onNamed = { arrange.naming = false },
@@ -959,4 +988,33 @@ private fun TiledPage(
             }
         }
     }
+}
+
+/**
+ * A home tile's composition, which moves to wherever the tile is drawn. The pager keeps pages it scrolled away from for
+ * reuse with their nodes deactivated, which detaches the tile's modifier node: such a tile is [setAside].
+ */
+private class MovableTile(
+    render: @Composable (MovableTile, HomeItem, Modifier, Boolean) -> Unit,
+) {
+    val content = movableContentOf { item: HomeItem, modifier: Modifier, selected: Boolean -> render(this, item, modifier, selected) }
+
+    /** The node [TileAttached] put on the tile; null until it's first drawn. */
+    var node: Modifier.Node? = null
+
+    val setAside get() = node?.isAttached == false
+}
+
+private class TileAttached(
+    private val tile: MovableTile,
+) : ModifierNodeElement<Modifier.Node>() {
+    override fun create() = object : Modifier.Node() {}.also { tile.node = it }
+
+    override fun update(node: Modifier.Node) {
+        tile.node = node
+    }
+
+    override fun equals(other: Any?) = other is TileAttached && other.tile === tile
+
+    override fun hashCode() = System.identityHashCode(tile)
 }

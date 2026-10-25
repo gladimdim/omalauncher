@@ -166,9 +166,11 @@ private fun UpdatesBox(
         markets.forEach { it.refreshIfStale() }
     }
     val linuxPending = linux && (updates.pending?.count ?: 0) > 0
-    val ready = markets.flatMap { m -> m.updates.map { m to it } }
+    val pending = markets.flatMap { m -> m.updates.map { m to it } }
+    // Edited ones are left to the store, which says their changes would go.
+    val (held, ready) = pending.partition { (m, e) -> m.edited(e) }
     val busy = updates.job is JobState.Working || updates.checking || engine.updating || markets.any { it.loading }
-    val widgets = ready.isNotEmpty() || engine.updating || engine.updateError != null
+    val widgets = pending.isNotEmpty() || engine.updating || engine.updateError != null
     if (!linux && !widgets) return
     Column(
         Modifier.padding(bottom = 8.dp).card(),
@@ -194,7 +196,7 @@ private fun UpdatesBox(
         }
         if (linux) LinuxUpdatesRows(runtime)
         if (linux && widgets) BasicText("widgets", Modifier.padding(top = 8.dp), style = Mono.copy(fontSize = TextSize.Item))
-        if (widgets) WidgetUpdatesRows(engine, markets, ready)
+        if (widgets) WidgetUpdatesRows(engine, markets, ready, held)
     }
 }
 
@@ -220,24 +222,32 @@ private fun LinuxUpdatesRows(runtime: Runtime) {
     JobLog(job)
 }
 
-/** Store updates for installed widgets and apps, from the catalogs (reloaded when an hour old); "update" installs the [ready] ones. */
+/**
+ * Store updates for installed widgets and apps, from the catalogs (reloaded when an hour old); "update" installs the
+ * [ready] ones. [held] ones were edited, so they're only listed.
+ */
 @Composable
 private fun WidgetUpdatesRows(
     engine: WidgetEngine,
     markets: List<Market>,
     ready: List<Pair<Market, CatalogEntry>>,
+    held: List<Pair<Market, CatalogEntry>>,
 ) {
     val checking = markets.any { it.loading }
     val lines =
         when {
             engine.updating -> listOf("updating…")
             checking -> listOf("checking…")
-            ready.isNotEmpty() -> ready.map { (m, e) -> "${e.name} ${m.installedVersion(e)?.version} → ${e.version}" }
+            ready.isNotEmpty() || held.isNotEmpty() -> ready.map { (m, e) -> "${e.name} ${m.installedVersion(e)?.version} → ${e.version}" }
             markets.any { it.error != null } -> listOf("couldn't reach the store")
             markets.any { it.refreshedAt == 0L } -> listOf("not checked yet")
             else -> listOf("up to date · checked ${ago(markets.minOf { it.refreshedAt })}")
         }
     UpdateLines(lines, ready.isNotEmpty() && !engine.updating && !checking, engine::updateAll)
+    if (!engine.updating && !checking && held.isNotEmpty()) {
+        val names = held.joinToString { (m, e) -> "${e.name} ${m.installedVersion(e)?.version} → ${e.version}" }
+        BasicText("edited, so not updated here: $names · updating one in the store replaces your changes", style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
+    }
     engine.updateError?.let { BasicText(it, style = Mono.copy(color = Palette.red, fontSize = TextSize.Small), maxLines = 3) }
 }
 

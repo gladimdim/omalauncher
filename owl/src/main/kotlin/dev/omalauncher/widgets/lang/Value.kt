@@ -163,6 +163,9 @@ fun Value.text(): String =
         else -> toString()
     }
 
+/** The value as text, or null for no value or [Null]. */
+fun Value?.textOrNull(): String? = this?.takeIf { it != Null }?.toString()
+
 class WidgetError(
     message: String,
 ) : RuntimeException(message)

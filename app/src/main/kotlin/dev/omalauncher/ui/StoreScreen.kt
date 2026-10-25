@@ -556,6 +556,15 @@ private fun Detail(
         when {
             busy != null -> BasicText(busy, style = Mono.copy(color = Palette.accent))
             !e.supported -> BasicText("needs a newer launcher (owl ${e.owl}); update the launcher to install it", style = Mono.copy(color = Palette.red, fontSize = TextSize.Small))
+            // Settings leaves an edited one alone; here it's updated knowing what goes.
+            update && market.edited(e) ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    BasicText(
+                        if (installed?.sha256 == null) "it may have your changes, and updating replaces them" else "you changed it, and updating replaces your changes",
+                        style = Mono.copy(color = Palette.red, fontSize = TextSize.Small),
+                    )
+                    BracketAction("update anyway ${installed?.version} → ${e.version}", Palette.accent, Modifier.passesKeys(), onInstall)
+                }
             update -> BracketAction("update ${installed?.version} → ${e.version}", Palette.accent, Modifier.passesKeys(), onInstall)
             // An app opens from here, unless it waits for Linux.
             installed != null && market.kind == OwlKind.App && (linux || !e.needsLinux) ->

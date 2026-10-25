@@ -7,7 +7,6 @@ object Json {
     /** JSON if it parses, otherwise the text itself. */
     fun parseOrText(text: String): Value = runCatching { parse(text.trim()) }.getOrElse { Str(text) }
 
-    /** JSON text for [v], or null if it holds something JSON can't (colors, gradients, functions). */
     /** [v] as JSON, or null for what JSON can't hold (colors, functions); past [limit] characters it throws. */
     fun write(
         v: Value,

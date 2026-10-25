@@ -13,8 +13,6 @@ import dev.omalauncher.linux.shellQuote
 import dev.omalauncher.ui.EditorHome
 import dev.omalauncher.ui.EditorScreen
 import dev.omalauncher.ui.Palette
-import dev.omalauncher.ui.SystemBarsEffect
-import dev.omalauncher.ui.applySystemBars
 
 /**
  * The text editor: one Recents card per file (documentLaunchMode), opened from
@@ -23,7 +21,6 @@ import dev.omalauncher.ui.applySystemBars
  * `git commit` wait for the message, as with a terminal editor.
  */
 class EditorActivity : InstantActivity() {
-    private val runtime get() = (application as App).runtime
 
     /** Host paths of the `omarchy-edit` FIFOs waiting for this file to close. */
     private val waiting = mutableListOf<String>()
@@ -35,9 +32,7 @@ class EditorActivity : InstantActivity() {
         if (!runtime.bootstrap.wanted) return close()
         val name = path?.substringAfterLast('/') ?: "Editor"
         setTaskDescription(ActivityManager.TaskDescription(name, null, Palette.background.toArgb()))
-        applySystemBars(this, Palette.isLight)
         setInstantContent {
-            SystemBarsEffect(this@EditorActivity)
             if (path == null) {
                 EditorHome(runtime, onExit = ::close)
             } else {

@@ -89,6 +89,20 @@ class Input(
 
     private fun keyboardsOf(client: Client) = client.all(KeyboardResource::class.java)
 
+    private fun textInputsOf(client: Client) = client.all(TextInput::class.java)
+
+    /** A text input made while its client has keyboard focus enters that surface right away, as a keyboard does. */
+    fun addTextInput(t: TextInput) {
+        val focus = keyboardFocus
+        if (focus != null && focus.client === t.client) t.enter(focus)
+    }
+
+    /** Where [surface]'s client last said its text cursor is, while [surface] has the keyboard: x, y, width, height. */
+    fun textCursor(surface: Surface): IntArray? {
+        if (keyboardFocus !== surface) return null
+        return textInputsOf(surface.client).firstNotNullOfOrNull { it.cursor }
+    }
+
     private fun pointersOf(client: Client) = client.all(PointerResource::class.java)
 
     fun setKeyboardFocus(surface: Surface?) {
@@ -98,6 +112,7 @@ class Input(
         pressedKeys.clear()
         depressedMods = 0
         keyboardFocus?.let { old ->
+            textInputsOf(old.client).forEach { it.leave(old) }
             keyboardsOf(old.client).forEach { it.send(it.event(2).uint(server.nextSerial()).obj(old.id)) }
         }
         val previous = keyboardFocus
@@ -109,6 +124,8 @@ class Input(
                 it.send(it.event(1).uint(server.nextSerial()).obj(s.id).ints(IntArray(0)))
                 sendModifiers(it)
             }
+            // After the keyboard's enter: foot expects it first.
+            textInputsOf(s.client).forEach { it.enter(s) }
         }
     }
 

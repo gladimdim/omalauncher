@@ -1000,16 +1000,14 @@ object Builtins {
 }
 
 // rank() and strongMatch() read a map by its name and alias, as the bar reads apps; a text matches as it is.
-private fun rankText(v: Value?) = v?.takeIf { it != Null }?.toString()
-
 private fun rankField(
     v: Value,
     name: String,
 ) = (v as? Obj)?.fields?.get(name)
 
-private fun rankName(v: Value) = rankText(if (v is Obj) rankField(v, "name") else v).orEmpty()
+private fun rankName(v: Value) = (if (v is Obj) rankField(v, "name") else v).textOrNull().orEmpty()
 
-private fun rankAlias(v: Value) = rankText(rankField(v, "alias"))
+private fun rankAlias(v: Value) = rankField(v, "alias").textOrNull()
 
 /** [s] in single quotes, each `'` in it closed, escaped and reopened: bash reads it back as one word, exactly [s]. */
 fun shQuote(s: String) = "'" + s.replace("'", "'\\''") + "'"

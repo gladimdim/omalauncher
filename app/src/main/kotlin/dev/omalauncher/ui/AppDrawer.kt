@@ -417,7 +417,6 @@ internal fun SearchField(
     onChange: (String) -> Unit,
     onGo: () -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier,
 ) {
     val style = Mono.copy(fontSize = TextSize.Item)
     BasicTextField(
@@ -429,7 +428,7 @@ internal fun SearchField(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
         keyboardActions = KeyboardActions(onGo = { onGo() }),
         modifier =
-            modifier
+            Modifier
                 .leavesUpDown()
                 .fillMaxWidth()
                 .clip(LauncherStyle.shape(24.dp))
@@ -476,7 +475,7 @@ private fun AppActions(
         }
     Popup(popupPositionProvider = position, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
         Box(Modifier.holdsKeys()) {
-            MenuItems(actions, onDismiss, minWidth = 160.dp, itemPadding = 12.dp, fontSize = TextSize.Item) {
+            MenuItems(actions, onDismiss, minWidth = 160.dp, itemPadding = 12.dp) {
                 if (menu != null) ShortcutRows(offered, menu, onDismiss, TextSize.Item)
             }
         }

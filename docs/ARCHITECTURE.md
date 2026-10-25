@@ -26,7 +26,8 @@ touches it: `files/omarchy` is `~/.local/share/omarchy` and `files/widgets` is
   mapping, per-surface pixel stores, and compositing them into a window's
   `ANativeWindow`
 - `wayland/`: the Wayland server in Kotlin (wl_compositor, wl_shm,
-  wl_subcompositor, wl_seat, wl_output, xdg_wm_base, xdg-decoration) and
+  wl_subcompositor, wl_seat, wl_output, xdg_wm_base, xdg-decoration, and
+  text-input-v3 for where a client's text cursor is) and
   `WindowRenderer`, which draws one window into its activity's SurfaceView
   (or, for a widget's `Terminal`, into a TextureView in the tile)
 - `linux/`: proot, the rootfs setup and its update steps, pacman, coding

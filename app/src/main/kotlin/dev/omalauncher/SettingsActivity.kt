@@ -7,11 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.setValue
-import dev.omalauncher.ui.Palette
 import dev.omalauncher.ui.SettingsPage
 import dev.omalauncher.ui.SettingsPages
-import dev.omalauncher.ui.SystemBarsEffect
-import dev.omalauncher.ui.applySystemBars
 
 /**
  * The launcher's settings and the screens they open (style, agents, store, Linux, …):
@@ -20,7 +17,6 @@ import dev.omalauncher.ui.applySystemBars
  * directly; closing the last one closes the task.
  */
 class SettingsActivity : InstantActivity() {
-    private val runtime get() = (application as App).runtime
 
     private val stack = mutableStateListOf<SettingsPage>()
 
@@ -30,9 +26,7 @@ class SettingsActivity : InstantActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         open(intent)
-        applySystemBars(this, Palette.isLight)
         setInstantContent {
-            SystemBarsEffect(this@SettingsActivity)
             SettingsPages(runtime, stack, homePage, onClose = ::closeInstantly)
         }
     }

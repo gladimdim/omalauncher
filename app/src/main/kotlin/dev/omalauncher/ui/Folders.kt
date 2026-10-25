@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -49,6 +51,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -169,7 +172,7 @@ internal class FolderGeometry(
 /**
  * An open folder over the home grid: a scrim, the panel with the folder's name and its apps drawn by [render].
  * Taps, long-presses and drags are [HomeGrid]'s, like every touch on home. While [naming], the name is a text
- * field in the same place, saved through [onName] as it's typed.
+ * field in the same place, saved through [onName] as it's typed. A [selected] app has home's [actions] bar beside it.
  */
 @Composable
 internal fun FolderPanel(
@@ -178,6 +181,10 @@ internal fun FolderPanel(
     render: @Composable (HomeItem, Modifier, Boolean) -> Unit,
     /** The app a finger is dragging, if it's one of these: its place stays empty while the others sort around it. */
     carried: String? = null,
+    selected: String? = null,
+    actions: @Composable (HomeItem) -> Unit = {},
+    /** Where the bar is, so its taps reach its buttons; null once it's gone. */
+    onBar: (IntRect?) -> Unit = {},
     naming: Boolean = false,
     onName: (String) -> Unit = {},
     /** Typing the name is over: Done, or the field went away. */
@@ -250,9 +257,30 @@ internal fun FolderPanel(
                     Modifier
                         .offset { at.value }
                         .size(with(density) { r.width.toDp() }, with(density) { r.height.toDp() }),
-                    false,
+                    app.key == selected,
                 )
             }
+        }
+        val sel = folder.apps.indexOfFirst { it.key == selected }
+        if (sel >= 0) {
+            // Above the panel, so it covers neither the name nor the other apps, or below it with no room there; lined up with the app.
+            val r = geometry.app(sel)
+            val barGap = with(density) { 8.dp.roundToPx() }
+            fun at(size: IntSize) =
+                IntOffset(
+                    r.left.coerceAtMost(p.right - size.width).coerceAtLeast(0),
+                    (p.top - size.height - barGap).takeIf { it >= 0 } ?: (p.bottom + barGap),
+                )
+            DisposableEffect(Unit) { onDispose { onBar(null) } }
+            Box(
+                Modifier
+                    .zIndex(1f)
+                    .layout { measurable, constraints ->
+                        val bar = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                        layout(bar.width, bar.height) { bar.place(at(IntSize(bar.width, bar.height))) }
+                    }
+                    .onSizeChanged { onBar(IntRect(at(it), it)) },
+            ) { actions(folder.apps[sel]) }
         }
     }
 }

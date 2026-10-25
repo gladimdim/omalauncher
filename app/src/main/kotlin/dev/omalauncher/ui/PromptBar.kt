@@ -144,7 +144,7 @@ internal fun PromptBar(
     }
 
     /** The drawer's panel, while it shows: what's typed, Enter and the arrow keys are its. */
-    fun drawer() = if (panelShown) runtime.upPanel()?.let { runtime.widgets.panelInstance(it)?.second } else null
+    fun drawer() = if (panelShown) runtime.widgets.drawerPanel()?.let { runtime.widgets.panelInstance(it)?.second } else null
 
     /** Enter: what the drawer does with it (open the app it picked), or, from a drawer without onSubmit, the agent. */
     fun submit() {

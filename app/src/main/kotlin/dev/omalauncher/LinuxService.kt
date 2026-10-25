@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
@@ -37,6 +38,12 @@ class LinuxService : Service() {
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Linux session", NotificationManager.IMPORTANCE_LOW))
         val state = (application as App).runtime.bootstrap.state
         startForeground(1, notification(state.value), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        pending = (pending - 1).coerceAtLeast(0)
+        // Stopped before it got here (see [set]): now it may go, unless a later start still has to come here too.
+        if (!wanted) {
+            if (pending == 0) stopSelf()
+            return START_NOT_STICKY
+        }
         if (watch == null) {
             watch =
                 scope.launch {
@@ -74,5 +81,30 @@ class LinuxService : Service() {
 
     companion object {
         private const val CHANNEL = "session"
+
+        // Main thread only, like onStartCommand.
+        private var wanted = false
+
+        /** startForegroundService() calls whose onStartCommand hasn't run yet. */
+        private var pending = 0
+
+        /**
+         * Starts or stops the service. Android kills the app when a service started with startForegroundService()
+         * is stopped before it calls startForeground(), as a setup that fails at once did on slow phones; a stop
+         * that early is left to onStartCommand.
+         */
+        fun set(
+            context: Context,
+            on: Boolean,
+        ) {
+            wanted = on
+            val intent = Intent(context, LinuxService::class.java)
+            if (on) {
+                context.startForegroundService(intent)
+                pending++
+            } else if (pending == 0) {
+                context.stopService(intent)
+            }
+        }
     }
 }

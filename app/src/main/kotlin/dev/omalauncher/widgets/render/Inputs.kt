@@ -51,6 +51,7 @@ import dev.omalauncher.widgets.lang.Str
 import dev.omalauncher.widgets.lang.num
 import kotlinx.coroutines.delay
 import kotlin.math.roundToLong
+import dev.omalauncher.widgets.lang.textOrNull
 
 /**
  * A horizontal slider. It shows `value` until a finger is on it, then the
@@ -173,7 +174,7 @@ internal fun InputNode(
     mod: Modifier,
     sized: Boolean,
 ) {
-    val given = p.observe("text")?.takeIf { it != Null }?.toString()
+    val given = p.observe("text").textOrNull()
     val placeholder = p.observe("placeholder")?.toString().orEmpty()
     val clear = p.observe("clear")?.truthy == true
     val underline = p.observe("underline")?.truthy != false

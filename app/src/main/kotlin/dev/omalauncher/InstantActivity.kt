@@ -29,6 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import dev.omalauncher.ui.Palette
+import dev.omalauncher.ui.SystemBarsEffect
+import dev.omalauncher.ui.applySystemBars
 import java.util.Collections
 import java.util.WeakHashMap
 
@@ -43,9 +45,13 @@ abstract class InstantActivity : ComponentActivity() {
     private var leaving = false
     private var background: Drawable? = null
 
-    /** Like setContent, but drawing nothing while the window leaves. */
+    protected val runtime get() = (application as App).runtime
+
+    /** Like setContent, with the system bars in the theme's colors, but drawing nothing while the window leaves. */
     protected fun setInstantContent(content: @Composable () -> Unit) {
+        applySystemBars(this, Palette.isLight)
         setContent {
+            SystemBarsEffect(this)
             if (!hidden) KeyIndicated { Box(Modifier.keysRoot()) { content() } }
         }
     }

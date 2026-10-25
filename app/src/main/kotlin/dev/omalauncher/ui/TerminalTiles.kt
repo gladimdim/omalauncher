@@ -35,6 +35,9 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.findViewTreeLifecycleOwner
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.TerminalFont
 import dev.omalauncher.linux.shellQuote
@@ -326,7 +329,8 @@ fun TerminalView(
                 }
             active -> {
                 // Over the TextureView, which Compose's pointer input doesn't reach.
-                Box(Modifier.fillMaxSize().linuxWindowInput(tiles.windowManager, window))
+                // A tap on the prompt line brings the keyboard back, as the ⌨ button does.
+                Box(Modifier.fillMaxSize().linuxWindowInput(tiles.windowManager, window) { tiles.keyboard?.takeUnless { it.showing }?.show() })
                 Box(
                     Modifier
                         .align(Alignment.BottomEnd)
@@ -368,6 +372,27 @@ private class EmbeddedWindowView(
     private var surfaceWidth = 0
     private var surfaceHeight = 0
     private var renderer: WindowRenderer? = null
+
+    /**
+     * Whether home is out of sight (its activity stopped): the renderer lets go of the surface, and with it the frames
+     * it tells the terminal are done, so a busy one (`yes`, btop) stops drawing until home shows again. Its surface
+     * stays meanwhile, and a busy tile kept the launcher drawing for it behind other apps.
+     */
+    private var stopped = false
+    private val lifecycle =
+        LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    stopped = true
+                    renderer?.detach()
+                }
+                Lifecycle.Event.ON_START -> {
+                    stopped = false
+                    surface?.let(::attachSurface)
+                }
+                else -> Unit
+            }
+        }
 
     var window: XdgToplevel? = null
         set(value) {
@@ -411,16 +436,18 @@ private class EmbeddedWindowView(
     }
 
     private fun attachSurface(s: Surface) {
-        renderer?.attach(s, surfaceWidth, surfaceHeight)
+        if (!stopped) renderer?.attach(s, surfaceWidth, surfaceHeight)
         window?.let { tiles.windowManager.applyAppLayout(it, surfaceWidth, surfaceHeight) }
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        findViewTreeLifecycleOwner()?.lifecycle?.let { stopped = !it.currentState.isAtLeast(Lifecycle.State.STARTED); it.addObserver(lifecycle) }
         bind()
     }
 
     override fun onDetachedFromWindow() {
+        findViewTreeLifecycleOwner()?.lifecycle?.removeObserver(lifecycle)
         unbind()
         super.onDetachedFromWindow()
     }

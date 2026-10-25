@@ -72,6 +72,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import java.io.File
+import dev.omalauncher.widgets.lang.textOrNull
 
 /** What widgets need from the launcher: guest commands, Android data and actions. */
 interface Services {
@@ -335,7 +336,12 @@ class WidgetInstance(
             else -> Palette.named(name)
         }?.toArgb()
 
+    /** How many times drawing code has read `time`, so a Canvas can tell which of its ops did. */
+    var timeReads = 0L
+        private set
+
     override fun time(): Double {
+        timeReads++
         if (!timeRead) {
             timeRead = true
             timeWake.trySend(Unit)
@@ -512,10 +518,10 @@ class WidgetInstance(
         // Keys go to whatever window has the keyboard: only from a touch, never on a timer or a fetched value.
         if ((name == "pressKey" || name == "typeText" || name == "latch") && inTrigger) return report("$name(...) works in handlers like onPress, not in a trigger")
         // Names built from values, which the compiler couldn't check: say so rather than press nothing.
-        val key = args.firstOrNull()?.takeIf { it != Null }?.toString()
+        val key = args.firstOrNull().textOrNull()
         if (name == "pressKey" && key != null && KeyNames.combo(key) == null) return report("pressKey(\"$key\") names no key; ${KeyNames.help}")
         if (name == "latch" && key != null && key !in KeyNames.latches) return report("latch(\"$key\"): latch takes ${KeyNames.latches.joinToString()}")
-        val how = args.getOrNull(1)?.takeIf { it != Null }?.toString()
+        val how = args.getOrNull(1).textOrNull()
         if (name == "latch" && how != null && how !in KeyNames.hows) return report("latch's second value is ${KeyNames.hows.joinToString()}, not \"$how\"")
         // Only this widget refreshes afterwards; the others keep their own intervals.
         services.act(name, args) { refresh() }
@@ -558,29 +564,36 @@ class WidgetInstance(
         where: String,
     ): Value {
         ev.const?.let { return it }
-        return try {
-            budget.eval(ev, env)
+        return guarded(where) { budget.eval(ev, env) } ?: Null
+    }
+
+    /** Runs [f], turning errors into null plus a report starting with [where]. */
+    inline fun <T> guarded(
+        where: String,
+        f: () -> T,
+    ): T? =
+        try {
+            f()
         } catch (e: WidgetError) {
             report("$where: ${e.message}")
-            Null
+            null
         } catch (e: RuntimeException) {
             report("$where: $e")
-            Null
+            null
         } catch (e: StackOverflowError) {
             report("$where: too deeply nested")
-            Null
+            null
         } catch (e: OutOfMemoryError) {
             // What failed is the widget's one huge value, gone again once this unwinds.
             report("$where: out of memory")
-            Null
+            null
         }
-    }
 
     override fun report(message: String) {
         // An error about a request could quote a secret, as it is or as enc(...) put it in the URL; this goes to logcat and to Linux.
         val message =
             secrets.fold(message) { m, i ->
-                val v = read(i).takeIf { it != Null }?.toString().orEmpty()
+                val v = read(i).textOrNull().orEmpty()
                 if (v.isEmpty()) m else m.replace(v, "•••").replace(urlEncode(v), "•••")
             }
         if (reported.add(message) && reported.size < 50) {
@@ -889,7 +902,7 @@ class WidgetInstance(
                 withContext(Dispatchers.IO) {
                     when {
                         src.startsWith("https://") -> services.remoteFile(src) to null
-                        src.startsWith("asset:") -> null to (program.globals.firstOrNull { it.name == src.removePrefix("asset:") } as? Global.Asset)?.bytes
+                        src.startsWith("asset:") -> null to program.asset(src.removePrefix("asset:"))
                         else -> services.guestFile(src)?.takeIf { it.isFile } to null
                     }
                 }

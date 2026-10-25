@@ -3,9 +3,9 @@ package dev.omalauncher.widgets
 import android.content.Context
 import dev.omalauncher.LauncherData
 import dev.omalauncher.Runtime
+import dev.omalauncher.sha256Hex
 import dev.omalauncher.theme.Toml
 import dev.omalauncher.upgrade.SyncedFile
-import dev.omalauncher.widgets.lang.OwlKind
 import java.io.File
 
 /**
@@ -288,7 +288,7 @@ class HomeStore(
         when {
             key.startsWith(APP) -> runtime.androidApps.apps.firstOrNull { APP + it.key == key }?.let { Shortcut(key, 1, it.label, component = it.component, profile = it.profile) }
             key.startsWith(LINUX) -> runtime.linuxApps.apps.firstOrNull { LINUX + it.id == key }?.let { Shortcut(key, 1, it.name, linux = it) }
-            key.startsWith(OWL) -> engine.specs.firstOrNull { OWL + it.file.name == key && it.kind == OwlKind.App }?.let { Shortcut(key, 1, it.name, owl = it.file.name) }
+            key.startsWith(OWL) -> engine.specs.app(key.removePrefix(OWL))?.let { Shortcut(key, 1, it.name, owl = it.file.name) }
             key.startsWith(SHORTCUT) ->
                 runtime.androidApps.shortcuts.firstOrNull { SHORTCUT + it.key == key }?.let {
                     Shortcut(key, 1, it.label, profile = it.profile, androidShortcut = it.ref)
@@ -312,9 +312,5 @@ class HomeStore(
         private val PREFIXES = listOf(APP, LINUX, OWL, SHORTCUT)
     }
 
-    private fun hash(text: String) =
-        java.security.MessageDigest
-            .getInstance("SHA-256")
-            .digest(text.toByteArray())
-            .joinToString("") { "%02x".format(it) }
+    private fun hash(text: String) = sha256Hex(text.toByteArray())
 }

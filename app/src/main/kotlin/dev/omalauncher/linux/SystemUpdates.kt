@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.omalauncher.upgrade.Versioned
 import dev.omalauncher.upgrade.mapObjects
-import dev.omalauncher.upgrade.writeAtomically
+import dev.omalauncher.upgrade.strings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -63,10 +63,10 @@ class SystemUpdates(
 
     /** Reads the last result, so the settings dot shows right after a restart. */
     fun load() {
-        val data = Versioned.read(file.takeIf { it.exists() }?.readText(), VERSION) as? JSONObject ?: return
+        val data = Versioned.readFile(file, VERSION) ?: return
         pending =
             PendingUpdates(
-                packages = data.optJSONArray("packages")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty(),
+                packages = data.optJSONArray("packages")?.strings().orEmpty(),
                 tools =
                     data.optJSONArray("tools")?.mapObjects { ToolUpdate(it.getString("name"), it.getString("current"), it.getString("latest")) }.orEmpty(),
                 checkedAt = data.optLong("checkedAt"),
@@ -138,7 +138,7 @@ class SystemUpdates(
                 .put("packages", JSONArray(p.packages))
                 .put("tools", JSONArray(p.tools.map { JSONObject().put("name", it.name).put("current", it.current).put("latest", it.latest) }))
                 .put("checkedAt", p.checkedAt)
-        runCatching { writeAtomically(file, Versioned.write(VERSION, data).toByteArray()) }
+        runCatching { Versioned.writeFile(file, VERSION, data) }
     }
 
     /** Upgrades everything: a full pacman sync, then mise's tools. Returns whether it worked. */

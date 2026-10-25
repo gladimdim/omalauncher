@@ -12,8 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import dev.omalauncher.ui.OwlAppWindow
 import dev.omalauncher.ui.Palette
-import dev.omalauncher.ui.SystemBarsEffect
-import dev.omalauncher.ui.applySystemBars
 import dev.omalauncher.ui.holdsKeys
 import dev.omalauncher.ui.showStatusBar
 import dev.omalauncher.widgets.render.LocalInputFocus
@@ -24,7 +22,6 @@ import dev.omalauncher.widgets.render.LocalInputFocus
  * or the app going away (removed, or no longer compiling), closes the task.
  */
 class OwlAppActivity : InstantActivity() {
-    private val runtime get() = (application as App).runtime
     private var name: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,9 +33,7 @@ class OwlAppActivity : InstantActivity() {
             return
         }
         this.name = name
-        applySystemBars(this, Palette.isLight)
         setInstantContent {
-            SystemBarsEffect(this@OwlAppActivity)
             LaunchedEffect(name) { runtime.widgets.appCloses.collect { if (it == name) closeInstantly() } }
             val (spec, inst) =
                 runtime.widgets.appInstance(name) ?: run {

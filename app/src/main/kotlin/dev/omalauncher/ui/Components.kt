@@ -315,7 +315,6 @@ fun BracketAction(
 @Composable
 fun JobLog(
     state: JobState,
-    lines: Int = 4,
 ) {
     val log =
         when (state) {
@@ -327,7 +326,7 @@ fun JobLog(
     Spacer(Modifier.height(6.dp))
     val style = Mono.copy(color = if (state is JobState.Failed) Palette.red else Palette.muted, fontSize = TextSize.Small)
     // A failure's reason is usually at the end of the line: let it wrap.
-    for (line in log.takeLast(lines)) BasicText(line, style = style, maxLines = if (state is JobState.Failed) 3 else 1)
+    for (line in log.takeLast(4)) BasicText(line, style = style, maxLines = if (state is JobState.Failed) 3 else 1)
 }
 
 /** The items of a popup menu, framed like home's edit bar and menu; picking one closes the menu first. */
@@ -337,7 +336,6 @@ fun MenuItems(
     onDismiss: () -> Unit,
     minWidth: Dp,
     itemPadding: Dp,
-    fontSize: TextUnit,
     /** Above the items, inside the frame: an app's shortcuts ([ShortcutRows]). */
     top: @Composable ColumnScope.() -> Unit = {},
 ) {
@@ -358,7 +356,7 @@ fun MenuItems(
                         onDismiss()
                         action()
                     }.padding(horizontal = 18.dp, vertical = itemPadding),
-                style = Mono.copy(fontSize = fontSize),
+                style = Mono.copy(fontSize = TextSize.Item),
             )
         }
     }
