@@ -78,6 +78,7 @@ fun SuperDesktopTile(
         PreviewTile(kind, host, modifier)
         return
     }
+    LocalNetworkPrompt(host)
     when (kind) {
         "terminal" -> TerminalWidget(id ?: "terminal", host, modifier)
         "usage" -> UsageWidget(id ?: "usage", host, modifier)

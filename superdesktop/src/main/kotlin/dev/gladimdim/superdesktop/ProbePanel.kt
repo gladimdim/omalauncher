@@ -1,10 +1,8 @@
 package dev.gladimdim.superdesktop
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +49,12 @@ internal fun ProbePanel(
     var round by remember(b.key) { mutableIntStateOf(0) }
     var running by remember(b.key) { mutableStateOf(true) }
     var found by remember(b.key) { mutableStateOf<String?>(null) }
+    var localNetworkMissing by remember { mutableStateOf(LocalNetworkAsk.missing(context)) }
+    val askLocalNetwork =
+        rememberLocalNetworkRequest { granted ->
+            localNetworkMissing = !granted
+            if (granted) round++
+        }
     LaunchedEffect(b.key, round) {
         running = true
         found = null
@@ -87,6 +91,7 @@ internal fun ProbePanel(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Action(if (running) "working…" else "run again", host, enabled = !running) { round++ }
+            if (localNetworkMissing) Action("allow local network access", host, strong = true, onClick = askLocalNetwork)
         }
     }
 }
@@ -132,10 +137,8 @@ private fun phoneNetwork(context: Context): List<String> {
         }
     }.onFailure { lines += "This phone's network is unknown: ${it.message}" }
     // Android 17 drops connections to 192.168.x and other local addresses until the launcher may use them.
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN &&
-        context.checkSelfPermission("android.permission.ACCESS_LOCAL_NETWORK") != PackageManager.PERMISSION_GRANTED
-    ) {
-        lines += "Local network access is off for the launcher, so LAN addresses time out. Turn on \"local network\" in the launcher's settings."
+    if (LocalNetworkAsk.missing(context)) {
+        lines += "Local network access is off for the launcher, so LAN addresses time out. Press \"allow local network access\" below."
     }
     return lines
 }

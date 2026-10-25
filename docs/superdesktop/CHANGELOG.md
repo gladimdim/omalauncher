@@ -1,5 +1,32 @@
 # SD Launcher changelog
 
+## 1.6.0 (108)
+
+Built on **Omalauncher 0.12.2** (was 0.12.0). No SUPER DESKTOP changes; the
+bridge is unchanged, so it works with the same desktop versions as 1.5.0.
+
+### SUPER DESKTOP
+- **Local network access popup**: on Android 17, a PC on the same Wi-Fi only
+  timed out ("No answer in time") until SD Launcher was allowed on the local
+  network, which only a row in settings asked for. While a PC is paired and the
+  permission is off, home now shows a popup that explains it, with a button
+  that asks for it; if Android no longer asks, the button opens SD Launcher's
+  settings. "Not now" hides it until the launcher starts again. The connection
+  check (Retry) has the same button.
+
+### From Omalauncher 0.12.1 and 0.12.2
+- **Store updates keep your edits**: a widget, app or face you or your agent
+  edited is left out of a store update, and the store asks before replacing it.
+- **Faster**: home starts about twice as fast, swipes are smoother, animated
+  widgets and games draw about twice as fast, and widgets and terminals use
+  less battery on 120 Hz screens.
+- **Owl apps ripple** where you press them; pinned apps can be edited and
+  shared from home, and apps in folders long-pressed.
+- **Fixes**: a home screen crash while swiping between pages, Shift with
+  FlorisBoard, the weather tile after midnight, a crash when Linux setup runs
+  out of space, and Linux setup hanging silently on some custom ROMs. Tapping
+  a terminal's prompt brings the keyboard back, and Home goes back to page 1.
+
 ## 1.5.0 (107)
 
 Built on **Omalauncher 0.12.0**, as 1.4.0. No SUPER DESKTOP changes; the bridge
