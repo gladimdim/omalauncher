@@ -1,5 +1,35 @@
 # SD Launcher changelog
 
+## 1.7.0 (109)
+
+Built on **Omalauncher 0.16.0** (was 0.12.2). No SUPER DESKTOP changes; the
+bridge is unchanged, so it works with the same desktop versions as 1.6.0.
+
+### SUPER DESKTOP
+- The **super desktop** row in home's long-press menu wraps its buttons onto a
+  second line when they don't fit, at a large font size, instead of cutting
+  the last one off.
+
+### From Omalauncher 0.13.0 to 0.16.0
+- **Languages**: settings has a language; the launcher comes in Indonesian,
+  Spanish and Brazilian Portuguese (SUPER DESKTOP's own text stays English).
+- **Terminal images**: the key bar's photos key, Gboard's clipboard images and
+  images copied on Android go into a Linux terminal as their /tmp paths, which
+  Claude Code and opencode attach.
+- **Widgets**: dictation (`speech("toggle")`, `android.speech`), charging
+  current (`android.power`), WebSockets (`ws(...)`), certificates pinned for
+  LAN servers (`pin:`), pull to refresh, turning home to a page
+  (`launcher("page:N")`) and text in several languages.
+- **Faces** can draw under the status bar (`edge: true`) and come with several
+  pages from the store.
+- **Coding agents** take the Omarchy theme (Claude Code, Pi, OpenCode).
+- **Linux**: GTK3 apps drop their own title bar, windows too big for the
+  screen are shrunk to fit, pacman installs bubblewrap again, and a job's log
+  keeps up with progress bars.
+- **Fixes**: a widget moved to another page kept updating only until two pages
+  away, a crash on a clipped node with a negative radius, frosted glass on the
+  recent apps and prompt bar, and a theme render emptying a linked folder.
+
 ## 1.6.0 (108)
 
 Built on **Omalauncher 0.12.2** (was 0.12.0). No SUPER DESKTOP changes; the

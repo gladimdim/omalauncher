@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork: SD Launcher's own text, in English only. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!-- The SUPER DESKTOP row in home's long-press menu. -->
+    <string name="sd_menu_title">super desktop</string>
+    <string name="sd_menu_terminal">terminal</string>
+    <string name="sd_menu_usage">usage</string>
+    <string name="sd_menu_page">page</string>
+    <string name="sd_menu_face">face</string>
+</resources>
