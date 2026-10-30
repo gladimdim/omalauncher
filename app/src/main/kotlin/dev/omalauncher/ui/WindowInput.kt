@@ -80,7 +80,7 @@ private suspend fun PointerInputScope.handlePointer(
                 }
                 c.consume()
                 if ((c.position - start).getDistance() > touchSlop) moved = true
-                val d = (c.position - start) / wm.scale.toFloat()
+                val d = (c.position - start) / hit.scale
                 wm.touchMotion(id, hit.x + d.x, hit.y + d.y)
             }
             wm.touchUp(id)
@@ -124,7 +124,7 @@ private suspend fun PointerInputScope.handlePointer(
             }
             if (scrolling) {
                 val d = c.position - last
-                wm.scroll(-d.x / wm.scale, -d.y / wm.scale, AXIS_SOURCE_FINGER)
+                wm.scroll(-d.x / hit.scale, -d.y / hit.scale, AXIS_SOURCE_FINGER)
             }
             last = c.position
         }

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.role.RoleManager
 import android.content.Intent
+import android.content.Context
 import android.os.Bundle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -20,6 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import dev.omalauncher.ui.ImagePicker
+import dev.omalauncher.ui.MicPermission
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.theme.Style
 import dev.omalauncher.ui.KeyIndicated
@@ -41,6 +44,14 @@ import dev.omalauncher.widgets.market.Share
 class MainActivity : ComponentActivity() {
     private val runtime get() = (application as App).runtime
     private val state = LauncherState()
+    private val imagePicker = ImagePicker(this) { runtime }
+    private val mic = MicPermission(this)
+
+    /** In the language picked in settings. */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        AppLanguage.applyTo(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,6 +128,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         away = false
         runtime.wm.focus(null)
+        runtime.keyboard.imagePicker = imagePicker
+        runtime.dictation.askMic = mic::ask
         removeStaleWindowTasks()
         // Made the default home app (or no longer it) while away: only then does Android show us pinned shortcuts.
         runtime.androidApps.checkShortcutAccess()
@@ -196,6 +209,8 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         runtime.keyboard.releaseHeld()
+        if (runtime.keyboard.imagePicker === imagePicker) runtime.keyboard.imagePicker = null
+        runtime.dictation.askMic = null
     }
 
     override fun onStop() {

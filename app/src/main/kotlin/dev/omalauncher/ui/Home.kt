@@ -76,6 +76,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
+import dev.omalauncher.R
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.LinuxState
 import androidx.compose.foundation.layout.Arrangement
@@ -101,12 +103,18 @@ fun HomeScreen(
     // while they hold something, so it becomes a real page once used and a new empty one follows.
     // Left of page 1 the same, for faces: like a stock launcher's feed, but the user's own. An empty one waits left of
     // the leftmost, page 0 at first, then -1, -2, ... as they fill.
+    // home.empty-page-left and home.empty-page-right turn each off; the right one still comes while a tile is carried,
+    // to drop it on.
+    // Not the left one: adding a page before the one on screen would shift the pager under the finger.
     // Unfolded, tile pages show in pairs and a face across both halves: the pager counts slots (see slotsOf).
     val per = if (showsTwoPages(windowSize())) 2 else 1
     val pageNumbers =
-        engine.pages
-            .let { listOf(minOf(it.first(), FACE_PAGE + 1) - 1) + it }
-            .let { if (engine.itemsOn(it.last()).isEmpty()) it else it + (it.last() + 1) }
+        pagerPages(
+            engine.pages,
+            lastEmpty = engine.itemsOn(engine.pages.last()).isEmpty(),
+            emptyPageLeft = LauncherStyle.emptyPageLeft,
+            emptyPageRight = LauncherStyle.emptyPageRight || arrange.carry != null,
+        )
     // Only faces on screen, or the empty one waiting left of them: they get it whole, the bar's room too (see
     // LauncherState.faceShowing), and the status bar's while all of them say statusBar: false.
     fun faceOn(page: Int?) = page?.let { engine.layout.owner(engine.itemsOn(it)) as? WidgetItem }?.takeIf { it.isFace }
@@ -154,6 +162,16 @@ fun HomeScreen(
                 "linux" -> state.show(SettingsPage.Linux)
                 "drawer" -> state.open()
                 "settings" -> state.show()
+                // "page:0": turns home to that page, a face left of page 1 too, as Super+1…9 does. What covers home
+                // closes first, as for Home pressed, so the page is seen: a widget's screen, the drawer, a panel.
+                else ->
+                    action.removePrefix("page:").takeIf { it != action }?.toIntOrNull()?.let {
+                        state.close()
+                        state.closePull()
+                        state.closeScreens()
+                        engine.openScreen = null
+                        state.requestedPage = it
+                    }
             }
         }
     }
@@ -407,15 +425,15 @@ fun HomeScreen(
                     EditBar {
                         // A widget's own file, or the owl app a pinned shortcut opens.
                         val spec = if (item is WidgetItem) item.spec else (item as? Shortcut)?.owl?.let(engine.specs::app)
-                        if (spec != null) EditAction("edit") { edit(spec) }
+                        if (spec != null) EditAction(stringResource(R.string.home_edit)) { edit(spec) }
                         // As a QR code or link, or (your own) to the store. An agent's tile is a terminal, not a widget to pass on.
                         if (spec != null && !engine.isAgentWidget(spec)) {
-                            EditAction("share") {
+                            EditAction(stringResource(R.string.home_share)) {
                                 state.editing = null
                                 state.sharing = spec
                             }
                         }
-                        EditAction("remove", Palette.red) { remove(item) }
+                        EditAction(stringResource(R.string.home_remove), Palette.red) { remove(item) }
                     }
                 }
             },
@@ -430,9 +448,30 @@ fun HomeScreen(
             per = per,
             onLongPressEmpty = { openMenu(null) },
             feed = { page ->
-                FaceInvite(runtime.agents.default?.name, onBrowse = { state.show(SettingsPage.FaceStore) }) {
+                val agent = runtime.agents.default?.name
+                PageInvite(
+                    stringResource(R.string.home_face_invite_title),
+                    agent?.let { stringResource(R.string.home_face_invite_text, it) } ?: stringResource(R.string.home_face_invite_text_no_agent),
+                    agent,
+                    onBrowse = { state.show(SettingsPage.FaceStore) },
+                ) {
                     if (linuxState == LinuxState.Installed) {
                         state.withAgent(runtime, "New face") { newOwlCommand(it, OwlKind.Face, page) }
+                    } else {
+                        state.show(SettingsPage.Linux)
+                    }
+                }
+            },
+            invite = {
+                val agent = runtime.agents.default?.name
+                PageInvite(
+                    stringResource(R.string.home_widget_invite_title),
+                    agent?.let { stringResource(R.string.home_widget_invite_text, it) } ?: stringResource(R.string.home_widget_invite_text_no_agent),
+                    agent,
+                    onBrowse = { state.show(SettingsPage.Store) },
+                ) {
+                    if (linuxState == LinuxState.Installed) {
+                        state.withAgent(runtime, "New widget") { newOwlCommand(it, OwlKind.Widget) }
                     } else {
                         state.show(SettingsPage.Linux)
                     }
@@ -474,11 +513,14 @@ fun HomeScreen(
 
 
 /**
- * The page left of the first, while it's empty: where a stock launcher has its news feed, an invitation to have
- * [agent] build a face of the user's own for it.
+ * An invitation on an empty page to have [agent] build something, or to take one from the store: on the page left
+ * of the first, while it's empty, a face of the user's own, where a stock launcher has its news feed; on an empty
+ * tile page, the one after the last or page 1 of an empty home, a widget.
  */
 @Composable
-private fun FaceInvite(
+private fun PageInvite(
+    title: String,
+    text: String,
     agent: String?,
     onBrowse: () -> Unit,
     onCreate: () -> Unit,
@@ -491,20 +533,36 @@ private fun FaceInvite(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            BasicText("a face of your own", style = Mono.copy(color = Palette.accent))
+            BasicText(title, style = Mono.copy(color = Palette.accent))
             // The theme's own text color: muted is too faint on some themes' card.
-            BasicText(
-                "This page is yours to fill with a face: a feed, a dashboard, a start page, a game. Say what you want and " +
-                    "${agent ?: "an agent"} builds it here, full screen.",
-                style = Mono,
-            )
+            BasicText(text, style = Mono)
             // Pulled left by the buttons' own padding, so the first bracket lines up with the text.
             Column(Modifier.offset(x = (-8).dp)) {
-                BracketAction("create with ${agent?.lowercase() ?: "an agent"}", Palette.accent, onClick = onCreate)
-                BracketAction("browse store", Palette.accent, onClick = onBrowse)
+                BracketAction(createWithLabel(agent), Palette.accent, onClick = onCreate)
+                BracketAction(stringResource(R.string.home_browse_store), Palette.accent, onClick = onBrowse)
             }
         }
     }
+}
+
+/** "create with claude code", or with an agent while none is the default. */
+@Composable
+internal fun createWithLabel(agent: String?): String =
+    agent?.let { stringResource(R.string.home_create_with, it.lowercase()) } ?: stringResource(R.string.home_create_with_an_agent)
+
+/**
+ * Home's page numbers as the pager has them: [pages], with the empty page waiting left of the leftmost for a new face
+ * when [emptyPageLeft], and one after the last when [emptyPageRight], for tiles, unless that one is empty already
+ * ([lastEmpty]). Neither (both settings off, no tile carried) leaves only [pages], so home ends at its own pages.
+ */
+internal fun pagerPages(
+    pages: List<Int>,
+    lastEmpty: Boolean,
+    emptyPageLeft: Boolean,
+    emptyPageRight: Boolean,
+): List<Int> {
+    val withFace = if (emptyPageLeft) listOf(minOf(pages.first(), FACE_PAGE + 1) - 1) + pages else pages
+    return if (!emptyPageRight || lastEmpty) withFace else withFace + (withFace.last() + 1)
 }
 
 /**

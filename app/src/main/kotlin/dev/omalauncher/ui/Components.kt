@@ -1,5 +1,7 @@
 package dev.omalauncher.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -34,10 +36,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -45,11 +52,15 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import dev.omalauncher.R
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
@@ -186,11 +197,11 @@ fun RefreshButton(
             if (loading) {
                 val angle by rememberInfiniteTransition(label = "refresh")
                     .animateFloat(0f, 360f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart), label = "turn")
-                Modifier.rotate(angle)
+                Modifier.graphicsLayer { rotationZ = angle }
             } else {
                 Modifier
             }
-        Image(Icons.Refresh, if (loading) "refreshing" else "refresh", Modifier.size(20.dp).then(turn), colorFilter = ColorFilter.tint(if (loading) Palette.accent else Palette.muted))
+        Image(Icons.Refresh, stringResource(if (loading) R.string.home_refreshing else R.string.home_refresh), Modifier.size(20.dp).then(turn), colorFilter = ColorFilter.tint(if (loading) Palette.accent else Palette.muted))
     }
 }
 
@@ -311,6 +322,43 @@ fun BracketAction(
     }
 }
 
+/**
+ * [content] with [actions] at its end, or under it once beside it would leave [content] narrower than its longest
+ * word: at a large Android font size, buttons beside a name squeeze it to a letter a line.
+ */
+@Composable
+fun ActionsRow(
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Layout(
+        contents = listOf(content, { Row(verticalAlignment = Alignment.CenterVertically, content = actions) }),
+        modifier = modifier,
+    ) { (contentPart, actionsPart), constraints ->
+        val width = constraints.maxWidth
+        val buttons = actionsPart.first().measure(Constraints(maxWidth = width))
+        val text = contentPart.first()
+        if (width - buttons.width >= text.minIntrinsicWidth(Constraints.Infinity)) {
+            val placed = text.measure(Constraints.fixedWidth(width - buttons.width))
+            val height = maxOf(placed.height, buttons.height)
+            layout(width, height) {
+                placed.place(0, (height - placed.height) / 2)
+                buttons.place(width - buttons.width, (height - buttons.height) / 2)
+            }
+        } else {
+            val placed = text.measure(Constraints.fixedWidth(width))
+            layout(width, placed.height + buttons.height) {
+                placed.place(0, 0)
+                buttons.place(width - buttons.width, placed.height)
+            }
+        }
+    }
+}
+
+/** A line of a failed job that says what went wrong: pacman's and mise's errors, mise's ✗, a shell's "not found". */
+private val ERROR_LINE = Regex("""(?i)\berror\b|✗|\bfailed\b|not found|no space left|permission denied""")
+
 /** The last lines a guest job printed, red once it failed; nothing while idle. */
 @Composable
 fun JobLog(
@@ -319,14 +367,38 @@ fun JobLog(
     val log =
         when (state) {
             is JobState.Working -> state.log
-            is JobState.Failed -> listOf("failed:") + state.log
+            is JobState.Failed -> listOf(stringResource(R.string.home_job_failed)) + state.log
             JobState.Idle -> return
         }
     if (log.isEmpty()) return
+    var expanded by rememberSaveable { mutableStateOf(false) }
     Spacer(Modifier.height(6.dp))
     val style = Mono.copy(color = if (state is JobState.Failed) Palette.red else Palette.muted, fontSize = TextSize.Small)
-    // A failure's reason is usually at the end of the line: let it wrap.
-    for (line in log.takeLast(4)) BasicText(line, style = style, maxLines = if (state is JobState.Failed) 3 else 1)
+    val toggle = stringResource(if (expanded) R.string.home_job_less else R.string.home_job_whole_log)
+    Column(Modifier.fillMaxWidth().clickable(onClickLabel = toggle) { expanded = !expanded }) {
+        if (expanded) {
+            // The whole tail, wrapped, to read or copy into a bug report. Red only where something went wrong,
+            // not the whole of a failed job's log.
+            val muted = style.copy(color = Palette.muted)
+            log.forEachIndexed { i, line ->
+                val failure = state is JobState.Failed && (i == 0 || ERROR_LINE.containsMatchIn(line))
+                BasicText(line, style = if (failure) style else muted)
+            }
+        } else {
+            // A failure's reason is usually at the end of the line: let it wrap.
+            for (line in log.takeLast(4)) BasicText(line, style = style, maxLines = if (state is JobState.Failed) 3 else 1, overflow = TextOverflow.Ellipsis)
+            if (log.size > 4 || state is JobState.Failed) BasicText(toggle, style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
+        }
+    }
+    if (expanded) {
+        val context = LocalContext.current
+        Row {
+            BracketAction(stringResource(R.string.home_job_copy), Palette.accent) {
+                context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("log", log.joinToString("\n")))
+            }
+            BracketAction(toggle, Palette.muted) { expanded = false }
+        }
+    }
 }
 
 /** The items of a popup menu, framed like home's edit bar and menu; picking one closes the menu first. */

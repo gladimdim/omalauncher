@@ -34,6 +34,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import dev.omalauncher.R
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -123,6 +125,20 @@ class TerminalTiles(
         tile = null
         wm.focus(window)
         keyboard?.show()
+    }
+
+    /**
+     * Gives [window] the keyboard back once an Android screen that covered it is gone, like the photo picker: a tile's
+     * terminal takes it as a tap would, a Linux app's window as its activity resumes. False if the window is gone.
+     */
+    fun refocus(window: XdgToplevel): Boolean {
+        sessions.firstOrNull { it.window === window }?.let {
+            activate(it)
+            return true
+        }
+        if (window !in wm.appWindows) return false
+        if (wm.focused !== window) wm.focus(window)
+        return true
     }
 
     fun deactivate() {
@@ -265,20 +281,30 @@ class EmbeddedTerminal internal constructor(
             main.post {
                 running = false
                 window = null
+                if (closed) tiles.forget(this)
             }
         }
     }
 
-    /** Ends the terminal (the widget was removed or changed); foot closes its shell. */
+    /**
+     * Ends the terminal (the widget was removed or changed, or reloaded for a new language); foot closes its shell.
+     * One still starting stays claimable until its window shows up, else that window would open as an app of its own.
+     */
     fun close() {
         closed = true
+        if (running && window == null) return
         tiles.forget(this)
         window?.let(tiles::close)
     }
 
     internal fun attach(w: XdgToplevel) {
         // Closed while foot was still starting: it goes as soon as it shows up.
-        if (closed) tiles.close(w) else window = w
+        if (closed) {
+            tiles.forget(this)
+            tiles.close(w)
+        } else {
+            window = w
+        }
     }
 
     internal fun detach() {
@@ -325,7 +351,7 @@ fun TerminalView(
                         .pointerInput(term) { detectTapGestures { term.start() } },
                     contentAlignment = Alignment.Center,
                 ) {
-                    BasicText(if (term.running) "starting…" else "exited · tap to restart", style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
+                    BasicText(stringResource(if (term.running) R.string.home_terminal_starting else R.string.home_terminal_exited), style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
                 }
             active -> {
                 // Over the TextureView, which Compose's pointer input doesn't reach.

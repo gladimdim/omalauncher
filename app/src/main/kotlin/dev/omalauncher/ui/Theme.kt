@@ -1,6 +1,7 @@
 package dev.omalauncher.ui
 
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -132,6 +133,12 @@ object LauncherStyle {
     /** The strip of recently used apps above the bar on home. */
     val recentApps get() = style[Style.RECENT_APPS]
 
+    /** The empty page left of home's leftmost, for a new face. */
+    val emptyPageLeft get() = style[Style.EMPTY_PAGE_LEFT]
+
+    /** The empty page after home's last, always (true) or only while a tile is carried (false). */
+    val emptyPageRight get() = style[Style.EMPTY_PAGE_RIGHT]
+
     /** Forces one home page even on a screen [SideRail]'s auto-detect would otherwise split in two. */
     val forceSinglePage get() = style[Style.FORCE_SINGLE_PAGE]
 
@@ -189,12 +196,12 @@ object LauncherStyle {
 enum class Corners(
     /** What launchers before style.toml saved. */
     val id: String,
-    val label: String,
+    @StringRes val label: Int,
     val scale: Float,
 ) {
-    Edge("edge", "edge", 0f),
-    Soft("soft", "soft", 0.5f),
-    Round("round", "round", 1f),
+    Edge("edge", R.string.style_corners_edge, 0f),
+    Soft("soft", R.string.style_corners_soft, 0.5f),
+    Round("round", R.string.style_corners_round, 1f),
     ;
 
     companion object {

@@ -44,9 +44,12 @@ Every node also takes:
   every touch, the start of a scroll too, so in a list or anything else that scrolls, `onTap` is the one for a tap. With
   `repeats: true`, `onPress` runs again while the finger stays down, after 400 ms and then every 50 ms, as a keyboard's
   keys repeat: `repeat` is 0 for the press and counts up from there; `Slider` and `Input` also take
-  `onChange`, and `Input` `onSubmit`, both with `value`; `Popup` takes `onDismiss`. In pages, apps and a widget's `screen { }`,
+  `onChange`, and `Input` `onSubmit`, both with `value`; `Popup` takes `onDismiss`; a Column with `scroll` or `lazy`, or a
+  Grid with `lazy`, takes `onPull`, run when it's pulled down past its top and let go there: `onPull: refresh()`. The
+  launcher draws the refresh icon coming down with the pull and spins it while the sources fetch (owl 17). In pages, apps and a widget's `screen { }`,
   `onLongPress` (with `x`, `y`, owl 10); on a tile, long-press belongs to the home screen, which uses it
   to move and resize tiles. A node with `onTap` or `onLongPress` ripples from where it's pressed, within its `radius`, in apps, panels, faces and screens; on a widget's tile and in a key bar it stays still.
+  `ripple: false` (owl 14) leaves one still anywhere, for a node that shows its press itself, as with `onPress`.
   With a keyboard or a gamepad, Tab and the arrows (the D-pad) move between the nodes that
   have `onTap` or `onLongPress`, ringed in `accent`; Enter, Space or A taps one at its middle, and holding it, or Menu
   (a gamepad's Select), long-presses it. What takes taps inside one that does, like a `[+]` in a tappable row or a

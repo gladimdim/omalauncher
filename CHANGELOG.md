@@ -4,6 +4,99 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## 0.16.0 (versionCode 27) – 2026-10-29
+
+- Settings has a language: the phone's, or one the launcher has its text in. A pick brings
+  every open screen back in it, and widgets' `strings { }` and `lang()` follow it too.
+- The launcher comes in Spanish and Brazilian Portuguese (also for phones set to Portugal's),
+  with the drawer, today, fetch, owl and key bar widgets translated. Play installs carry every
+  language, not just the phone's. Indonesian uses the words Android itself does.
+- A Linux job's log keeps up with progress bars instead of piling them up, holds 200 lines,
+  and opens whole when tapped, red only where something went wrong, with [ copy ] for a bug
+  report (#240).
+- pacman installs bubblewrap again, so glycin and the GTK apps needing it upgrade (#243).
+- With frosted glass, the recent apps and the prompt bar frost too, on home, in the landscape
+  rail and over the open drawer.
+- Owl 17: `ws(url)` listens to a WebSocket server, `send()` talks back and `on x each { }`
+  runs for every message; `pin:` on `http`, `post` and `ws` trusts a LAN server's own
+  certificate by its SHA-256; a scrolling Column or Grid takes `onPull` for pull to refresh.
+- Fixes: picking a language no longer opens a terminal; home's long-press menu wraps its
+  buttons instead of cutting the last one off; rendering a theme no longer empties a folder
+  Omarchy's `current/theme` links to.
+
+## 0.15.0 (versionCode 26) – 2026-10-28
+
+- The launcher speaks Indonesian: with the phone set to Indonesian, all of its text, the
+  drawer, the today, fetch and owl widgets and the terminal key bar's spoken key names are
+  in Indonesian.
+- Widgets can carry their text in more than one language: owl 16's
+  `strings { en { ... } id { ... } }`, read as `str.name`, show the phone's language's with
+  English where it has none, and texts can take values. `lang()` is the phone's language for
+  APIs. Widgets recompile when the phone's language changes, and agents publishing a
+  one-language widget are asked whether to add English.
+- Coding agents take the theme as on Omarchy: Claude Code has an Omarchy theme to pick in
+  /theme, Pi starts in it, and OpenCode follows the terminal's colors; running sessions
+  recolor when the theme changes.
+- A widget, face or app added from the store can be removed from its page in the store, and
+  each store always has its installed tab.
+- The empty page right of home's last invites a widget, with create with the agent and browse
+  store, instead of a one-line hint.
+- The store's built-in widgets, a terminal and a tile per coding agent, are one row that
+  scrolls sideways.
+- At a large Android font size, buttons that would squeeze a label to a letter a line go under
+  it, in settings, the style screen and Files' selection bar, and settings' updates scroll with
+  its rows.
+
+## 0.14.0 (versionCode 25) – 2026-10-27
+
+- Tapping a now-playing widget brings up the player's own screen, like a web app's
+  window when one installed from a browser plays, rather than a new browser tab.
+- A drawer can leave the keyboard down as it opens, for scrolling the apps rather
+  than searching them: owl 15's `keyboard: false` in `drawer.owl`. Tapping the
+  bar brings it up.
+- Images go into a terminal as the path they're saved to in Linux's /tmp, which
+  opencode and Claude Code attach: tap a screenshot or copied image in Gboard's
+  clipboard suggestions, or paste an image copied on Android (Chrome's Copy image).
+  Copied text pastes as before. The terminal key bar's new photos key, beside paste, opens Android's
+  photo picker and pastes the photos picked the same way, several at once; above it, a `|` key. Owl 15's
+  `pickImages()` does it in a key bar of your own.
+- The today widget's weather screen switches between °C and °F when you tap the
+  temperature's °C or °F, and keeps the scale picked; until then it follows the country.
+- A widget can turn home to another page: `launcher("page:0")` shows the face left of
+  page 1, as Super+1…9 does for pages 1 to 9, so a tile can lead to the face that shows more of it.
+- Widgets can take dictation: owl 15's `speech("toggle")` turns the microphone on and off from a
+  tap, and `source said = android.speech` has what's heard, as you speak and once you're done, so a
+  widget can show it, run a command with it, or type it into a terminal with `on said.final`. The
+  phone recognizes the speech, as for the prompt bar, and only the text reaches the widget (#84).
+- Widgets can show how fast the phone charges: owl 15's `source p = android.power every 2s` has the
+  battery's current in mA, its watts, the mAh it holds, Android's time to full and what the charger
+  offers, the same units and sign on every phone (#226).
+- Home's empty pages at either end can be turned off in style.toml or the Style screen:
+  `home.empty-page-left = false` drops the one left of the leftmost page, and
+  `home.empty-page-right = false` the one after the last page of tiles (#202, #205).
+- GTK3 and wxWidgets apps (PrusaSlicer) leave out their own title bar and window buttons,
+  which only took space on a phone; apps with their own header bar keep it (#215).
+- A Linux window too big for the screen is drawn shrunk to fit, keeping its shape, instead of
+  running off the right and bottom edges, and touches map back to it (#218).
+- Fixes: a widget node with `clip: true` and a negative radius crashed home; a widget home
+  placed on another page, or one moved there, stopped updating two pages away until the
+  launcher restarted; a GTK app with a header bar kept asking how to decorate its window.
+
+## 0.13.0 (versionCode 24) – 2026-10-25
+
+- Faces can draw to the screen's edge: owl 14's `edge: true` runs a face under the
+  status bar, and in landscape under a camera cutout or navigation bar at the side;
+  `screenTop`, `screenLeft` and `screenRight` say how much those cover. Other faces
+  now keep clear of a navigation bar at the side, which they ran under.
+- A store face can have several pages, installed side by side. Each page stays
+  yours to remove; an update replaces only the pages still on home, and the face's
+  store page adds a removed one back. Publishing a face lets your agent add your
+  other faces as its pages.
+- Owl 14's `ripple: false` leaves out the ripple on a node that shows its press
+  itself.
+- Fixes: a face's bottom jumped after every reload or data update; the store's
+  widgets/faces/apps toggle stayed round with square corners.
+
 ## 0.12.2 (versionCode 23) – 2026-10-25
 
 - A store update no longer throws away changes made to a widget, app or face:

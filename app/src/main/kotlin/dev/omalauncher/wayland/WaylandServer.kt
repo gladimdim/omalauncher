@@ -50,6 +50,7 @@ class WaylandServer(
             Global("xdg_wm_base", 3, ::XdgWmBase),
             Global("zxdg_decoration_manager_v1", 1, ::DecorationManager),
             Global("zwp_text_input_manager_v3", 1, ::TextInputManager),
+            Global("org_kde_kwin_server_decoration_manager", 1, ::ServerDecorationManager),
         )
 
     val clients = mutableListOf<Client>()
@@ -70,6 +71,9 @@ class WaylandServer(
 
     /** Called from the UI when Android's clipboard changed; see [Selection.systemChanged]. */
     fun clipboardChanged() = inputThread.execute { synchronized(this) { selection.systemChanged() } }
+
+    /** Offers [text] to the focused window's next paste, ahead of the clipboard; see [Selection.insert]. */
+    fun insertText(text: String) = inputThread.execute { synchronized(this) { selection.insert(text) } }
 
     private val serial = AtomicInteger(1)
     private var listenFd = -1

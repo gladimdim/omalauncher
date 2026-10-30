@@ -24,12 +24,16 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import dev.omalauncher.R
 import dev.omalauncher.linux.LinuxState
 import dev.omalauncher.widgets.WidgetSpec
 import dev.omalauncher.widgets.lang.text
@@ -76,17 +80,17 @@ internal fun WidgetTile(
         } else if (instance != null && needs.isNotEmpty()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 BasicText(spec.name, style = Mono.copy(color = Palette.muted))
-                BasicText("needs ${needs.joinToString(", ")}", style = Mono)
+                BasicText(stringResource(R.string.home_widget_needs, needs.joinToString(", ")), style = Mono)
                 when (install) {
-                    WidgetEngine.Install.Running -> BasicText("installing…", style = Mono.copy(color = Palette.accent))
+                    WidgetEngine.Install.Running -> BasicText(stringResource(R.string.home_installing), style = Mono.copy(color = Palette.accent))
                     is WidgetEngine.Install.Failed -> {
                         BasicText(install.log.lines().lastOrNull { it.isNotBlank() }.orEmpty(), style = Mono.copy(color = Palette.red, fontSize = TextSize.Small), maxLines = 2)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            TileButton("retry", Palette.accent, onInstall)
-                            TileButton("fix with agent", Palette.muted) { onFix(install.log) }
+                            TileButton(stringResource(R.string.home_retry), Palette.accent, onInstall)
+                            TileButton(stringResource(R.string.home_fix_with_agent), Palette.muted) { onFix(install.log) }
                         }
                     }
-                    null -> TileButton("install", Palette.accent, onInstall)
+                    null -> TileButton(stringResource(R.string.home_install), Palette.accent, onInstall)
                 }
             }
         } else if (instance == null) {
@@ -95,12 +99,16 @@ internal fun WidgetTile(
                 BasicText(spec.error.orEmpty(), style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
             }
         } else if (bare) {
-            // The whole screen: under the status bar and the navigation bar. The nodes keep clear of the camera cutout and
-            // of the status bar while it stays (statusBar true); the navigation bar is the face's to mind, through
-            // screenInset, as an edge app's is, and so is the keyboard while one of its fields has it.
+            // The whole screen: under the status bar and the navigation bar. The nodes keep clear of the camera cutout, of
+            // the status bar while it stays (statusBar true) and of a navigation bar at the side, in landscape; the one along
+            // the bottom is the face's to mind, through screenInset, as an edge app's is, and so is the keyboard while one of
+            // its fields has it. With `edge` the top and the sides are the face's to mind too, through screenTop, screenLeft
+            // and screenRight.
             val top = if (instance.showsStatusBar()) WindowInsets.statusBars.union(WindowInsets.displayCutout) else WindowInsets.displayCutout
-            WidgetContent(instance, Modifier.fillMaxSize(), cells, top.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            val covered = top.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal).union(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
+            WidgetContent(instance, Modifier.fillMaxSize(), cells, if (instance.program.edge) WindowInsets(0, 0, 0, 0) else covered)
             ScreenInset(instance, face = true, keyboard = keyboard)
+            if (instance.program.edge) EdgeFaceInsets(instance, covered)
         } else {
             WidgetContent(instance, Modifier.fillMaxSize(), cells)
         }
@@ -117,14 +125,14 @@ private fun LinuxPlaceholder(
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         BasicText(name, style = Mono.copy(color = Palette.muted), maxLines = 1)
         Spacer(Modifier.weight(1f))
-        BasicText("needs Linux", style = Mono.copy(color = Palette.accent))
+        BasicText(stringResource(R.string.home_widget_needs_linux), style = Mono.copy(color = Palette.accent))
         BasicText(
-            "runs commands in the optional Arch Linux",
+            stringResource(R.string.home_widget_needs_linux_text),
             style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        TileButton(if (installing) "installing…" else "install", Palette.accent, onInstall)
+        TileButton(stringResource(if (installing) R.string.home_installing else R.string.home_install), Palette.accent, onInstall)
     }
 }
 
@@ -172,12 +180,40 @@ internal fun OwlAppWindow(
     ScreenTop(instance, statusBar)
 }
 
+/**
+ * True while a widget is drawn off screen for its preview picture. That drawing shares the live instance, and has no
+ * status or navigation bar, so it leaves the insets the home screen measured alone.
+ */
+internal val LocalOffscreen = staticCompositionLocalOf { false }
+
+/**
+ * Tells an edge face what [covered] takes of the screen, the status bar, a camera cutout and a navigation bar at the side:
+ * its top as `screenTop`, and its sides, in landscape, as `screenLeft` and `screenRight`.
+ */
+@Composable
+private fun EdgeFaceInsets(
+    instance: WidgetInstance,
+    covered: WindowInsets,
+) {
+    if (LocalOffscreen.current) return
+    val density = LocalDensity.current
+    val direction = LocalLayoutDirection.current
+    val top = with(density) { covered.getTop(density).toDp().value.toDouble() }
+    val left = with(density) { covered.getLeft(density, direction).toDp().value.toDouble() }
+    val right = with(density) { covered.getRight(density, direction).toDp().value.toDouble() }
+    SideEffect {
+        instance.setScreenTop(top)
+        instance.setScreenSides(left, right)
+    }
+}
+
 /** Tells an app's `screenTop` how much of its top a camera cutout covers: none while the status bar shows, which the view starts below. */
 @Composable
 private fun ScreenTop(
     instance: WidgetInstance,
     statusBar: Boolean,
 ) {
+    if (LocalOffscreen.current) return
     val density = LocalDensity.current
     val covered = if (statusBar) 0 else WindowInsets.displayCutout.getTop(density)
     val dp = with(density) { covered.toDp().value.toDouble() }
@@ -195,6 +231,7 @@ private fun ScreenInset(
     face: Boolean = false,
     keyboard: Float = 0f,
 ) {
+    if (LocalOffscreen.current) return
     val density = LocalDensity.current
     val covered =
         if (face) {

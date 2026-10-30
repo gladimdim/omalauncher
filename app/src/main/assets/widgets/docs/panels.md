@@ -25,6 +25,10 @@ through, to 1, solid; without one 0.97, so home barely shows (owl 13). `drawer.o
 a panel's outer node without a `background` of its own, or it covers home whatever `opacity` is; a background on the
 boxes inside it is fine.
 
+Opening the drawer brings up the keyboard, so search is ready. For a drawer that's more for scrolling, `keyboard: false`
+(owl 15) leaves it down: tap the prompt bar to search, and a hardware keyboard types into it as before. It's `true` or
+`false` in the file, not an expression; a panel from the top has no bar, so there it changes nothing.
+
 ```owl
 panel "my drawer" {
   meta { owl: 11 }

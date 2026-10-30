@@ -21,8 +21,8 @@ android {
         applicationId = "com.gladimdim.sdlauncher"
         minSdk = 29
         targetSdk = 37
-        versionCode = 23
-        versionName = "0.12.2"
+        versionCode = 27
+        versionName = "0.16.0"
         ndk { abiFilters += "arm64-v8a" }
     }
 
@@ -40,6 +40,10 @@ android {
         }
     }
 
+    // Every language's text in every install: settings can pick a language the phone isn't set to (AppLanguage), and
+    // Play's language splits would only carry the phone's.
+    bundle { language { enableSplit = false } }
+
     // android.util.Log and friends are no-ops in JVM tests instead of throwing.
     testOptions { unitTests.isReturnDefaultValues = true }
 
@@ -55,6 +59,8 @@ android {
     }
 
     buildTypes {
+        // en-XA and ar-XB: text that stays plain English or left-to-right there isn't in res/ yet.
+        debug { isPseudoLocalesEnabled = true }
         release {
             // Shrinks the APK and drops what the app doesn't use, like the owl module's unused parts.
             isMinifyEnabled = true

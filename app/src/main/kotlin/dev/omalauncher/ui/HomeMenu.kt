@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import dev.omalauncher.R
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.LinuxState
 import dev.omalauncher.widgets.lang.OwlKind
@@ -51,6 +55,7 @@ internal fun EditAction(
  * screen (not inside the home page's system-bar padding) so its scrim covers the
  * status and navigation bars too.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeMenu(
     runtime: Runtime,
@@ -59,7 +64,6 @@ fun HomeMenu(
     if (!state.homeMenuOpen) return
     val engine = runtime.widgets
     val agent = runtime.agents.default
-    val agentName = agent?.name?.lowercase() ?: "an agent"
     // These need Linux; without it they open its install sheet.
     val linux = runtime.bootstrap.state.collectAsState().value == LinuxState.Installed
     val scope = rememberCoroutineScope()
@@ -75,18 +79,20 @@ fun HomeMenu(
         // Settings at the top right, as in the drawer.
         Row(Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f).padding(start = 12.dp, end = 4.dp, top = 10.dp)) {
-                BasicText("create with $agentName", style = Mono.copy(fontSize = TextSize.Item))
+                BasicText(createWithLabel(agent?.name), style = Mono.copy(fontSize = TextSize.Item))
                 // Pulled left by the buttons' own padding, so the first bracket lines up with the label.
-                Row(Modifier.offset(x = (-8).dp)) {
-                    val kinds: List<Pair<String, (String) -> String>> =
+                // Flows, since in some languages the three don't fit a line beside settings.
+                FlowRow(Modifier.offset(x = (-8).dp)) {
+                    // The English name also names the agent's session.
+                    val kinds: List<Triple<Int, String, (String) -> String>> =
                         listOf(
-                            "widget" to { newOwlCommand(it, OwlKind.Widget) },
+                            Triple(R.string.home_create_widget, "widget") { newOwlCommand(it, OwlKind.Widget) },
                             // Faces are made from the empty page left of them, which says where the new one goes.
-                            "app" to { newOwlCommand(it, OwlKind.App) },
-                            "panel" to { newOwlCommand(it, OwlKind.Panel) },
+                            Triple(R.string.home_create_app, "app") { newOwlCommand(it, OwlKind.App) },
+                            Triple(R.string.home_create_panel, "panel") { newOwlCommand(it, OwlKind.Panel) },
                         )
-                    for ((label, command) in kinds) {
-                        BracketAction(label, Palette.accent) {
+                    for ((title, label, command) in kinds) {
+                        BracketAction(stringResource(title), Palette.accent) {
                             state.homeMenuOpen = false
                             if (linux) state.withAgent(runtime, "New $label", command) else state.show(SettingsPage.Linux)
                         }
@@ -98,7 +104,7 @@ fun HomeMenu(
                 state.show()
             }
         }
-        MenuItem("browse store") {
+        MenuItem(stringResource(R.string.home_browse_store)) {
             state.homeMenuOpen = false
             state.show(SettingsPage.Store)
         }

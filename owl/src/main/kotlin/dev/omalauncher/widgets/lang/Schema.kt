@@ -49,7 +49,7 @@ internal val KINDS: Map<String, Kind> =
 internal val COMMON =
     setOf(
         "width", "height", "size", "fill", "weight", "padding", "background", "border", "borderColor",
-        "radius", "opacity", "rotation", "scale", "offset", "clip", "visible", "frost", "repeats", "drag",
+        "radius", "opacity", "rotation", "scale", "offset", "clip", "visible", "frost", "repeats", "drag", "ripple",
     )
 
 internal val ANIMATABLE = setOf("opacity", "rotation", "scale", "offset", "value", "color", "background")
@@ -146,7 +146,29 @@ internal val SINCE =
         // offsets that ease back when a drag lets go; the torch dimmed.
         listOf("android.sim", "dnd", "notification(\"snooze\")", "notification(\"snoozeAll\")", "notification(\"unsnooze\")", "notification(\"unsnoozeAll\")", ANIMATE_OFFSET, TORCH_LEVEL).associateWith { 13 } +
         // owl 13: the glass home's tiles have, for a face's or a widget's own windows.
-        listOf("tileOpacity", "tileFrost").associateWith { 13 }
+        listOf("tileOpacity", "tileFrost").associateWith { 13 } +
+        // owl 14: a face whose nodes run on under the status bar and the camera cutout, which screenTop, screenLeft and
+        // screenRight measure.
+        mapOf(FACE_EDGE to 14, "screenLeft" to 14, "screenRight" to 14) +
+        // owl 14: no ripple under the finger, for a node that shows its press itself.
+        mapOf("ripple" to 14) +
+        // owl 15: a drawer that leaves the keyboard down as it opens.
+        mapOf(PANEL_KEYBOARD to 15) +
+        // owl 15: photos picked on Android pasted into the Linux window being typed in, as paths agents attach.
+        mapOf("pickImages" to 15) +
+        // owl 15: dictation, what the user says on a tap becoming text the widget reads.
+        listOf("android.speech", "speech").associateWith { 15 } +
+        // owl 15: the battery's current, charge and time to full, and the charger's, for a charging widget.
+        mapOf("android.power" to 15) +
+        // owl 16: texts per language, the phone's picked, and the language itself, for an API that takes it.
+        mapOf(STRINGS_DECL to 16, "lang" to 16) +
+        // owl 17: a list pulled down past its top, to fetch again.
+        mapOf("onPull" to 17) +
+        // owl 17: servers with a certificate of their own, pinned; WebSockets, and a trigger for each of their messages.
+        listOf(HTTP_PIN, "ws", "send", ON_EACH).associateWith { 17 }
+
+/** `strings { ... }`, named like this in [SINCE]. */
+internal const val STRINGS_DECL = "strings { }"
 
 /** `animate offset: ...`, named like this in [SINCE]. */
 internal const val ANIMATE_OFFSET = "animate offset"
@@ -163,6 +185,9 @@ internal val VOLUME_STREAMS = setOf("media", "ring", "notification", "alarm")
 /** `state x = null secret`, named like this in [SINCE]. */
 internal const val SECRET = "secret"
 
+/** `pin:` on http(...), post(...) and ws(...), named like this in [SINCE]. */
+internal const val HTTP_PIN = "pin:"
+
 /** `method:` on post(...), named like this in [SINCE]. */
 internal const val POST_METHOD = "method:"
 
@@ -176,6 +201,9 @@ internal const val PANEL_FILE = "panel \"…\" { }"
 /** A panel's own `opacity:`, named like this in [SINCE]. */
 internal const val PANEL_OPACITY = "panel opacity"
 
+/** A panel's own `keyboard:`, named like this in [SINCE]. */
+internal const val PANEL_KEYBOARD = "panel keyboard"
+
 internal const val KEYBAR_FILE = "keybar \"…\" { }"
 
 /** A panel's read-only name for the prompt bar's text. */
@@ -184,6 +212,8 @@ internal const val QUERY = "query"
 internal const val GRADIENT_BACKGROUND = "a gradient background"
 
 internal const val APP_STATUS_BAR = "an app's statusBar"
+
+internal const val FACE_EDGE = "a face's edge"
 
 internal const val FONT_FILE = "a font of its own"
 
@@ -196,6 +226,9 @@ internal const val FMT_TIME_ZONE = "fmtTime with a time zone or language"
 internal const val FLATTEN_DEPTH = "flatten with a depth"
 
 internal const val ON_FIRST = "on … first"
+
+/** `on x each { }`, named like this in [SINCE]. */
+internal const val ON_EACH = "on … each"
 
 internal const val HANDLER_IF = "if in a handler"
 
@@ -219,6 +252,8 @@ internal val HANDLER_PARAMS =
         "onDrag" to listOf("dx", "dy", "x", "y"),
         // How fast the finger was moving as it let go, in dp a second: a flick dismisses what a slow drag puts back.
         "onDragEnd" to listOf("vx", "vy"),
+        // A Column or Grid that scrolls, pulled down past its top and let go there: refresh(), mostly.
+        "onPull" to emptyList(),
         "onChange" to listOf("value"),
         "onSubmit" to listOf("value"),
         "onDismiss" to emptyList(),
@@ -227,13 +262,19 @@ internal val HANDLER_PARAMS =
     )
 
 /** Handlers only some nodes have. */
-internal val HANDLER_KINDS = mapOf("onChange" to setOf("Slider", "Input"), "onSubmit" to setOf("Input"), "onDismiss" to setOf("Popup"))
+internal val HANDLER_KINDS = mapOf("onChange" to setOf("Slider", "Input"), "onSubmit" to setOf("Input"), "onDismiss" to setOf("Popup"), "onPull" to setOf("Column", "Grid"))
 
 /** What triggers bind in their statements. */
 internal val TRIGGER_PARAMS = mapOf("on" to listOf("value", "old"))
 
-/** Data from the phone and the launcher; device is fixed, system and network are polled, the rest update as they change. */
-internal val ANDROID = setOf("battery", "device", "media", "notifications", "volume", "system", "network", "sim", "alarm", "modes", "apps", "agents", "recent", "drawer", "modifiers")
+/**
+ * speech(...)'s words that work from anywhere, a trigger or a press too: they only turn the microphone off. The others
+ * may turn it on, and with it ask for the microphone, so only from onTap; the compiler and WidgetInstance both check.
+ */
+val SPEECH_ANYWHERE = setOf("stop", "cancel")
+
+/** Data from the phone and the launcher; device is fixed, system, network and power are polled, the rest update as they change. */
+internal val ANDROID = setOf("battery", "device", "media", "notifications", "volume", "system", "network", "power", "sim", "alarm", "modes", "apps", "agents", "recent", "drawer", "modifiers", "speech")
 
 /**
  * The words an action's first value may be, when it's written out; [numbers] also allows a number. [forms] are the
@@ -280,11 +321,12 @@ internal val ACTION_WORDS =
         "settings" to SETTINGS_PAGES.let { Words(it, "settings takes ${it.joinToString()}") },
         "appAction" to setOf("pin", "info", "uninstall", "remove", "edit", "share").let { Words(it, "appAction takes ${it.joinToString()} and an app's key") },
         "workApps" to setOf("pause", "resume", "toggle").let { Words(it, "workApps takes ${it.joinToString()}") },
+        "speech" to setOf("start", "stop", "toggle", "cancel").let { Words(it, "speech takes ${it.joinToString()}; what's heard is in source x = android.speech") },
         "latch" to KeyNames.latches.toSet().let { Words(it, "latch takes ${it.joinToString()}, and optionally once, locked or off") },
     )
 
 /** The tile's size, readable anywhere a declaration of the same name doesn't shadow it. */
-internal val TILE = setOf("cols", "rows", "tileWidth", "tileHeight", "screenWidth", "screenHeight", "screenInset", "screenTop", "corners", "gapsIn", "gapsOut", "borderWidth", "tileOpacity", "tileFrost")
+internal val TILE = setOf("cols", "rows", "tileWidth", "tileHeight", "screenWidth", "screenHeight", "screenInset", "screenTop", "screenLeft", "screenRight", "corners", "gapsIn", "gapsOut", "borderWidth", "tileOpacity", "tileFrost")
 
 /** Builtins that always give a number (or null, which reads as …). */
 internal val NUMBERS = setOf("int", "round", "floor", "ceil", "abs", "fixed", "len", "count", "sum", "min", "max", "clamp")
@@ -292,4 +334,4 @@ internal val NUMBERS = setOf("int", "round", "floor", "ceil", "abs", "fixed", "l
 internal val WIDGET_PROPS = setOf("size", "minSize", "page", "order", "padding", "background")
 
 /** A face has no tile's size; it says where it goes and whether the status bar stays over it. */
-internal val FACE_PROPS = setOf("page", "order", "padding", "background", "statusBar")
+internal val FACE_PROPS = setOf("page", "order", "padding", "background", "statusBar", "edge")

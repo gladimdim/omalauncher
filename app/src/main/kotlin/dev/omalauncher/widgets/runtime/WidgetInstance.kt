@@ -6,6 +6,7 @@ import dev.omalauncher.upgrade.writeAtomically
 import dev.omalauncher.widgets.lang.PersistedValues
 import dev.omalauncher.widgets.lang.TriggerKind
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +46,7 @@ import dev.omalauncher.widgets.lang.Obj
 import dev.omalauncher.widgets.lang.TRUE
 import dev.omalauncher.widgets.lang.FALSE
 import dev.omalauncher.widgets.lang.Program
+import dev.omalauncher.widgets.lang.SPEECH_ANYWHERE
 import dev.omalauncher.widgets.lang.Sprite
 import dev.omalauncher.widgets.lang.Str
 import dev.omalauncher.widgets.lang.text
@@ -73,6 +75,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import java.io.File
 import dev.omalauncher.widgets.lang.textOrNull
+import dev.omalauncher.widgets.lang.textFields
 
 /** What widgets need from the launcher: guest commands, Android data and actions. */
 interface Services {
@@ -82,8 +85,9 @@ interface Services {
     ): ShellResult
 
     /**
-     * An HTTP request from Android, not the guest: a GET, or a POST (or [method]) of [body] for `post(...)`.
-     * [ShellResult.code] is the HTTP status, or -1 if the request failed.
+     * An HTTP request from Android, not the guest: a GET, or a POST (or [method]) of [body] for `post(...)`;
+     * with a [pin], to an HTTPS server with that certificate only. [ShellResult.code] is the HTTP status,
+     * or -1 if the request failed.
      */
     suspend fun http(
         url: String,
@@ -91,7 +95,23 @@ interface Services {
         timeoutSeconds: Int,
         body: ByteArray? = null,
         method: String = "POST",
+        pin: String? = null,
     ): ShellResult
+
+    /**
+     * `ws(...)`: connects to a WebSocket server and hands [opened] a way to send text, then each text message
+     * to [onText] and each binary one to [onBinary], on the connection's own thread, until the connection
+     * ends (returning) or breaks (an IOException); cancelling closes it. With a [pin], to a wss:// server
+     * with that certificate only.
+     */
+    suspend fun webSocket(
+        url: String,
+        headers: Map<String, String>,
+        pin: String?,
+        opened: ((String) -> Boolean) -> Unit,
+        onText: (String) -> Unit,
+        onBinary: () -> Unit,
+    ): Unit = throw java.io.IOException("WebSockets aren't available here")
 
     /**
      * A file from the web, for `Image { src: "https://..." }` and `sound("https://...")`: kept on disk,
@@ -132,6 +152,18 @@ interface Services {
 
     /** Updates for Android data that changes on its own (battery, media); null means poll [android]. */
     fun androidUpdates(name: String): Flow<Value>? = null
+
+    /** android.speech for [owner], a widget: its own dictation, which stops as it stops collecting. See [Dictation]. */
+    fun speechUpdates(owner: Any): Flow<Value>? = null
+
+    /** speech("start"), "stop", "toggle" or "cancel" from [owner]. */
+    fun speech(
+        owner: Any,
+        word: String,
+    ) {}
+
+    /** The whole text of [owner]'s dictation that just ended, or null: what its `on said.final` may type. */
+    fun heard(owner: Any): String? = null
 
     /** An image Android holds, like album art: `Image { src: m.art }`. */
     fun androidImage(src: String): Bitmap? = null
@@ -406,6 +438,18 @@ class WidgetInstance(
         screenTop.doubleValue = dp
     }
 
+    /** How much of an edge face's left and right a camera cutout covers, in dp, in landscape. */
+    private val screenLeft = mutableDoubleStateOf(0.0)
+    private val screenRight = mutableDoubleStateOf(0.0)
+
+    fun setScreenSides(
+        left: Double,
+        right: Double,
+    ) {
+        screenLeft.doubleValue = left
+        screenRight.doubleValue = right
+    }
+
     /**
      * A panel's `query`: reads the prompt bar's text, set by home while the panel shows. A reader, not a copy, so what
      * reads `query` sees each keystroke in the frame it's typed, not one frame on.
@@ -425,6 +469,8 @@ class WidgetInstance(
                 "screenHeight" -> screenSize.value[1]
                 "screenInset" -> screenInset.doubleValue
                 "screenTop" -> screenTop.doubleValue
+                "screenLeft" -> screenLeft.doubleValue
+                "screenRight" -> screenRight.doubleValue
                 "cols" -> tileSize.value[0]
                 "rows" -> tileSize.value[1]
                 "tileWidth" -> tileSize.value[2]
@@ -475,6 +521,7 @@ class WidgetInstance(
         headers: Map<String, String>,
         slot: Int?,
         method: String,
+        pin: String?,
     ) {
         // A map or list goes as JSON, anything else as its text.
         val json = if (body is Obj || body is Lst) Json.write(body, MAX_TEXT) else null
@@ -482,7 +529,7 @@ class WidgetInstance(
         val sent = if (json != null && headers.keys.none { it.equals("Content-Type", true) }) headers + ("Content-Type" to "application/json") else headers
         val scope = scope ?: return
         scope.launch {
-            val r = services.http(url, sent, POST_TIMEOUT_S, bytes, method)
+            val r = services.http(url, sent, POST_TIMEOUT_S, bytes, method, pin)
             val ok = r.code in 200..299
             // `x = post(...)` gets the answer and handles it (a sign-in polled while pending is a 400 each time).
             if (!ok && slot == null) report("post: ${httpFailure(r)}")
@@ -509,16 +556,23 @@ class WidgetInstance(
             return
         }
         if (name == "sound") {
-            args.firstOrNull()?.takeIf { it != Null }?.let { sound(it.toString()) }
+            args.firstOrNull().textOrNull()?.let { sound(it) }
             return
         }
         // An agent or an app opening on its own, from a timer or a fetched value, over whatever the user is doing: like
         // sound(...), a trigger does it only while the app or screen is open.
         if ((name == "ask" || name == "open") && inTrigger && !foreground()) return report("$name(...) in a trigger works only while the app or screen is open")
-        // Keys go to whatever window has the keyboard: only from a touch, never on a timer or a fetched value.
-        if ((name == "pressKey" || name == "typeText" || name == "latch") && inTrigger) return report("$name(...) works in handlers like onPress, not in a trigger")
-        // Names built from values, which the compiler couldn't check: say so rather than press nothing.
+        // Keys go to whatever window has the keyboard: only from a touch, never on a timer or a fetched value. Or from
+        // what the user just said, to this widget's dictation a tap started: on said.final { typeText(value) }.
+        if ((name == "pressKey" || name == "typeText" || name == "latch") && inTrigger && !byDictation) {
+            return report("$name(...) works in handlers like onPress, or in on said.final for what android.speech heard, not in another trigger")
+        }
+        if (name == "pickImages" && inTrigger) return report("pickImages() works in onTap, not in a trigger")
         val key = args.firstOrNull().textOrNull()
+        // The microphone, like the keys, only from a touch; stopping it from anywhere.
+        if (name == "speech" && inTrigger && key !in SPEECH_ANYWHERE) return report("speech(\"$key\") works in onTap, not in a trigger")
+        if (name == "speech") return key?.let { services.speech(this, it) } ?: Unit
+        // Names built from values, which the compiler couldn't check: say so rather than press nothing.
         if (name == "pressKey" && key != null && KeyNames.combo(key) == null) return report("pressKey(\"$key\") names no key; ${KeyNames.help}")
         if (name == "latch" && key != null && key !in KeyNames.latches) return report("latch(\"$key\"): latch takes ${KeyNames.latches.joinToString()}")
         val how = args.getOrNull(1).textOrNull()
@@ -624,7 +678,11 @@ class WidgetInstance(
                 val wasSecret = (old.program.globals.getOrNull(j) as? Global.State)?.secret == true
                 val isSecret = (g as? Global.State)?.secret == true
                 if ((wasSecret || isSecret) && (wasSecret != isSecret || old.program.secretHosts[g.name] != program.secretHosts[g.name])) return@forEachIndexed
-                if (j >= 0) write(i, old.read(j))
+                if (j < 0) return@forEachIndexed
+                val v = old.read(j)
+                // A ws(...) connects anew, so it's closed until then: `when x.open` greets the new connection too.
+                val closed = (g as? Global.Source)?.takeIf { it.kind == "ws" && it.status }?.let { (v as? Obj)?.let { o -> Obj(o.fields + ("open" to FALSE)) } }
+                write(i, closed ?: v)
             }
         }
         // What triggers last saw, so saving the file doesn't run a `when` again for a condition that was already true.
@@ -644,6 +702,12 @@ class WidgetInstance(
     private val refreshes = MutableStateFlow(0)
 
     private fun refresh() = refreshes.update { it + 1 }
+
+    /** Sources running their command or fetch right now; what a pulled list's spinner waits for. */
+    private var fetches by mutableIntStateOf(0)
+
+    /** Whether a source is fetching. Reads state, so it can be observed. */
+    fun fetching() = fetches > 0
 
     /**
      * Runs the sources while [active] is true (home screen showing this page or
@@ -699,7 +763,12 @@ class WidgetInstance(
                             snapshotFlow { linux() }.first { it }
                             continue
                         }
-                        val pushed = if (g.kind.startsWith("android.")) services.androidUpdates(g.kind.removePrefix("android.")) else null
+                        val pushed =
+                            when {
+                                g.kind == "android.speech" -> services.speechUpdates(this@WidgetInstance)
+                                g.kind.startsWith("android.") -> services.androidUpdates(g.kind.removePrefix("android."))
+                                else -> null
+                            }
                         if (pushed != null) {
                             // Listens while on screen, like a stream, instead of polling.
                             untilPaused(active, g) {
@@ -724,6 +793,7 @@ class WidgetInstance(
                                 val ended = untilPaused(current, g) { services.stream(command.toString()) { line -> set(slot, g, line) } }
                                 if (ended) delay(5000) // the command exited: restart it, but not in a tight loop
                             }
+                            "ws" -> untilPaused(active, g) { listen(slot, g) }
                             "file" ->
                                 untilPaused(active, g) {
                                     // A path built from state is watched anew when it changes.
@@ -750,7 +820,14 @@ class WidgetInstance(
                                     last = arg
                                     lastAt = System.currentTimeMillis()
                                     // A failed fetch (offline, or a server's rate limit) is tried again in half a minute.
-                                    lastWait = if (update(slot, g)) wait else minOf(wait, RETRY_MS)
+                                    fetches++
+                                    val fetched =
+                                        try {
+                                            update(slot, g)
+                                        } finally {
+                                            fetches--
+                                        }
+                                    lastWait = if (fetched) wait else minOf(wait, RETRY_MS)
                                 }
                                 // Clocks tick on the second (or minute) boundary so displays change in step;
                                 // other intervals count from the start of the update, however long it took.
@@ -806,6 +883,112 @@ class WidgetInstance(
 
     private val triggerRuns = RunLimit(program.triggers.size, MAX_TRIGGER_RUNS)
 
+    /** `on … each` runs once a message, so it may run more often than other triggers. */
+    private val eachRuns = RunLimit(program.triggers.size, MAX_EACH_RUNS)
+
+    /** How to send on each ws(...) source's connection while it's open, by slot. */
+    private val senders = java.util.concurrent.ConcurrentHashMap<Int, (String) -> Boolean>()
+
+    /**
+     * A ws(...) source while its page is live: connected to what its URL, headers and pin say now, again
+     * whenever they change, and again after the connection ends or breaks, waiting longer each time it
+     * fails soon after connecting. A null URL keeps it closed. Each message becomes its value and runs its
+     * `on … each` triggers, here on the main thread, in the order they came.
+     */
+    private suspend fun listen(
+        slot: Int,
+        g: Global.Source,
+    ) {
+        // {out, open, err} with status; out keeps the last message while it reconnects, and across a reload.
+        var out: Value = (read(slot) as? Obj)?.fields?.get("out") ?: Null
+        fun status(
+            open: Boolean,
+            err: String,
+        ) {
+            if (g.status) write(slot, Obj(mapOf("out" to out, "open" to bool(open), "err" to Str(err))))
+        }
+        val each = program.triggers.withIndex().filter { it.value.each == slot }
+        snapshotFlow {
+            val url = eval(g.arg!!, root, g.name)
+            Triple(url, g.headers?.let { eval(it, root, g.name) }.textFields(), g.pin?.let { eval(it, root, g.name) }.textOrNull())
+        }.collectLatest { (url, headers, pin) ->
+            if (url == Null) return@collectLatest status(false, "")
+            val job = currentCoroutineContext()[Job]
+            var wait = WS_RETRY_MS
+            while (true) {
+                val began = System.currentTimeMillis()
+                // The server ending it with 1000 isn't an error, though it may end each one at once.
+                var err = ""
+                // From the connection's thread: null once it's open, then each message, parsed there. A widget that
+                // can't keep up loses the oldest, and hears so.
+                val messages = WsInbox<Value?>(MAX_WS_QUEUE, MAX_WS_QUEUE_TEXT)
+                // Binary messages aren't read; the first one wakes the loop to say so.
+                val binary = java.util.concurrent.atomic.AtomicBoolean()
+                try {
+                    coroutineScope {
+                        launch {
+                            var binaryTold = false
+                            messages.take({ report("${g.name}: messages came faster than the widget took them; the oldest were skipped") }) { m ->
+                                if (!binaryTold && binary.get()) {
+                                    binaryTold = true
+                                    report("${g.name}: the server sends binary messages, which ws(...) skips; only text ones become its value")
+                                }
+                                if (m == null) return@take status(true, "")
+                                if (g.status) {
+                                    out = m
+                                    status(true, "")
+                                } else {
+                                    write(slot, m)
+                                }
+                                sample(g)
+                                for ((i, t) in each) fire(i, t, listOf(m, Null))
+                            }
+                        }
+                        try {
+                            services.webSocket(
+                                url.toString(),
+                                headers,
+                                pin,
+                                opened = { send ->
+                                    // A connection that opened just as the page left is already closing.
+                                    if (job?.isActive != false) {
+                                        senders[slot] = send
+                                        messages.put(null, 0)
+                                    }
+                                },
+                                onText = { text -> messages.put(if (g.json) Json.parseOrText(text) else Str(text), text.length) },
+                                onBinary = { if (binary.compareAndSet(false, true)) messages.put(null, 0) },
+                            )
+                        } finally {
+                            // What came before it ended is still taken in.
+                            messages.close()
+                        }
+                    }
+                } catch (e: java.io.IOException) {
+                    err = e.message ?: e.toString()
+                    if (!g.status) report("${g.name}: $err")
+                } finally {
+                    senders.remove(slot)
+                    // Closed as the page left too, so `when x.open` greets the next connection.
+                    status(false, err)
+                }
+                // A connection that held for a while starts the waits over; one that keeps failing waits up to a minute.
+                if (System.currentTimeMillis() - began > WS_STEADY_MS) wait = WS_RETRY_MS
+                delay(wait)
+                wait = (wait * 2).coerceAtMost(WS_MAX_RETRY_MS)
+            }
+        }
+    }
+
+    override fun send(
+        slot: Int,
+        message: Value,
+    ) {
+        val text = if (message is Obj || message is Lst) Json.write(message, MAX_TEXT) ?: return report("send: a message with colors or functions in it isn't JSON") else message.toString()
+        val send = senders[slot] ?: return report("send: ${program.globals[slot].name} isn't connected")
+        if (!send(text)) report("send: ${program.globals[slot].name}'s connection is closing")
+    }
+
     /**
      * Runs the triggers. `every` ticks only while the page is live, like the
      * sources; `at`, `when` and `on` react whenever what they read changes.
@@ -815,6 +998,8 @@ class WidgetInstance(
         active: () -> Boolean,
     ) {
         program.triggers.forEachIndexed { i, t ->
+            // `on feed each` runs from feed's connection, for each message (see listen).
+            if (t.each != null) return@forEachIndexed
             jobs +=
                 scope.launch {
                     when (t.kind) {
@@ -868,21 +1053,35 @@ class WidgetInstance(
         t: Trigger,
         values: List<Value> = emptyList(),
     ) {
-        when (triggerRuns.check(i, System.nanoTime() / 1_000_000)) {
+        val each = t.each != null
+        when ((if (each) eachRuns else triggerRuns).check(i, System.nanoTime() / 1_000_000)) {
             RunLimit.Verdict.RUN -> {}
-            RunLimit.Verdict.JUST_HELD -> return report("${t.kind.word} ran over $MAX_TRIGGER_RUNS times in a second; does it change what it watches?")
+            RunLimit.Verdict.JUST_HELD ->
+                return report(
+                    if (each) {
+                        "on … each ran over $MAX_EACH_RUNS times in a second; the messages past that were skipped"
+                    } else {
+                        "${t.kind.word} ran over $MAX_TRIGGER_RUNS times in a second; does it change what it watches?"
+                    },
+                )
             RunLimit.Verdict.HELD -> return
         }
         inTrigger = true
+        // Only `on said.final`, marked so by the compiler, and only with the words this widget's dictation just heard.
+        byDictation = t.dictation && (values.firstOrNull() as? Str)?.v?.let { it == services.heard(this) } == true
         try {
             t.action.run(root, values)
         } finally {
             inTrigger = false
+            byDictation = false
         }
     }
 
     /** A trigger's statements are running, not a tap's; see [sound]. */
     private var inTrigger = false
+
+    /** An `on said.final` trigger ([Trigger.dictation]) is running for the text this widget's dictation just heard, which it may type. */
+    private var byDictation = false
 
     /** sound(...)s asked for so far: a clip still downloading doesn't play over a later one. */
     private var sounds = 0
@@ -1008,8 +1207,9 @@ class WidgetInstance(
                     try {
                         val r =
                             if (g.kind == "http") {
-                                val headers = (g.headers?.let { eval(it, root, g.name) } as? Obj)?.fields.orEmpty().mapValues { it.value.toString() }
-                                services.http(target, headers, g.timeout)
+                                val headers = g.headers?.let { eval(it, root, g.name) }.textFields()
+                                val pin = g.pin?.let { eval(it, root, g.name) }.textOrNull()
+                                services.http(target, headers, g.timeout, pin = pin)
                             } else {
                                 services.cmd(target, g.timeout)
                             }
@@ -1108,6 +1308,22 @@ class WidgetInstance(
 
         /** Runs per trigger per second before it's held back. */
         private const val MAX_TRIGGER_RUNS = 10
+
+        /** How often an `on … each` may run in a second; the messages past that update the source alone. */
+        private const val MAX_EACH_RUNS = 100
+
+        /** Messages a ws(...) source holds while the main thread is busy, before it drops the oldest. */
+        private const val MAX_WS_QUEUE = 256
+
+        /** And characters of them in all: parsed, a few 1 MB messages take far more memory than their text. */
+        private const val MAX_WS_QUEUE_TEXT = 2L shl 20
+
+        /** How long a ws(...) source waits before connecting again, at first and at most. */
+        private const val WS_RETRY_MS = 1_000L
+        private const val WS_MAX_RETRY_MS = 60_000L
+
+        /** A connection that lasted this long was working, and the next one waits [WS_RETRY_MS] again. */
+        private const val WS_STEADY_MS = 30_000L
 
         /** Distinct sprites kept per widget. */
         private const val MAX_SPRITES = 64

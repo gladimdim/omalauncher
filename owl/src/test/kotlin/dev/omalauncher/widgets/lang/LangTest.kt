@@ -62,8 +62,16 @@ class LangTest {
             headers: Map<String, String>,
             slot: Int?,
             method: String,
+            pin: String?,
         ) {
-            actions += "post $slot $url $body $headers" + (if (method != "POST") " $method" else "")
+            actions += "post $slot $url $body $headers" + (if (method != "POST") " $method" else "") + (pin?.let { " pin $it" } ?: "")
+        }
+
+        override fun send(
+            slot: Int,
+            message: Value,
+        ) {
+            actions += "send $slot $message"
         }
     }
 
@@ -309,6 +317,84 @@ class LangTest {
         assertTrue(compileError("app \"t\" {\n meta { owl: 11 }\n back: true\n onBack: post(\"https://x.test/\", null, {}, method: \"PUT\")\n Text { text: 1 } }").contains("needs owl 12"))
         assertTrue(compileError(app + "method: \"HEAD\")\n Text { text: 1 } }").contains("method: is one of"))
         assertTrue(compileError(app + "retries: 3)\n Text { text: 1 } }").contains("no other named arguments"))
+    }
+
+    /** pin: trusts one certificate (owl 17), on http(...) and post(...). */
+    @Test fun pinnedRequests() {
+        val pin = "AB:" + "cd".repeat(31)
+        val p =
+            Compiler.compile(
+                "app \"t\" {\n meta { owl: 17 }\n source h = http(\"https://pc.lan:8759/a\", {}, pin: \"$pin\") json\n back: true\n" +
+                    " onBack: post(\"https://pc.lan:8759/h/1\", null, {}, method: \"delete\", pin: \"$pin\")\n" +
+                    " Text { text: h } }",
+            )
+        val host = TestHost(p)
+        assertEquals(pin, (p.globals[0] as Global.Source).pin!!(Env.root(host)).toString())
+        p.onBack!!.run(Env.root(host), emptyList())
+        assertEquals(listOf("post null https://pc.lan:8759/h/1 null {} DELETE pin $pin"), host.actions)
+        assertEquals(setOf("http GET https://pc.lan:8759/a", "http DELETE https://pc.lan:8759/h/1"), p.commands.toSet())
+        assertEquals("ab" + "cd".repeat(31), Pins.normalize(pin))
+        assertEquals(null, Pins.normalize("abcd"))
+        val app = "app \"t\" {\n meta { owl: 17 }\n back: true\n onBack: post(\"https://x.test/\", null, {}, "
+        assertTrue(compileError("widget {\n meta { owl: 16 }\n source h = http(\"https://x.test/\", {}, pin: \"$pin\")\n Text { text: h } }").contains("needs owl 17"))
+        assertTrue(compileError(app + "pin: \"abcd\")\n Text { text: 1 } }").contains("64 hex digits"))
+        assertTrue(compileError("widget {\n meta { owl: 17 }\n source h = http(\"http://x.test/\", {}, pin: \"$pin\")\n Text { text: h } }").contains("pin: needs an https://"))
+        assertTrue(compileError("widget {\n meta { owl: 17 }\n source h = http(\"https://x.test/\", {}, retries: 3)\n Text { text: h } }").contains("http takes pin:, and no other"))
+    }
+
+    /** ws(...) listens to a WebSocket server, and send(...) talks back on its connection (owl 17). */
+    @Test fun webSockets() {
+        val pin = "ab".repeat(32)
+        val p =
+            Compiler.compile(
+                "app \"t\" {\n meta { owl: 17 }\n state token = null secret\n state cols = 80\n" +
+                    " source t = ws(token == null ? null : \"wss://pc.lan:8759/stream?viewport=1\", {Authorization: \"Bearer ${'$'}{token}\"}, pin: \"$pin\") json status\n" +
+                    " source h = ws(\"ws://192.168.1.2/harnesses\")\n" +
+                    " when t.open { send(t, {type: \"viewport\", columns: cols, auth: token}) }\n" +
+                    " every 10s { send(h, \"ping\") }\n Text { text: t.out } }",
+            )
+        val t = p.globals[2] as Global.Source
+        assertEquals("ws", t.kind)
+        assertTrue(t.json && t.status && t.headers != null && t.pin != null)
+        assertEquals(setOf("websocket wss://pc.lan:8759/stream?viewport=1", "websocket ws://192.168.1.2/harnesses"), p.commands.toSet())
+        assertFalse(p.needsLinux)
+        // A secret sent on a connection is bound to the server the source connects to, as one in its headers is.
+        assertEquals(mapOf("token" to listOf("wss://pc.lan:8759")), p.secretHosts)
+        val host = TestHost(p)
+        host.slots[0] = Str("tk")
+        p.triggers.forEach { it.action.run(Env.root(host), emptyList()) }
+        assertEquals(listOf("send 2 {type: viewport, columns: 80, auth: tk}", "send 3 ping"), host.actions)
+
+        val w = "widget {\n meta { owl: 17 }\n"
+        compileError(w + " source s = ws(\"https://x.test/\")\n Text { text: s } }").let { assertTrue(it, it.contains("ws:// or wss://")) }
+        compileError(w + " source s = ws(\"wss://x.test/\") every 5s\n Text { text: s } }").let { assertTrue(it, it.contains("no every or timeout")) }
+        compileError(w + " source s = http(\"https://x.test/\")\n Text { text: 1; onTap: send(s, 1) } }").let { assertTrue(it, it.contains("send's first value is a ws(...) source")) }
+        compileError(w + " source s = ws(\"wss://x.test/\")\n Text { text: 1; onTap: send(s) } }").let { assertTrue(it, it.contains("takes a ws(...) source and a message")) }
+        compileError(w + " source s = ws(\"ws://x.test/\", {}, pin: \"$pin\")\n Text { text: s } }").let { assertTrue(it, it.contains("pin: needs an https:// or wss:// URL")) }
+        compileError(w + " source s = ws(\"wss://x.test/\")\n Text { text: send(s, 1) } }").let { assertTrue(it, it.contains("is an action")) }
+        compileError(w + " state k = null secret\n source s = ws(\"ws://x.test/\")\n Text { text: 1; onTap: send(s, {k: k}) } }").let { assertTrue(it, it.contains("only to a wss:// server")) }
+        compileError(w + " state k = null secret\n source s = ws(\"ws://x.test/\", {A: k})\n Text { text: s } }").let { assertTrue(it, it.contains("only to a wss:// server")) }
+        compileError("widget {\n meta { owl: 16 }\n source s = ws(\"wss://x.test/\")\n Text { text: s } }").let { assertTrue(it, it.contains("ws needs owl 17")) }
+    }
+
+    /** `on x each` runs for every message of a ws(...) source, repeats too (owl 17). */
+    @Test fun onEachMessage() {
+        val p =
+            Compiler.compile(
+                "widget {\n meta { owl: 17 }\n state n = 0\n source feed = ws(\"wss://x.test/io\")\n" +
+                    " on feed each { if value == \"2\" { send(feed, \"3\") }; n = n + 1 }\n Text { text: n } }",
+            )
+        val tr = p.triggers.single()
+        assertEquals(1, tr.each)
+        val host = TestHost(p)
+        repeat(2) { tr.action.run(Env.root(host), listOf(Str("2"), Null)) }
+        tr.action.run(Env.root(host), listOf(Str("hello"), Null))
+        assertEquals(listOf("send 1 3", "send 1 3"), host.actions)
+        assertEquals(Num(3.0), host.slots[0])
+        val w = "widget {\n meta { owl: 17 }\n"
+        compileError(w + " source s = http(\"https://x.test/\")\n on s each { }\n Text { text: s } }").let { assertTrue(it, it.contains("every message of a ws(...) source")) }
+        compileError(w + " source s = ws(\"wss://x.test/\")\n on s.type each { }\n Text { text: s } }").let { assertTrue(it, it.contains("every message of a ws(...) source")) }
+        compileError("widget {\n meta { owl: 16 }\n source s = ws(\"wss://x.test/\")\n on s each { }\n Text { text: s } }").let { assertTrue(it, it.contains("needs owl 17")) }
     }
 
     /** A secret only goes into a request's headers and body, or a check that it's set (owl 12). */
@@ -908,6 +994,15 @@ class LangTest {
         assertTrue(compileError("widget {\n meta { owl: 12 }\n source n = android.network\n Text { text: 1 } }").contains("android.network needs owl 13"))
     }
 
+    @Test fun androidPower() {
+        val p = Compiler.compile("widget {\n meta { owl: 15 }\n source p = android.power every 2s\n Text { text: p.current + \" mA \" + p.watts + \" W\" } }")
+        val s = p.globals.first() as Global.Source
+        assertEquals("android.power", s.kind)
+        assertEquals(2.0, s.every, 0.0)
+        assertTrue(!p.needsLinux)
+        assertTrue(compileError("widget {\n meta { owl: 14 }\n source p = android.power every 2s\n Text { text: 1 } }").contains("android.power needs owl 15"))
+    }
+
     @Test fun androidAlarmModesAndPhoneActions() {
         val p = Compiler.compile("widget {\n meta { owl: 7 }\n source a = android.alarm\n source m = android.modes\n Text { text: a.time; onTap: { torch(\"toggle\"); torch(!m.torch); share(\"hi\"); haptic() } } }")
         assertEquals(listOf("android.alarm", "android.modes"), p.globals.map { (it as Global.Source).kind })
@@ -1038,6 +1133,15 @@ class LangTest {
         assertTrue(compileError("widget {\n meta { owl: 13 }\n opacity: 0.9\n Text { text: 1 } }").isNotEmpty())
     }
 
+    @Test fun aPanelCanKeepTheKeyboardDown() {
+        assertTrue(Compiler.compile("panel {\n meta { owl: 11 }\n Text { text: 1 } }").keyboard)
+        assertFalse(Compiler.compile("panel {\n meta { owl: 15 }\n keyboard: false\n Text { text: 1 } }").keyboard)
+        assertTrue(Compiler.compile("panel {\n meta { owl: 15 }\n keyboard: true\n Text { text: 1 } }").keyboard)
+        assertTrue(compileError("panel {\n meta { owl: 14 }\n keyboard: false\n Text { text: 1 } }").contains("needs owl 15"))
+        assertTrue(compileError("panel {\n meta { owl: 15 }\n state k = false\n keyboard: k\n Text { text: 1 } }").contains("keyboard is true or false"))
+        assertTrue(compileError("widget {\n meta { owl: 15 }\n keyboard: false\n Text { text: 1 } }").isNotEmpty())
+    }
+
     @Test fun extraKeysAreAFileOfTheirOwn() {
         val p =
             Compiler.compile(
@@ -1079,6 +1183,46 @@ class LangTest {
             assertTrue(compileError("widget {\n meta { owl: 11 }\n $old }").contains("needs owl 12"))
             Compiler.compile("widget {\n meta { owl: 12 }\n $old }")
         }
+    }
+
+    @Test fun photosPickedPasteIntoTheWindow() {
+        val p = Compiler.compile("keybar {\n meta { owl: 15 }\n Box { onTap: pickImages(); Text { text: 1 } } }")
+        assertEquals(listOf("paste images you pick on Android into the Linux window you're typing in"), p.commands)
+        val host = TestHost(p)
+        (p.screen!!.single() as WNode.Element).handlers["onTap"]!!.run(Env.root(host), listOf(Num(0.0), Num(0.0)))
+        assertEquals(listOf("pickImages "), host.actions)
+        assertTrue(compileError("keybar {\n meta { owl: 14 }\n Box { onTap: pickImages(); Text { text: 1 } } }").contains("needs owl 15"))
+        assertTrue(compileError("keybar {\n meta { owl: 15 }\n Box { onTap: pickImages(\"a\"); Text { text: 1 } } }").isNotEmpty())
+        for (h in listOf("onPress", "onRelease")) {
+            assertTrue(compileError("keybar {\n meta { owl: 15 }\n Box { $h: pickImages(); Text { text: 1 } } }").contains("put it in onTap"))
+        }
+        // A handler inside another node's doesn't carry over: the outer one is onTap again after it.
+        Compiler.compile("keybar {\n meta { owl: 15 }\n Box { onPress: haptic(); onTap: pickImages(); Text { text: 1 } } }")
+    }
+
+    @Test fun speechDictatesIntoASource() {
+        val src = "widget {\n meta { owl: 15 }\n source said = android.speech\n on said.final { if value { typeText(value) } }\n Text { text: said.text; onTap: speech(\"toggle\") } }"
+        val p = Compiler.compile(src)
+        assertEquals("android.speech", (p.globals.single() as Global.Source).kind)
+        assertEquals("listen through the microphone after a tap, and read what you say", p.commands.first())
+        val host = TestHost(p)
+        (p.root.single() as WNode.Element).handlers["onTap"]!!.run(Env.root(host), listOf(Num(0.0), Num(0.0)))
+        assertEquals(listOf("speech toggle"), host.actions)
+        assertTrue(compileError(src.replace("owl: 15", "owl: 14")).contains("needs owl 15"))
+        assertTrue(compileError(src.replace("\"toggle\"", "\"listen\"")).contains("speech takes start, stop, toggle, cancel"))
+        // Nothing comes back from it: what's heard is the source's.
+        assertTrue(compileError(src.replace("text: said.text", "text: speech(\"start\")")).contains("gives nothing back"))
+        assertTrue(compileError("widget {\n meta { owl: 15 }\n Text { text: 1; onTap: speech(\"start\") } }").contains("source said = android.speech"))
+        // Starting may ask for the microphone: from a tap, not a press or a trigger. Stopping from anywhere.
+        for (h in listOf("onPress", "onRelease")) assertTrue(compileError(src.replace("onTap", h)).contains("start it in onTap"))
+        Compiler.compile(src.replace("onTap: speech(\"toggle\")", "onTap: speech(\"start\"); onRelease: speech(\"stop\")"))
+        assertTrue(compileError(src.replace("typeText(value)", "speech(\"start\")")).contains("not in a trigger"))
+        Compiler.compile(src.replace("typeText(value)", "speech(\"stop\")"))
+        // Only on said.final may type what was heard: not said.text, though it ends with the same words.
+        assertTrue(p.triggers.single().dictation)
+        assertFalse(Compiler.compile(src.replace("on said.final", "on said.text")).triggers.single().dictation)
+        val other = "widget {\n meta { owl: 15 }\n source said = android.speech\n state final = \"\"\n on final { typeText(value) }\n Text { text: said.text; onTap: speech(\"toggle\") } }"
+        assertFalse(Compiler.compile(other).triggers.single().dictation)
     }
 
     @Test fun keyNamesAndCombos() {
@@ -1141,8 +1285,22 @@ class LangTest {
     @Test fun appsWithoutAStatusBarStepAroundTheCamera() {
         Compiler.compile("app {\n meta { owl: 12 }\n statusBar: false\n Column { padding: [12, screenTop, 12, 0]\n Text { text: 1 } } }")
         assertTrue(compileError("app {\n meta { owl: 11 }\n statusBar: false\n Spacer { height: screenTop } }").contains("needs owl 12"))
-        assertTrue(compileError("face {\n meta { owl: 12 }\n Spacer { height: screenTop } }").contains("screenTop is for apps"))
         assertTrue(compileError("widget {\n meta { owl: 12 }\n Text { text: 1 }\n screen { Text { text: screenTop } } }").contains("screenTop is for apps"))
+    }
+
+    @Test fun edgeFacesDrawUnderTheStatusBar() {
+        val face = Compiler.compile("face {\n meta { owl: 14 }\n edge: true\n Column { padding: [12, screenTop, 12, 0]\n Text { text: 1 } } }")
+        assertTrue(face.edge)
+        assertFalse(Compiler.compile("face {\n meta { owl: 13 }\n Text { text: 1 } }").edge)
+        assertTrue(compileError("face {\n meta { owl: 13 }\n edge: true\n Text { text: 1 } }").contains("needs owl 14"))
+        assertTrue(compileError("face {\n meta { owl: 14 }\n state e = true\n edge: e\n Text { text: 1 } }").contains("edge is true or false"))
+        assertTrue(compileError("face {\n meta { owl: 14 }\n Text { text: 1 }\n screen { Text { text: screenTop } } }").contains("screenTop is for apps"))
+        Compiler.compile("face {\n meta { owl: 14 }\n edge: true\n Column { padding: [screenLeft, 0, screenRight, 0]\n Text { text: 1 } } }")
+        // Without edge a face starts below the status bar and beside a cutout, so there's nothing for them to measure.
+        assertTrue(compileError("face {\n meta { owl: 14 }\n Spacer { width: screenLeft } }").contains("screenLeft is for faces with edge"))
+        assertTrue(compileError("face {\n meta { owl: 14 }\n Spacer { height: screenTop } }").contains("screenTop is for apps"))
+        assertTrue(compileError("face {\n meta { owl: 14 }\n edge: false\n Spacer { height: screenTop } }").contains("screenTop is for apps"))
+        assertTrue(compileError("app {\n meta { owl: 14 }\n Spacer { width: screenRight } }").contains("screenRight is for faces"))
     }
 
     @Test fun longPressIsForPagesAppsAndScreens() {
@@ -1326,6 +1484,25 @@ class LangTest {
         compileError("widget {\n meta { owl: 13 }\n Box { drag: vertical } }").let { assertTrue(it, it.contains("add onDrag")) }
         compileError("widget {\n meta { owl: 13 }\n state v = 0\n Box { onDragEnd: v = vx } }").let { assertTrue(it, it.contains("onDragEnd runs when an onDrag drag ends")) }
         compileError("widget {\n meta { owl: 13 }\n component C() { Box { } }\n C { drag: horizontal } }").let { assertTrue(it, it.contains("drag goes on the node inside C")) }
+    }
+
+    /** onPull runs when a list that scrolls is pulled down past its top (owl 17). */
+    @Test fun pullToRefresh() {
+        Compiler.compile("widget {\n meta { owl: 17 }\n Column { scroll: true; onPull: refresh(); Text { text: 1 } } }")
+        Compiler.compile("widget {\n meta { owl: 17 }\n Column { lazy: true; onPull: refresh(); Text { text: 1 } } }")
+        Compiler.compile("widget {\n meta { owl: 17 }\n Grid { lazy: true; onPull: refresh(); Text { text: 1 } } }")
+        compileError("widget {\n meta { owl: 16 }\n Column { scroll: true; onPull: refresh() } }").let { assertTrue(it, it.contains("onPull needs owl 17")) }
+        compileError("widget {\n meta { owl: 17 }\n Column { onPull: refresh() } }").let { assertTrue(it, it.contains("add scroll: true or lazy: true")) }
+        compileError("widget {\n meta { owl: 17 }\n Grid { onPull: refresh() } }").let { assertTrue(it, it.contains("add lazy: true")) }
+        compileError("widget {\n meta { owl: 17 }\n Box { onPull: refresh() } }").let { assertTrue(it, it.contains("onPull only works on Column and Grid")) }
+    }
+
+    /** ripple: false turns off the press shown on a node that takes taps (owl 14). */
+    @Test fun rippleOff() {
+        Compiler.compile("widget {\n meta { owl: 14 }\n state n = 0\n Box { ripple: false; onTap: n = n + 1 } }")
+        compileError("widget {\n meta { owl: 13 }\n state n = 0\n Box { ripple: false; onTap: n = n + 1 } }").let { assertTrue(it, it.contains("ripple needs owl 14")) }
+        compileError("widget {\n meta { owl: 14 }\n Box { ripple: false } }").let { assertTrue(it, it.contains("add onTap")) }
+        compileError("widget {\n meta { owl: 14 }\n component C() { Box { } }\n C { ripple: false } }").let { assertTrue(it, it.contains("ripple goes on the node inside C")) }
     }
 
     /** The SIM, Do Not Disturb switched, notifications snoozed, and offsets that ease back (owl 13). */
@@ -1810,5 +1987,44 @@ class LangTest {
         val slider = (p.root.single() as WNode.Element).children.first() as WNode.Element
         slider.handlers["onChange"]!!.run(Env.root(host), listOf(Num(70.0)))
         assertEquals(Num(70.0), host.slots[0])
+    }
+
+    /** A widget with strings, compiled for [language], showing [expr]. */
+    private fun texts(
+        expr: String,
+        language: String,
+        decls: String = "",
+    ): String {
+        val src = "widget \"t\" {\n meta { owl: 16 }\n strings {\n  en { feels: \"feels\"; today: \"today\"; items: n => n == 1 ? \"1 item\" : \"${'$'}{n} items\" }\n  id { feels: \"terasa\"; items: n => \"${'$'}{n} item\" }\n }\n$decls\nText { text: $expr }\n}"
+        val p = Compiler.compile(src, language)
+        return ((p.root.single() as WNode.Element).props["text"]!!(Env.root(TestHost(p)))).toString()
+    }
+
+    @Test fun stringsPickThePhonesLanguageAndFallBackToEnglish() {
+        assertEquals("terasa", texts("str.feels", "id"))
+        assertEquals("feels", texts("str.feels", "en"))
+        assertEquals("feels", texts("str.feels", "de"))
+        // id has no today: en's shows.
+        assertEquals("today", texts("str.today", "id"))
+        assertEquals("1 item", texts("str.items(1)", "en"))
+        assertEquals("3 items", texts("str.items(n)", "en", "state n = 3"))
+        assertEquals("3 item", texts("str.items(n)", "id", "state n = 3"))
+        assertEquals("id", texts("lang()", "id"))
+        // A built-in on the whole map, for a text picked by a value.
+        assertEquals("terasa", texts("get(str, k)", "id", "state k = \"feels\""))
+    }
+
+    @Test fun stringsCatchWhatDoesntMatchEnglish() {
+        fun error(strings: String, use: String = "str.a") = compileError("widget \"t\" {\n meta { owl: 16 }\n strings { $strings }\n Text { text: $use }\n}")
+        assertTrue(error("en { a: \"a\" }", "str.b").contains("strings has no b"))
+        assertTrue(error("id { a: \"a\" }").contains("strings needs en { }"))
+        assertTrue(error("en { a: \"a\" } id { a: \"a\"; b: \"b\" }").contains("id has b, which en doesn't"))
+        assertTrue(error("en { a: n => \"${'$'}{n}\" }").contains("str.a takes 1 value"))
+        assertTrue(error("en { a: \"a\" }", "str.a(1)").contains("str.a is text"))
+        assertTrue(error("en { a: n => \"${'$'}{n}\" } id { a: \"a\" }").contains("a takes 1 value in en, so it does in id too"))
+        assertTrue(error("EN { a: \"a\" }").contains("its code in lowercase"))
+        assertTrue(compileError("widget \"t\" {\n strings { en { a: \"a\" } }\n Text { text: str.a }\n}").contains("owl 16"))
+        val warned = Compiler.compile("widget \"t\" {\n meta { owl: 16 }\n strings { en { a: \"a\"; b: \"b\" } id { a: \"x\" } }\n Text { text: str.a }\n}", "en").warnings
+        assertEquals(listOf("3:2: id has no b, so those show in English"), warned)
     }
 }

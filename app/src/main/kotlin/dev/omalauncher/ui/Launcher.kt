@@ -60,6 +60,9 @@ import dev.omalauncher.widgets.editWidgetCommand
 import dev.omalauncher.widgets.publishWidgetCommand
 import dev.omalauncher.widgets.reviewSharedWidgetCommand
 import dev.omalauncher.widgets.render.Backdrop
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import dev.omalauncher.R
 import dev.omalauncher.widgets.render.LocalBackdrop
 import dev.omalauncher.widgets.render.LocalHomeCovered
 import dev.omalauncher.widgets.render.LocalInputFocus
@@ -212,7 +215,9 @@ private fun DesktopScreen(
     val side = homeSide()
     if (side != null && !panelShown) {
         if (!runtime.terminals.typing) {
-            SideRail(runtime, state, handlers, side, Modifier.fillMaxSize().graphicsLayer { translationX = state.barShift() * size.width }.safePadding())
+            CompositionLocalProvider(LocalBackdrop provides backdrop) {
+                SideRail(runtime, state, handlers, side, Modifier.fillMaxSize().graphicsLayer { translationX = state.barShift() * size.width }.safePadding())
+            }
         }
     } else {
         Column(
@@ -240,14 +245,17 @@ private fun DesktopScreen(
             // out past a face; swiping up there opens the drawer, which brings them back.
             if (!runtime.terminals.typing || runtime.terminals.keyboardLeaving) {
                 Column(Modifier.graphicsLayer { if (!panelShown) translationX = state.barShift() * size.width }) {
-                    // Home only: the open app list has everything.
-                    // Swiping up from either does what it does on home, as from the dock on stock launchers.
-                    // Keys go between it and home's tiles both ways, which Compose's search doesn't find (see PromptBar).
-                    if (LauncherStyle.recentApps && !panelShown) {
-                        RecentStrip(runtime, handlers, Modifier.homeSwipe(runtime, state).focusRequester(state.stripEntry).focusGroup(), home = state.homeEntry)
+                    // They frost over the wallpaper as home's tiles do, over the open drawer too.
+                    CompositionLocalProvider(LocalBackdrop provides backdrop) {
+                        // Home only: the open app list has everything.
+                        // Swiping up from either does what it does on home, as from the dock on stock launchers.
+                        // Keys go between it and home's tiles both ways, which Compose's search doesn't find (see PromptBar).
+                        if (LauncherStyle.recentApps && !panelShown) {
+                            RecentStrip(runtime, handlers, Modifier.homeSwipe(runtime, state).focusRequester(state.stripEntry).focusGroup(), home = state.homeEntry)
+                        }
+                        // Insets itself by the grid gap, so it lines up with the tiles and the gap still takes taps.
+                        PromptBar(runtime, state, modifier = Modifier.homeSwipe(runtime, state))
                     }
-                    // Insets itself by the grid gap, so it lines up with the tiles and the gap still takes taps.
-                    PromptBar(runtime, state, modifier = Modifier.homeSwipe(runtime, state))
                 }
             }
         }
@@ -279,10 +287,13 @@ private fun FileErrors(files: List<Pair<String, List<String>>>) {
                         .clickable { hidden = hidden + errors.map { "$name: $it" } }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
-                    BasicText("$name: ${if (errors.size == 1) "1 problem" else "${errors.size} problems"}", style = Mono.copy(color = Palette.red))
+                    BasicText(pluralStringResource(R.plurals.home_file_problems, errors.size, name, errors.size), style = Mono.copy(color = Palette.red))
                     for (line in errors.take(MAX_ERRORS)) BasicText(line, style = Mono.copy(fontSize = TextSize.Small))
-                    val more = if (errors.size > MAX_ERRORS) "${errors.size - MAX_ERRORS} more in errors.txt · " else ""
-                    BasicText("${more}tap to hide", style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
+                    val more = errors.size - MAX_ERRORS
+                    BasicText(
+                        if (more > 0) pluralStringResource(R.plurals.home_file_problems_more, more, more) else stringResource(R.string.home_file_problems_hide),
+                        style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small),
+                    )
                 }
             }
         }
