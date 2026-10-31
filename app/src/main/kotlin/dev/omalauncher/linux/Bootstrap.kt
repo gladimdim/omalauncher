@@ -35,6 +35,13 @@ private const val TAG = "bootstrap"
 private const val ROOTFS_URL = "http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
 private const val TARBALL = "ArchLinuxARM-aarch64-latest.tar.gz"
 
+/**
+ * Whether this device can run the rootfs above, which is aarch64 only. The APK also ships armeabi-v7a for 32-bit
+ * Android TVs and boxes (abilist64 empty, zygote32): the launcher runs there, Linux doesn't, so it isn't offered.
+ */
+val linuxSupported: Boolean
+    get() = android.os.Build.SUPPORTED_64_BIT_ABIS.orEmpty().contains("arm64-v8a")
+
 /** Attempts per network step before setup (or an update) reports a failure. */
 private const val NETWORK_TRIES = 3
 
@@ -285,6 +292,8 @@ class Bootstrap(
 
     /** Starts installing Linux with [picked] coding agents; see [run]. */
     suspend fun install(picked: List<Agent>) {
+        // The screens don't offer it; this keeps a 32-bit device from downloading a rootfs it can't run.
+        if (!linuxSupported) return
         choose(picked)
         run()
     }

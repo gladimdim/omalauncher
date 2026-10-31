@@ -23,7 +23,9 @@ android {
         targetSdk = 37
         versionCode = 27
         versionName = "0.16.0"
-        ndk { abiFilters += "arm64-v8a" }
+        // armeabi-v7a is for 32-bit Android TVs and boxes: the launcher only, without proot (jniLibs/arm64-v8a), since
+        // the Arch rootfs is aarch64 and Linux isn't offered there (linux/Bootstrap.kt, linuxSupported).
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     buildFeatures { buildConfig = true }
@@ -102,8 +104,8 @@ dependencies {
 androidComponents {
     onVariants { variant ->
         variant.outputs.forEach {
-            it.versionName.set("1.7.0")
-            it.versionCode.set(109)
+            it.versionName.set("1.8.0")
+            it.versionCode.set(110)
         }
     }
 }

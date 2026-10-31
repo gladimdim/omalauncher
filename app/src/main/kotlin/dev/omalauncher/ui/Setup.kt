@@ -55,6 +55,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.LinuxState
 import dev.omalauncher.linux.Stage
+import dev.omalauncher.linux.linuxSupported
 import dev.omalauncher.theme.BundledTheme
 import dev.omalauncher.theme.ThemeStore
 import kotlinx.coroutines.delay
@@ -162,6 +163,8 @@ private fun Welcome(
         // A key moving along the strip picks as it goes, as a tap does.
         ThemeStrip(themes, pickOnFocus = true, pickedFocus = pickedFocus)
     }
+    // A 32-bit device can't run Linux (see linuxSupported): no offer, and start stays launcher-only.
+    if (!linuxSupported) return
     Spacer(Modifier.height(32.dp))
     Appear(2) {
         Column {

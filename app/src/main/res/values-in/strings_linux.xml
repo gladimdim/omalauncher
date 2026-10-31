@@ -95,6 +95,7 @@
     <string name="linux_removing">menghapus linux…</string>
     <string name="linux_offer_title">arch linux, opsional</string>
     <string name="linux_offer_body">Aplikasi Linux, widget terminal, agen coding, pacman, dan File. Unduhan sekitar 1 GB dan ruang 3 GB; diinstal di latar belakang.</string>
+    <string name="linux_unsupported">Linux memerlukan perangkat Android 64-bit, sedangkan perangkat ini hanya menjalankan aplikasi 32-bit. Semua fitur launcher lainnya tetap berfungsi.</string>
     <string name="linux_install">instal linux</string>
     <plurals name="linux_install_with_agents">
         <item quantity="other">instal linux dan %d agen</item>

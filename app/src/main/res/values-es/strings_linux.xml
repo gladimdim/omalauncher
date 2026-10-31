@@ -97,6 +97,7 @@
     <string name="linux_removing">eliminando linux…</string>
     <string name="linux_offer_title">arch linux, opcional</string>
     <string name="linux_offer_body">Apps de Linux, widgets de terminal, agentes de programación, pacman y Archivos. Alrededor de 1 GB de descarga y 3 GB de espacio; se instala en segundo plano.</string>
+    <string name="linux_unsupported">Linux necesita un dispositivo Android de 64 bits, y este solo ejecuta apps de 32 bits. Todo lo demás del launcher funciona.</string>
     <string name="linux_install">instalar linux</string>
     <plurals name="linux_install_with_agents">
         <item quantity="one">instalar linux y %d agente</item>

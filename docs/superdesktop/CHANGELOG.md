@@ -1,5 +1,21 @@
 # SD Launcher changelog
 
+## 1.8.0 (110)
+
+Built on **Omalauncher 0.16.0**, as 1.7.0. No SUPER DESKTOP changes; the
+bridge is unchanged, so it works with the same desktop versions as 1.7.0.
+
+### Devices
+- **32-bit Android TVs and boxes**: SD Launcher now installs on devices that
+  run 32-bit apps only (armeabi-v7a), such as many Google TV and Android TV
+  sets, which refused the APK before (`INSTALL_FAILED_NO_MATCHING_ABIS`).
+  Themes, wallpapers, Android apps, widgets that don't run commands and the
+  SUPER DESKTOP pages and widgets all work there. Linux needs a 64-bit device,
+  so on these the welcome screen doesn't offer it and the Linux screen says
+  so instead of starting a download that couldn't run. 64-bit phones and TVs
+  are unchanged. Thanks to @ghpo for the report and the armv7 build (#7 on
+  super-desktop).
+
 ## 1.7.0 (109)
 
 Built on **Omalauncher 0.16.0** (was 0.12.2). No SUPER DESKTOP changes; the

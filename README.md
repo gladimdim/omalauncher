@@ -52,8 +52,9 @@ window opens as its own Android task, with its own card in Recents.
   Copilot, opencode and others, which open in a terminal
 - No account, no ads, no tracking
 
-Needs an arm64 phone with Android 10 or newer. Without Linux, the launcher still
-has the themes, wallpapers, Android apps and the widgets that don't run commands.
+Needs Android 10 or newer. Linux needs a 64-bit arm64 device; on 32-bit Android TVs
+and boxes, and anywhere without Linux, the launcher still has the themes, wallpapers,
+Android apps and the widgets that don't run commands.
 
 ## Using it
 

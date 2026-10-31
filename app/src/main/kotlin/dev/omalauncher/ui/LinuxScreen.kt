@@ -37,6 +37,7 @@ import dev.omalauncher.R
 import dev.omalauncher.linux.AGENTS
 import dev.omalauncher.linux.JobState
 import dev.omalauncher.linux.LinuxState
+import dev.omalauncher.linux.linuxSupported
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -102,6 +103,10 @@ private fun InstallOffer(runtime: Runtime) {
         style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small),
     )
     Spacer(Modifier.height(16.dp))
+    if (!linuxSupported) {
+        BasicText(stringResource(R.string.linux_unsupported), style = Mono.copy(color = Palette.accent, fontSize = TextSize.Small))
+        return
+    }
     // Above the agent list, so it's in reach without scrolling.
     PrimaryButton(if (picked.isEmpty()) stringResource(R.string.linux_install) else pluralStringResource(R.plurals.linux_install_with_agents, picked.size, picked.size), Modifier.takesPassedKeys().passesKeys()) {
         install(picked)
