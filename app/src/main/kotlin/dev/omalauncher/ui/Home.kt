@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeoutOrNull
+import dev.gladimdim.tiling.Tiling
 import dev.omalauncher.widgets.FACE_PAGE
 import dev.omalauncher.widgets.isFacePage
 import dev.omalauncher.widgets.lang.OwlKind
@@ -296,8 +297,14 @@ fun HomeScreen(
         onDispose { state.onHomeAgain = {} }
     }
     LaunchedEffect(state.requestedPage) {
-        state.requestedPage?.let { slotOf(it).takeIf { i -> i >= 0 }?.let { i -> pager.animateScrollToPage(i) } }
+        // Fork: with the tiling desktop on, a page comes with its workspace's windows, at once as they do.
+        state.requestedPage?.let { slotOf(it).takeIf { i -> i >= 0 }?.let { i -> if (Tiling.active) pager.scrollToPage(i) else pager.animateScrollToPage(i) } }
         state.requestedPage = null
+    }
+    // Fork: a page turned to brings the workspace of its number, as a workspace brings its page (TilingHook.kt): one
+    // set of spaces, whether by a swipe or by Super+number.
+    LaunchedEffect(pager) {
+        snapshotFlow { currentSlots.getOrNull(pager.currentPage)?.firstOrNull() }.collect { page -> if (page != null) Tiling.pageShown(page) }
     }
 
     fun openMenu(item: HomeItem?) {

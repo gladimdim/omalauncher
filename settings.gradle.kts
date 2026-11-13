@@ -30,3 +30,4 @@ dependencyResolutionManagement {
 include(":app")
 include(":owl")
 include(":superdesktop")
+include(":tiling")

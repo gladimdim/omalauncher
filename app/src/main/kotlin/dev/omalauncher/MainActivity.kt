@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.derivedStateOf
 import android.util.Log
 import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.lifecycleScope
@@ -38,6 +39,9 @@ import dev.omalauncher.ui.applySystemBars
 import dev.omalauncher.ui.showStatusBar
 import dev.omalauncher.ui.LauncherRoot
 import dev.omalauncher.ui.LauncherState
+import dev.omalauncher.ui.HardwareTyping
+import dev.omalauncher.ui.attachTiling
+import dev.gladimdim.tiling.Tiling
 import dev.omalauncher.ui.PromptRequest
 import dev.omalauncher.widgets.market.Share
 
@@ -66,13 +70,17 @@ class MainActivity : ComponentActivity() {
         runtime.start()
         state.onSettings = { page, homePage -> runtime.openSettings(page, homePage) }
         setContent {
-            KeyIndicated { LauncherRoot(runtime, state) }
+            // Fork: under the tiling desktop home's text fields take the hardware keyboard alone.
+            HardwareTyping { KeyIndicated { LauncherRoot(runtime, state) } }
             SystemBarsEffect(this@MainActivity)
             // A face whose statusBar is false takes the status bar's room too.
             val fullScreen by remember { derivedStateOf { state.fullScreen && runtime.widgets.openScreen == null } }
-            val statusBar = LauncherStyle.style[Style.STATUS_BAR_SHOWN] && !fullScreen
+            // Fork: the tiling desktop has a bar of its own.
+            val statusBar = LauncherStyle.style[Style.STATUS_BAR_SHOWN] && !fullScreen && !Tiling.active
             LaunchedEffect(statusBar) { showStatusBar(this@MainActivity, statusBar) }
         }
+        // Fork: the tiling desktop, over home while a keyboard is connected.
+        attachTiling(this, runtime, state)
         handleDebugExec(intent)
         handleSharedWidget(intent)
         // Asked on arriving at the home screen, not over the welcome screen of a fresh install,
@@ -123,6 +131,11 @@ class MainActivity : ComponentActivity() {
                 ?: data?.takeIf { it.host == Share.HOST && it.path.orEmpty().startsWith(Share.PATH) }?.toString()
                 ?: return
         state.shared = link
+    }
+
+    override fun onDestroy() {
+        Tiling.detach(this)
+        super.onDestroy()
     }
 
     override fun onResume() {
@@ -181,6 +194,17 @@ class MainActivity : ComponentActivity() {
         handleSharedWidget(intent)
     }
 
+    /** Fork: three fingers swiped sideways switch the tiling desktop's workspace, wherever on the window they are. */
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        val taken =
+            Tiling.touch(event) {
+                val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                super.dispatchTouchEvent(cancel)
+                cancel.recycle()
+            }
+        return taken || super.dispatchTouchEvent(event)
+    }
+
     // Lint flags super.dispatchKeyEvent: ComponentActivity marks its override @RestrictTo, but Activity's is public API.
     /**
      * Launcher shortcuts (Super+key), then typing into a terminal tile that has the keyboard. Back stays the launcher's,
@@ -188,6 +212,8 @@ class MainActivity : ComponentActivity() {
      */
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Fork: the tiling desktop's shortcuts, and typing for its focused window, before home's own.
+        if (Tiling.key(event, fromLauncher = true)) return true
         if (event.action == KeyEvent.ACTION_DOWN) keyPressed(window.decorView)
         if (event.isMetaPressed && event.action == KeyEvent.ACTION_DOWN && shortcut(event.keyCode)) return true
         if (event.keyCode != KeyEvent.KEYCODE_BACK && runtime.terminals.active != null && runtime.keyboard.handle(event)) return true

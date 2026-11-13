@@ -22,6 +22,48 @@ the existing live connections while the widget is visible; no Linux install on
 the phone, new permission or bridge update is needed. Long-press the widget to
 move or resize it.
 
+### Tiling desktop (experimental)
+
+With a hardware keyboard connected, SD Launcher can turn into a tiling desktop
+in the manner of Hyprland on Omarchy: Android apps open as tiled windows on
+five workspaces, under a bar with the workspaces, the clock, notifications,
+Bluetooth, Wi-Fi and the battery. Home's widgets stay under the windows, and
+workspace N shows home's page N. It needs Android 13 or newer and has been
+tried on a Xiaomi Pad 7 Pro (HyperOS 3) only.
+
+It stays off until it is set up:
+
+1. Start the helper from a computer, with the tablet connected over adb. Again
+   after every reboot and every update of the app. From this repository that is
+   `scripts/tiling-helper.sh`; without it:
+
+   ```sh
+   adb shell 'CLASSPATH=$(pm path com.gladimdim.sdlauncher | head -1 | cut -d: -f2) setsid app_process /system/bin dev.gladimdim.tiling.helper.HelperMain com.gladimdim.sdlauncher >/dev/null 2>&1 </dev/null &'
+   ```
+
+   The helper runs as adb's shell user, which may put apps on displays of their
+   own and send them input; the launcher draws those displays as its windows.
+2. Turn on **Tiling desktop shortcuts** in Android's Accessibility settings (an
+   APK installed from a file first needs "Allow restricted settings" in the
+   app's info). It only looks at Super shortcuts from a hardware keyboard.
+
+| Keys | |
+|---|---|
+| Super+Space | open an app (type, arrows, Enter) |
+| Super+1…5 | switch workspace |
+| Super+Shift+1…5 | move the window to that workspace |
+| Super+Alt+arrows | focus the window that way |
+| Super+Shift+arrows | swap windows |
+| Super+F | full screen |
+| Super+W | close the window |
+| Super+Shift+D | leave the desktop, or come back |
+
+A click on a workspace number switches to it, a right click on the bar moves it
+to the next screen edge, `?` on the bar lists the shortcuts, and three fingers
+swiped sideways switch workspace. Apps in windows get no on-screen keyboard.
+HyperOS keeps Super with a bare arrow (split screen), Super+Tab, Super+L and
+Super+Enter for itself.
+
 The upstream Omalauncher overview follows.
 
 An Android home screen with the look of [Omarchy](https://omarchy.org), and an

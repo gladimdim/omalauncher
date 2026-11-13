@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- The bar's Wi-Fi icon. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Brings the launcher's own task back in front for the app menu. -->
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
+
+    <application>
+        <!-- Where the helper process hands itself to the launcher. Exported for it; only the shell user is let in. -->
+        <provider
+            android:name="dev.gladimdim.tiling.HelperProvider"
+            android:authorities="${applicationId}.tiling-helper"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
+        <!-- Super shortcuts while an app in a tile has the keyboard. Turned on by the user in Accessibility settings. -->
+        <service
+            android:name="dev.gladimdim.tiling.TilingKeyService"
+            android:exported="true"
+            android:label="@string/tiling_keys_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/tiling_keys" />
+        </service>
+    </application>
+</manifest>

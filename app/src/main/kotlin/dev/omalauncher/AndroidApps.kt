@@ -301,6 +301,9 @@ class AndroidAppCatalog(
      */
     fun open(app: AndroidApp) = open(app.component, app.user)
 
+    /** Fork: takes over opening an app of this profile (ui/TilingHook.kt); true when it did. */
+    var opensInstead: ((ComponentName) -> Boolean)? = null
+
     /** Opens a pinned app; [profile] as in [AndroidApp.profile]. */
     fun open(
         component: ComponentName,
@@ -320,6 +323,8 @@ class AndroidAppCatalog(
     ) {
         if (resume(user)) return
         // Uninstalled or disabled since the list was loaded.
+        // Fork: the tiling desktop opens the app as one of its windows instead.
+        if (user == Process.myUserHandle() && opensInstead?.invoke(component) == true) return
         runCatching {
             if (user == Process.myUserHandle()) {
                 // As Launcher3 does for its own profile; only an intent can ask for no open-an-app animation.

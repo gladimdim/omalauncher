@@ -115,6 +115,7 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(project(":owl"))
     implementation(project(":superdesktop"))
+    implementation(project(":tiling"))
     testImplementation(libs.junit)
     // android.jar only has stubs of org.json.
     testImplementation(libs.org.json)

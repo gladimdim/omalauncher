@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tiling_keys_label">Tiling desktop shortcuts</string>
+    <string name="tiling_keys_summary">Super shortcuts for the tiling desktop</string>
+    <string name="tiling_keys_description">Lets the tiling desktop see Super key shortcuts (workspaces, focus, close) while an app has the keyboard. It only looks at shortcut keys from a hardware keyboard and reads nothing on screen.</string>
+</resources>
