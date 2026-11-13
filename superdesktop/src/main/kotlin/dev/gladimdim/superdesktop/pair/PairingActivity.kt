@@ -3,10 +3,13 @@ package dev.gladimdim.superdesktop.pair
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +38,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.gladimdim.superdesktop.LocalNetworkAsk
 import dev.gladimdim.superdesktop.SdStore
 import dev.gladimdim.superdesktop.SdTheme
 import dev.gladimdim.superdesktop.bridge.Bridge
@@ -57,6 +61,10 @@ import kotlinx.coroutines.withContext
  * the owner approves there.
  */
 class PairingActivity : ComponentActivity() {
+    private companion object {
+        const val NEEDS_LOCAL_NETWORK = "SD Launcher needs \"Nearby devices\" (local network access) to reach a computer on your Wi-Fi."
+    }
+
     private sealed interface Step {
         data class Enter(
             val text: String,
@@ -84,10 +92,32 @@ class PairingActivity : ComponentActivity() {
             result.contents?.let { pair(it) }
         }
 
+    /** Pairing text waiting for the local network answer: without it Android 17 drops the connection to the PC. */
+    private var waiting: String? = null
+
+    private val localNetwork =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            val text = waiting
+            waiting = null
+            if (granted) {
+                text?.let { pair(it) }
+            } else {
+                // After two refusals Android answers no without asking; the switch is then in the app's own settings.
+                if (shouldShowRequestPermissionRationale(LocalNetworkAsk.PERMISSION)) {
+                    step = Step.Enter(text.orEmpty(), NEEDS_LOCAL_NETWORK)
+                } else {
+                    step = Step.Enter(text.orEmpty(), "$NEEDS_LOCAL_NETWORK Turn it on in the settings that just opened.")
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+                }
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         take(intent)
+        // Ask before the first scan, so the pairing that follows isn't a silent timeout.
+        if (LocalNetworkAsk.missing(this)) localNetwork.launch(LocalNetworkAsk.PERMISSION)
         setContent { Screen() }
     }
 
@@ -113,6 +143,11 @@ class PairingActivity : ComponentActivity() {
     }
 
     private fun pair(text: String) {
+        if (LocalNetworkAsk.missing(this)) {
+            waiting = text
+            localNetwork.launch(LocalNetworkAsk.PERMISSION)
+            return
+        }
         val invitation =
             try {
                 Invitation.parse(text)
@@ -146,7 +181,8 @@ class PairingActivity : ComponentActivity() {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    step = Step.Enter(text, e.message ?: "Pairing failed")
+                    val hint = if (LocalNetworkAsk.missing(applicationContext)) " $NEEDS_LOCAL_NETWORK" else ""
+                    step = Step.Enter(text, (e.message ?: "Pairing failed") + hint)
                 }
             }
     }
