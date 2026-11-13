@@ -3,6 +3,7 @@ package dev.omalauncher.widgets.runtime
 import android.graphics.Bitmap
 import android.util.Log
 import dev.omalauncher.upgrade.writeAtomically
+import dev.omalauncher.widgets.lang.MAX_FPS
 import dev.omalauncher.widgets.lang.PersistedValues
 import dev.omalauncher.widgets.lang.TriggerKind
 import kotlinx.coroutines.channels.Channel
@@ -27,6 +28,7 @@ import dev.omalauncher.linux.ShellResult
 import dev.omalauncher.theme.Setting
 import dev.omalauncher.theme.Style
 import dev.omalauncher.ui.EmbeddedTerminal
+import dev.omalauncher.ui.EmbeddedBrowser
 import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.widgets.HTTP_TOO_BIG
@@ -46,6 +48,7 @@ import dev.omalauncher.widgets.lang.Obj
 import dev.omalauncher.widgets.lang.TRUE
 import dev.omalauncher.widgets.lang.FALSE
 import dev.omalauncher.widgets.lang.Program
+import dev.omalauncher.widgets.lang.ASKS
 import dev.omalauncher.widgets.lang.SPEECH_ANYWHERE
 import dev.omalauncher.widgets.lang.Sprite
 import dev.omalauncher.widgets.lang.Str
@@ -198,6 +201,13 @@ interface Services {
         command: String?,
         fontSize: Double?,
     ): EmbeddedTerminal
+
+    /** A page for a `Browser` node, not shown yet; [url] null shows nothing. */
+    fun browser(
+        url: String?,
+        js: Boolean,
+        zoom: Double,
+    ): EmbeddedBrowser
 }
 
 /**
@@ -273,7 +283,7 @@ class WidgetInstance(
                 when (g) {
                     is Global.Let -> derivedStateOf(structuralEqualityPolicy()) { eval(g.value, root, g.name) }
                     is Global.Sampled -> mutableStateOf(if (g.prev) Null else Lst(emptyList()), structuralEqualityPolicy())
-                    is Global.Asset -> mutableStateOf(Str("asset:${g.name}"))
+                    is Global.Asset -> mutableStateOf(g.value)
                     else -> mutableStateOf(Null, structuralEqualityPolicy())
                 }
         }
@@ -496,6 +506,8 @@ class WidgetInstance(
             // The first frame after parking doesn't go back before a time a read already got.
             frameTime.doubleValue = if (parkedStart == RUNNING) v else maxOf(v, parkedTime)
             parkedStart = RUNNING
+            ticked = true
+            tickNanos = 0
         }
 
     override fun runInto(
@@ -559,16 +571,29 @@ class WidgetInstance(
             args.firstOrNull().textOrNull()?.let { sound(it) }
             return
         }
+        if (name == "web") {
+            // Every Browser tile the widget has: the word comes from a tap or a trigger, which names no node.
+            if (browsers.isEmpty()) return report("web(...) needs a Browser tile in this widget")
+            when (args.firstOrNull()?.toString()) {
+                "back" -> browsers.values.forEach { it.back() }
+                "forward" -> browsers.values.forEach { it.forward() }
+                "reload" -> browsers.values.forEach { it.reload() }
+                "stop" -> browsers.values.forEach { it.stop() }
+            }
+            return
+        }
         // An agent or an app opening on its own, from a timer or a fetched value, over whatever the user is doing: like
         // sound(...), a trigger does it only while the app or screen is open.
-        if ((name == "ask" || name == "open") && inTrigger && !foreground()) return report("$name(...) in a trigger works only while the app or screen is open")
+        val key = args.firstOrNull().textOrNull()
+        if ((name == "ask" || name == "open" || (name == "calendar" && key == "open")) && inTrigger && !foreground()) return report("$name(...) in a trigger works only while the app or screen is open")
         // Keys go to whatever window has the keyboard: only from a touch, never on a timer or a fetched value. Or from
         // what the user just said, to this widget's dictation a tap started: on said.final { typeText(value) }.
         if ((name == "pressKey" || name == "typeText" || name == "latch") && inTrigger && !byDictation) {
             return report("$name(...) works in handlers like onPress, or in on said.final for what android.speech heard, not in another trigger")
         }
         if (name == "pickImages" && inTrigger) return report("pickImages() works in onTap, not in a trigger")
-        val key = args.firstOrNull().textOrNull()
+        // A permission dialog, like the microphone's, only for a touch.
+        if (name in ASKS && key == "request" && inTrigger) return report("$name(\"request\") works in onTap, not in a trigger")
         // The microphone, like the keys, only from a touch; stopping it from anywhere.
         if (name == "speech" && inTrigger && key !in SPEECH_ANYWHERE) return report("speech(\"$key\") works in onTap, not in a trigger")
         if (name == "speech") return key?.let { services.speech(this, it) } ?: Unit
@@ -582,7 +607,7 @@ class WidgetInstance(
     }
 
     /**
-     * Rolling average of Canvas/Shader draw time. Over budget halves the
+     * Rolling average of Canvas/Shader draw time, with what the frame's tick set off before it. Over budget halves the
      * widget's animation frame rate; well under it again, full rate comes back.
      */
     private var drawAverage = 0.0
@@ -595,21 +620,54 @@ class WidgetInstance(
 
     private var reportedSlow = false
 
+    /**
+     * What a frame-clock tick sets off before the drawing: lets and conditions reading `time` are worked out in
+     * composition, and cost a frame as much as drawing can (the koi pond's bodies: as long again as its Canvas on a
+     * Galaxy Tab A8, which left it a hair under budget, animating at full rate or half by chance). Counted from a tick
+     * to the next draw, so a widget that isn't animating never adds any.
+     */
+    private var tickNanos = 0L
+    private var ticked = false
+    private var timedEvals = 0
+
+    @PublishedApi
+    internal var inDraw = false
+
+    /** Runs [f] as drawing: what it evaluates is in the draw's own time already. */
+    inline fun <T> drawing(f: () -> T): T {
+        inDraw = true
+        try {
+            return f()
+        } finally {
+            inDraw = false
+        }
+    }
+
     fun recordDraw(nanos: Long) {
+        val frame = nanos + tickNanos
+        tickNanos = 0
+        ticked = false
         if (draws < WARMUP_DRAWS) {
             draws++
             return
         }
-        drawAverage = drawAverage * 0.9 + nanos * 0.1
-        if (!slow && drawAverage > SLOW_DRAW_NANOS) {
+        drawAverage = drawAverage * 0.9 + frame * 0.1
+        if (!slow && drawAverage > SLOW_DRAW_NANOS && !keepsFullRate()) {
             slow = true
             // Once: a widget that hovers around the budget would otherwise report every time it crosses it.
             if (!reportedSlow) report("drawing takes %.1f ms per frame; animating at half rate".format(drawAverage / 1e6))
             reportedSlow = true
-        } else if (slow && drawAverage < SLOW_DRAW_NANOS / 2) {
+        } else if (slow && (drawAverage < SLOW_DRAW_NANOS / 2 || keepsFullRate())) {
             slow = false
         }
     }
+
+    /**
+     * An app that asks for `fps: 60` keeps it however long it draws: it has the screen to itself while it's used, and a
+     * game at half rate lags behind the finger. Widgets, faces and panels on home keep the governor, which holds the home
+     * screen smooth and the battery spared.
+     */
+    private fun keepsFullRate() = program.kind == OwlKind.App && program.fps != null && frameRate() >= MAX_FPS
 
     /** Evaluates [ev], turning errors into null plus a report; a broken binding never takes the launcher down. */
     fun eval(
@@ -618,7 +676,15 @@ class WidgetInstance(
         where: String,
     ): Value {
         ev.const?.let { return it }
-        return guarded(where) { budget.eval(ev, env) } ?: Null
+        if (!ticked || inDraw || timedEvals > 0) return guarded(where) { budget.eval(ev, env) } ?: Null
+        val started = System.nanoTime()
+        timedEvals++
+        try {
+            return guarded(where) { budget.eval(ev, env) } ?: Null
+        } finally {
+            timedEvals--
+            tickNanos += System.nanoTime() - started
+        }
     }
 
     /** Runs [f], turning errors into null plus a report starting with [where]. */
@@ -1000,6 +1066,8 @@ class WidgetInstance(
         program.triggers.forEachIndexed { i, t ->
             // `on feed each` runs from feed's connection, for each message (see listen).
             if (t.each != null) return@forEachIndexed
+            // `every frame` runs from the frame clock (see frame).
+            if (t.kind == TriggerKind.FRAME) return@forEachIndexed
             jobs +=
                 scope.launch {
                     when (t.kind) {
@@ -1031,6 +1099,7 @@ class WidgetInstance(
                                 seen[i] = bool(now)
                                 if (now && !was) fire(i, t)
                             }
+                        TriggerKind.FRAME -> Unit
                         TriggerKind.ON ->
                             snapshotFlow { eval(t.expr, root, "on") }.collect { v ->
                                 // Null is "still loading": neither a change nor something to compare with.
@@ -1074,6 +1143,25 @@ class WidgetInstance(
         } finally {
             inTrigger = false
             byDictation = false
+        }
+    }
+
+    /** Whether an `every frame` trigger needs the frame clock to keep ticking, whatever reads `time`. */
+    val runsEachFrame = program.triggers.any { it.kind == TriggerKind.FRAME }
+
+    /**
+     * Runs the `every frame` triggers, from the frame clock as it draws a frame: [dt] is the seconds since the last
+     * one, at most [MAX_FRAME_DT], so a widget coming back on screen doesn't move things by the whole time it was away.
+     * As often as the frames come, at most the widget's fps:, so no run limit.
+     */
+    fun frame(dt: Double) {
+        if (!runsEachFrame) return
+        val values = listOf(Num(dt.coerceIn(0.0, MAX_FRAME_DT)))
+        inTrigger = true
+        try {
+            for (t in program.triggers) if (t.kind == TriggerKind.FRAME) t.action.run(root, values)
+        } finally {
+            inTrigger = false
         }
     }
 
@@ -1131,6 +1219,21 @@ class WidgetInstance(
     /** Whether a face or an app keeps the status bar over it now: its `statusBar`, true unless it says otherwise. */
     fun showsStatusBar() = program.statusBar?.let { eval(it, root, "statusBar").truthy } ?: true
 
+    /**
+     * How many frames a second the `time` animation gets now: its `fps`, kept from 1 to [MAX_FPS], else [MAX_FPS]. A
+     * `time` in it doesn't count as a read, or a clock nothing else reads would never stop.
+     */
+    fun frameRate(): Double {
+        val ev = program.fps ?: return MAX_FPS.toDouble()
+        val read = timeRead
+        val n = (eval(ev, root, "fps") as? Num)?.v
+        timeRead = read
+        return if (n == null || n.isNaN()) MAX_FPS.toDouble() else n.coerceIn(1.0, MAX_FPS.toDouble())
+    }
+
+    /** Whether a widget or a face holds the home screen still now: its `lock`, false unless it says otherwise. */
+    fun holdsHome() = program.lock?.let { eval(it, root, "lock").truthy } == true
+
     /** Whether an app's Back goes up a level inside it now, because its `back` holds. */
     fun canGoUp() = program.back?.let { eval(it, root, "back").truthy } == true
 
@@ -1170,6 +1273,13 @@ class WidgetInstance(
      */
     private val terminals = HashMap<Any, EmbeddedTerminal>()
 
+    /**
+     * Browser nodes' pages, by node. They keep their page while the tile is off screen, and end with the widget or when
+     * their url, script or zoom changes. Two at most: the compiler allows two Browsers in a file, never in a `for` or a
+     * component, so each node has one page.
+     */
+    private val browsers = HashMap<Any, EmbeddedBrowser>()
+
     fun terminal(
         node: Any,
         command: String?,
@@ -1179,8 +1289,24 @@ class WidgetInstance(
         return services.terminal(command, fontSize).also { terminals[node] = it }
     }
 
+    fun browser(
+        node: Any,
+        url: String?,
+        js: Boolean,
+        zoom: Double,
+    ): EmbeddedBrowser {
+        browsers[node]?.let {
+            if (it.url == url && it.js == js && it.zoom == zoom) return it
+            it.close()
+        }
+        return services.browser(url, js, zoom).also { browsers[node] = it }
+    }
+
     /** [term] is one of this widget's terminals. */
     fun owns(term: EmbeddedTerminal?) = term != null && term in terminals.values
+
+    /** [b] is one of this widget's pages. */
+    fun owns(b: EmbeddedBrowser?) = b != null && b in browsers.values
 
     fun stop() {
         services.sound(this, null, null)
@@ -1188,6 +1314,8 @@ class WidgetInstance(
         jobs.clear()
         terminals.values.forEach { it.close() }
         terminals.clear()
+        browsers.values.forEach { it.close() }
+        browsers.clear()
         // A change made during the write interval would otherwise be lost.
         if (persisted.isNotEmpty()) save(persisted.map { read(it) })
         if (secrets.isNotEmpty()) seal(secrets.map { read(it) })
@@ -1305,6 +1433,9 @@ class WidgetInstance(
 
         /** The least time between two runs of a source whose command or URL is built from state. */
         private const val MIN_RERUN_MS = 1_000L
+
+        /** The longest step `every frame` gets, in seconds: a frame late by more is a pause, not motion. */
+        private const val MAX_FRAME_DT = 0.1
 
         /** Runs per trigger per second before it's held back. */
         private const val MAX_TRIGGER_RUNS = 10

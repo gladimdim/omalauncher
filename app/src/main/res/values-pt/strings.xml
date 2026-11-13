@@ -7,6 +7,7 @@
     <string name="activity_terminal">Terminal</string>
     <string name="activity_app">App</string>
     <string name="activity_files">Arquivos</string>
+    <string name="activity_voice">Voz</string>
     <string name="activity_settings">Configurações</string>
     <string name="notification_listener">Widgets do Omalauncher</string>
 </resources>

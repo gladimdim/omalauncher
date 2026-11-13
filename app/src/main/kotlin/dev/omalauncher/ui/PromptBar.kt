@@ -3,7 +3,6 @@ package dev.omalauncher.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import android.Manifest
-import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,11 +26,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -78,10 +77,11 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.PopupPositionProvider
 import dev.omalauncher.R
 import dev.omalauncher.Runtime
-import dev.omalauncher.linux.LinuxState
+import dev.omalauncher.linux.Agent
 import dev.omalauncher.linux.agentInvocation
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.gestures.detectTapGestures
+import dev.omalauncher.hasPermission
 
 /**
  * How the prompt bar was summoned from outside it; Send asks the agent with what's typed (the panel's ask row),
@@ -116,9 +116,9 @@ internal fun PromptBar(
     var focused by remember { mutableStateOf(false) }
     val panelShown by remember(state) { derivedStateOf { state.drawer.value > 0.01f } }
     val agent = runtime.agents.default
-    val linuxState by runtime.bootstrap.state.collectAsState()
     // Agents run in Linux: without it, the bar offers to install it instead.
-    val linux = linuxState == LinuxState.Installed
+    val linux = linuxPhase(runtime) == LinuxPhase.Installed
+    val opensVoice = rememberOpensVoice(runtime, agent, linux)
 
     fun offerLinux() {
         focusManager.clearFocus()
@@ -184,11 +184,22 @@ internal fun PromptBar(
 
     fun talk(hold: Boolean) {
         if (!linux) return offerLinux()
-        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+        if (context.hasPermission(Manifest.permission.RECORD_AUDIO)) {
             listen(hold)
         } else {
             permission.launch(Manifest.permission.RECORD_AUDIO)
         }
+    }
+
+    /**
+     * A tap on the mic: the voice screen, a spoken conversation with the bar's agent, when it's one that talks there
+     * (Claude Code, Grok, OpenCode) and the phone has speech recognition; dictation into the bar for the others.
+     * Holding the mic always dictates.
+     */
+    fun tapMic() {
+        val talker = agent?.takeIf { linux && runtime.voice.opensFor(it) } ?: return talk(hold = false)
+        runtime.voice.prefer(talker)
+        runtime.openVoice()
     }
 
     LaunchedEffect(state.promptRequest) {
@@ -198,7 +209,7 @@ internal fun PromptBar(
                 keyboard?.show()
             }
             PromptRequest.Send -> send(text)
-            PromptRequest.Listen -> talk(hold = false)
+            PromptRequest.Listen -> tapMic()
             // A menu opened over the panel: the keyboard stays down from here on, rather than coming back as it closes.
             PromptRequest.Release -> {
                 focusManager.clearFocus()
@@ -348,8 +359,10 @@ internal fun PromptBar(
                 }
                 MicButton(
                     listening = listening,
-                    // A tap dictates into the field and stops at the next pause; another tap stops it sooner.
-                    onTap = { if (speech.listening) speech.stop() else talk(hold = false) },
+                    voice = opensVoice,
+                    // A tap opens the voice app, or dictates into the field and stops at the next pause; another tap
+                    // stops it sooner.
+                    onTap = { if (speech.listening) speech.stop() else tapMic() },
                     onHold = { talk(hold = true) },
                     onRelease = { if (speech.listening) speech.stop() },
                     onCancel = {
@@ -387,6 +400,8 @@ private const val HOLD_MILLIS = 250L
 @Composable
 private fun MicButton(
     listening: Boolean,
+    /** A tap opens the voice screen: the sound bars rather than the microphone. */
+    voice: Boolean,
     onTap: () -> Unit,
     onHold: () -> Unit,
     onRelease: () -> Unit,
@@ -442,7 +457,19 @@ private fun MicButton(
                 }
             },
         contentAlignment = Alignment.Center,
-    ) { MicIcon(if (listening) Palette.background else Palette.foreground) }
+    ) { if (voice && !listening) VoiceIcon(Palette.foreground) else MicIcon(if (listening) Palette.background else Palette.foreground) }
+}
+
+/** Sound bars, the voice screen's icon, on the same grid as [MicIcon]: what the mic shows when a tap talks to an agent. */
+@Composable
+internal fun VoiceIcon(color: Color) {
+    Canvas(Modifier.size(22.dp)) {
+        val u = size.width / 24f
+        // x and half-height of each bar, as in art/icons/voice.svg.
+        for ((x, h) in listOf(4.5f to 2f, 8.25f to 5f, 12f to 8.5f, 15.75f to 5f, 19.5f to 2f)) {
+            drawLine(color, androidx.compose.ui.geometry.Offset(x * u, (12f - h) * u), androidx.compose.ui.geometry.Offset(x * u, (12f + h) * u), 2.4f * u, StrokeCap.Round)
+        }
+    }
 }
 
 /** A microphone drawn on a 24-unit grid, like the home screen's other icons. */
@@ -545,4 +572,22 @@ private class AboveAnchor(
         anchorBounds.left.coerceAtMost(windowSize.width - popupContentSize.width).coerceAtLeast(0),
         (anchorBounds.top - popupContentSize.height - gap).coerceAtLeast(0),
     )
+}
+
+/**
+ * Whether the mic opens the voice screen for [agent]. Asking means package manager calls, so it's kept between
+ * keystrokes, and asked again on each return: a recognizer may have been installed or picked meanwhile.
+ */
+@Composable
+internal fun rememberOpensVoice(
+    runtime: Runtime,
+    agent: Agent?,
+    linux: Boolean,
+): Boolean {
+    var resumes by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        resumes++
+        onPauseOrDispose {}
+    }
+    return remember(agent, linux, resumes) { linux && runtime.voice.opensFor(agent) }
 }

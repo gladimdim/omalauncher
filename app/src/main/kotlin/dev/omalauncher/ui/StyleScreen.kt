@@ -76,12 +76,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.PopupPositionProvider
 import dev.omalauncher.R
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.LauncherFont
@@ -146,6 +141,9 @@ fun StyleScreen(
             Flag(R.string.style_empty_page_right, R.string.style_shown, R.string.style_hidden, style, Style.EMPTY_PAGE_RIGHT)
             CountOption(R.string.style_columns, Style.COLUMNS, style)
             Flag(R.string.style_pages, R.string.style_pages_one, R.string.style_pages_auto, style, Style.FORCE_SINGLE_PAGE)
+            Flag(R.string.style_cover_screen, R.string.style_cover_upright, R.string.style_cover_turned, style, Style.COVER_SCREEN)
+            Flag(R.string.style_unfolded, R.string.style_unfolded_own, R.string.style_unfolded_pages, style, Style.UNFOLDED_LAYOUT)
+            if (style.style[Style.UNFOLDED_LAYOUT]) CountOption(R.string.style_unfolded_columns, Style.UNFOLDED_COLUMNS, style)
             NumberOption(R.string.style_corners, Corners.entries.map { it.label to it.scale.toDouble() }, Style.CORNER_SCALE, style)
             HomePreview(runtime)
             // Like Hyprland's gaps_in, gaps_out and border_size; the colors are in style.toml.
@@ -228,7 +226,6 @@ private fun KeybarOption(
     // Whether it's still the bar as shipped; read again when the file reloads, which makes a new spec.
     val stock = remember(spec) { spec != null && runCatching { spec.file.readBytes().contentEquals(stockFile.readBytes()) }.getOrDefault(false) }
     val scope = rememberCoroutineScope()
-    var open by remember { mutableStateOf(false) }
     var restoring by remember { mutableStateOf(false) }
     val actions = listOfNotNull(KeybarAction.Edit.takeIf { spec != null }, KeybarAction.Stock.takeIf { !stock })
 
@@ -236,40 +233,30 @@ private fun KeybarOption(
         // The widgets folder is watched: the new file reloads the bar.
         scope.launch(Dispatchers.IO) { runCatching { stockFile.copyTo(file, overwrite = true) } }
     }
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        OptionLabel(stringResource(R.string.style_keys))
-        Box(Modifier.weight(1f, fill = false)) {
-            Row(
-                Modifier
-                    .frame(1.dp, Palette.border, radius = 12.dp)
-                    .clickable { open = !open }
-                    .padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicText(
-                    stringResource(
-                        when {
-                            spec == null -> R.string.style_keybar_removed
-                            spec.program == null -> R.string.style_keybar_errors
-                            stock -> R.string.style_keybar_stock
-                            else -> R.string.style_keybar_edited
-                        },
-                    ),
-                    style = Mono.copy(color = if (spec != null && spec.program == null) Palette.red else Palette.foreground),
-                )
-                Symbol(if (open) Glyph.ChevronUp else Glyph.ChevronDown, Palette.muted, Modifier.padding(start = 6.dp))
+    DropdownOption(
+        stringResource(R.string.style_keys),
+        value = {
+            BasicText(
+                stringResource(
+                    when {
+                        spec == null -> R.string.style_keybar_removed
+                        spec.program == null -> R.string.style_keybar_errors
+                        stock -> R.string.style_keybar_stock
+                        else -> R.string.style_keybar_edited
+                    },
+                ),
+                style = Mono.copy(color = if (spec != null && spec.program == null) Palette.red else Palette.foreground),
+            )
+        },
+    ) { close ->
+        val labels = KeybarAction.entries.associateWith { stringResource(it.label) }
+        ChoicePopup(actions, null, BelowAnchorStart, onDismiss = close, onPick = { action ->
+            when (action) {
+                KeybarAction.Edit -> spec?.let { onAgent("Edit ${it.name}") { bin -> editWidgetCommand(bin, it) } }
+                // Nothing of the user's to replace.
+                KeybarAction.Stock -> if (spec == null) restore() else restoring = true
             }
-            if (open) {
-                val labels = KeybarAction.entries.associateWith { stringResource(it.label) }
-                ChoicePopup(actions, null, BelowAnchorStart, onDismiss = { open = false }, onPick = { action ->
-                    when (action) {
-                        KeybarAction.Edit -> spec?.let { onAgent("Edit ${it.name}") { bin -> editWidgetCommand(bin, it) } }
-                        // Nothing of the user's to replace.
-                        KeybarAction.Stock -> if (spec == null) restore() else restoring = true
-                    }
-                }, label = { labels.getValue(it) })
-            }
-        }
+        }, label = { labels.getValue(it) })
     }
     OptionHint(if (spec == null) stringResource(R.string.style_keybar_gone, file.name) else file.name)
     if (restoring) {
@@ -430,6 +417,8 @@ private fun TerminalSection(
     val metrics = LocalContext.current.resources.displayMetrics
     val columns = font.columns(minOf(metrics.widthPixels, metrics.heightPixels))
     OptionHint(pluralStringResource(R.plurals.style_terminal_size, columns, TerminalFont.format(font.size).removeSuffix(".0"), columns), Modifier.padding(top = 2.dp))
+    Flag(R.string.style_keyboard_suggestions, R.string.style_on, R.string.style_off, style, Style.TERMINAL_SUGGESTIONS)
+    OptionHint(stringResource(R.string.style_keyboard_suggestions_hint), Modifier.padding(bottom = 4.dp))
     TerminalPreview(font, launcherFont)
 }
 
@@ -665,9 +654,24 @@ private fun FontOption(
     label: (String) -> String = { it },
     onSelect: (String) -> Unit,
 ) {
+    DropdownOption(
+        stringResource(R.string.style_font),
+        value = { BasicText(label(selected), Modifier.weight(1f, fill = false), style = Mono.copy(color = Palette.foreground), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+    ) { close ->
+        ChoicePopup(families, selected, BelowAnchorStart, onDismiss = close, onPick = onSelect, label = label)
+    }
+}
+
+/** An option whose [value] shows in a box; tapping the box opens [popup] under it, which closes with the function it's given. */
+@Composable
+private fun DropdownOption(
+    label: String,
+    value: @Composable RowScope.() -> Unit,
+    popup: @Composable (close: () -> Unit) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        OptionLabel(stringResource(R.string.style_font))
+        OptionLabel(label)
         Box(Modifier.weight(1f, fill = false)) {
             Row(
                 Modifier
@@ -676,27 +680,12 @@ private fun FontOption(
                     .padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BasicText(label(selected), Modifier.weight(1f, fill = false), style = Mono.copy(color = Palette.foreground), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                value()
                 Symbol(if (open) Glyph.ChevronUp else Glyph.ChevronDown, Palette.muted, Modifier.padding(start = 6.dp))
             }
-            if (open) {
-                ChoicePopup(families, selected, BelowAnchorStart, onDismiss = { open = false }, onPick = onSelect, label = label)
-            }
+            if (open) popup { open = false }
         }
     }
-}
-
-/** Just under the anchor, lined up with its start, and kept on screen. */
-private object BelowAnchorStart : PopupPositionProvider {
-    override fun calculatePosition(
-        anchorBounds: IntRect,
-        windowSize: IntSize,
-        layoutDirection: LayoutDirection,
-        popupContentSize: IntSize,
-    ) = IntOffset(
-        anchorBounds.left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
-        (anchorBounds.bottom + 8).coerceAtMost((windowSize.height - popupContentSize.height).coerceAtLeast(0)),
-    )
 }
 
 /** The column option names take, so the controls beside them line up. */

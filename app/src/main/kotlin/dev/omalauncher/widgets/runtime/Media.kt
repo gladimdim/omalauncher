@@ -22,6 +22,7 @@ import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import dev.omalauncher.AppLabels
 import dev.omalauncher.widgets.lang.Null
 import dev.omalauncher.widgets.lang.Num
 import dev.omalauncher.widgets.lang.Obj
@@ -45,31 +46,51 @@ import kotlinx.coroutines.withContext
 /**
  * Notification access, which the user grants in Android's settings. Android
  * requires it before an app may see other apps' media sessions (android.media),
- * and it lets widgets list notifications (android.notifications). Notifications
- * are only read when a widget asks; see [Notifications].
+ * and it lets widgets list notifications (android.notifications) and icons show
+ * notification dots ([NotificationDots]). The shade itself is only read when a
+ * widget asks; see [Notifications].
  */
 class MediaListener : NotificationListenerService() {
     override fun onListenerConnected() {
         connected = this
+        NotificationDots.connected(this)
         changes.update { it + 1 }
     }
 
     override fun onListenerDisconnected() {
-        if (connected === this) connected = null
+        gone()
         changes.update { it + 1 }
     }
 
-    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+    override fun onNotificationPosted(
+        sbn: StatusBarNotification?,
+        rankingMap: RankingMap?,
+    ) {
+        if (sbn != null && rankingMap != null) NotificationDots.posted(this, sbn, rankingMap)
         changes.update { it + 1 }
     }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+    override fun onNotificationRemoved(
+        sbn: StatusBarNotification?,
+        rankingMap: RankingMap?,
+    ) {
+        if (sbn != null) NotificationDots.removed(sbn.key)
         changes.update { it + 1 }
+    }
+
+    override fun onNotificationRankingUpdate(rankingMap: RankingMap?) {
+        if (rankingMap != null) NotificationDots.ranked(rankingMap)
     }
 
     override fun onDestroy() {
-        if (connected === this) connected = null
+        gone()
         super.onDestroy()
+    }
+
+    private fun gone() {
+        if (connected !== this) return
+        connected = null
+        NotificationDots.disconnected()
     }
 
     companion object {
@@ -164,13 +185,7 @@ class Media(
             art = bitmap?.let { "media:art:${++artSerial}" to it }
         }
         val artSrc = art?.first
-        val app =
-            labels.getOrPut(c.packageName) {
-                runCatching {
-                    val pm = context.packageManager
-                    pm.getApplicationLabel(pm.getApplicationInfo(c.packageName, 0)).toString()
-                }.getOrDefault(c.packageName)
-            }
+        val app = labels[c.packageName]
         return Obj(
             mapOf(
                 "available" to bool(true),
@@ -347,6 +362,6 @@ class Media(
         runCatching { context.startActivity(detail) }.onFailure { context.startActivity(list) }
     }
 
-    /** App labels by package: the lookup is a binder call, and value() runs every second while playing. */
-    private val labels = HashMap<String, String>()
+    /** Looked up once each, since value() runs every second while playing. */
+    private val labels = AppLabels(context)
 }

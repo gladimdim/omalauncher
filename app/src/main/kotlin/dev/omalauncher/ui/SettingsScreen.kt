@@ -1,8 +1,7 @@
 package dev.omalauncher.ui
 
-import android.app.Activity
+import android.app.role.RoleManager
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
 import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,6 +32,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.omalauncher.AppLanguage
 import dev.omalauncher.LocalNetwork
 import dev.omalauncher.R
@@ -57,21 +57,28 @@ fun SettingsScreen(
     onLinux: () -> Unit,
     onLicenses: () -> Unit,
     onGestures: () -> Unit,
+    onPermissions: () -> Unit,
 ) {
     val context = LocalContext.current
     val linux by runtime.bootstrap.state.collectAsState()
     val installed = linux == LinuxState.Installed
     var localNetworkMissing by remember { mutableStateOf(LocalNetwork.missing(context)) }
-    val askLocalNetwork =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            localNetworkMissing = !granted
-            // After two refusals Android stops showing the dialog; the switch is then in the app's own settings.
-            if (!granted && (context as? Activity)?.shouldShowRequestPermissionRationale(LocalNetwork.PERMISSION) == false) {
-                context.startActivity(
-                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
-            }
+    // Once Android won't show its dialog any more, a tap opens the app's own settings, where the switch then is.
+    val askLocalNetwork = rememberAskPermission(LocalNetwork.PERMISSION) { localNetworkMissing = !it }
+    val roles = remember { context.getSystemService(RoleManager::class.java) }
+    val homeRoleMissing = { roles.isRoleAvailable(RoleManager.ROLE_HOME) && !roles.isRoleHeld(RoleManager.ROLE_HOME) }
+    var notHome by remember { mutableStateOf(homeRoleMissing()) }
+    // Made the default (or not), or the local network allowed, in Android's settings or the permissions screen while away.
+    LifecycleResumeEffect(Unit) {
+        notHome = homeRoleMissing()
+        localNetworkMissing = LocalNetwork.missing(context)
+        onPauseOrDispose {}
+    }
+    val askHome =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            notHome = homeRoleMissing()
+            // Refused, or Android didn't ask at all after earlier refusals: the choice is then in its home app settings.
+            if (notHome) context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     OverlayPanel(stringResource(R.string.settings_title), onDismiss, contentWidth = ReadingWidth) {
         val linuxStatus =
@@ -82,7 +89,9 @@ fun SettingsScreen(
                         ?: stringResource(R.string.settings_linux_installing, stringResource(l.stage.label))
                 is LinuxState.Failed -> stringResource(R.string.settings_linux_failed)
                 LinuxState.Removing -> stringResource(R.string.settings_linux_removing)
-                else -> stringResource(R.string.settings_linux_not_installed)
+                // Linux starting up: saying "not installed" here made users think it was gone.
+                LinuxState.Checking -> stringResource(R.string.settings_checking)
+                LinuxState.NotInstalled -> stringResource(R.string.settings_linux_not_installed)
             }
         val needsLinux = stringResource(R.string.settings_needs_linux)
         val rows =
@@ -106,13 +115,21 @@ fun SettingsScreen(
                     SettingsRow(R.string.settings_agents, needsLinux, onLinux)
                 },
                 SettingsRow(R.string.settings_packages, if (installed) stringResource(R.string.settings_packages_subtitle) else needsLinux, if (installed) onPackages else onLinux),
-                if (localNetworkMissing) {
-                    SettingsRow(R.string.settings_local_network, stringResource(R.string.settings_local_network_subtitle)) {
-                        askLocalNetwork.launch(LocalNetwork.PERMISSION)
+                if (notHome) {
+                    SettingsRow(R.string.settings_home_app, stringResource(R.string.settings_home_app_subtitle)) {
+                        askHome.launch(roles.createRequestRoleIntent(RoleManager.ROLE_HOME))
                     }
                 } else {
                     null
                 },
+                if (localNetworkMissing) {
+                    SettingsRow(R.string.settings_local_network, stringResource(R.string.settings_local_network_subtitle)) {
+                        askLocalNetwork()
+                    }
+                } else {
+                    null
+                },
+                SettingsRow(R.string.settings_permissions, stringResource(R.string.settings_permissions_subtitle), onPermissions),
                 SettingsRow(R.string.settings_android, stringResource(R.string.settings_android_subtitle)) {
                     context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 },
@@ -154,7 +171,7 @@ private fun languageRow(): SettingsRow {
 
 @Composable
 private fun SettingsRows(rows: List<SettingsRow>) {
-    // The local network row goes once it's granted: keys on it go on to the next.
+    // The home app and local network rows go once granted: keys on them go on to the next.
     val next = remember { FocusRequester() }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for (row in rows) {
@@ -162,7 +179,7 @@ private fun SettingsRows(rows: List<SettingsRow>) {
                 var open by remember { mutableStateOf(false) }
                 Row(
                     when (row.title) {
-                        R.string.settings_local_network -> Modifier.passesKeys(next)
+                        R.string.settings_home_app, R.string.settings_local_network -> Modifier.passesKeys(next)
                         R.string.settings_android -> Modifier.focusRequester(next)
                         else -> Modifier
                     }.card(onClick = { if (row.menu != null) open = !open else row.onClick() }),
