@@ -2,6 +2,8 @@ package dev.gladimdim.tiling
 
 import android.content.Intent
 import android.provider.Settings
+import android.view.KeyEvent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,11 +25,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -35,11 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -71,6 +70,23 @@ internal fun AppMenu(host: TilingHost) {
     val field = remember { FocusRequester() }
     val list = rememberLazyListState()
     LaunchedEffect(Unit) { field.requestFocus() }
+    // Back from a gesture, a mouse or the navigation bar closes it, as Esc does.
+    BackHandler { Tiling.closeMenu() }
+    // The menu's own keys come through [Tiling.key], ahead of home (which takes arrows to move among its tiles) and
+    // whichever view has the focus. Esc arrives as Back from keyboards that send it so.
+    val shown by rememberUpdatedState(found)
+    DisposableEffect(Unit) {
+        Tiling.menuKeys = { keyCode ->
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> picked = (picked + 1).coerceAtMost((shown.size - 1).coerceAtLeast(0))
+                KeyEvent.KEYCODE_DPAD_UP -> picked = (picked - 1).coerceAtLeast(0)
+                KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> shown.getOrNull(picked)?.let(Tiling::open)
+                KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BACK -> Tiling.closeMenu()
+                else -> null
+            } != null
+        }
+        onDispose { Tiling.menuKeys = null }
+    }
     LaunchedEffect(picked, found) { if (found.isNotEmpty()) list.scrollToItem(picked.coerceIn(0, found.lastIndex)) }
     Box(
         Modifier
@@ -104,18 +120,7 @@ internal fun AppMenu(host: TilingHost) {
                             .fillMaxWidth()
                             .background(colors.surface)
                             .padding(horizontal = 10.dp, vertical = 9.dp)
-                            .focusRequester(field)
-                            .onPreviewKeyEvent { event ->
-                                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                                when (event.key) {
-                                    Key.DirectionDown -> picked = (picked + 1).coerceAtMost((found.size - 1).coerceAtLeast(0))
-                                    Key.DirectionUp -> picked = (picked - 1).coerceAtLeast(0)
-                                    Key.Enter, Key.NumPadEnter -> found.getOrNull(picked)?.let(Tiling::open)
-                                    Key.Escape -> Tiling.closeMenu()
-                                    else -> return@onPreviewKeyEvent false
-                                }
-                                true
-                            },
+                            .focusRequester(field),
                 )
             }
             Spacer(Modifier.size(8.dp))

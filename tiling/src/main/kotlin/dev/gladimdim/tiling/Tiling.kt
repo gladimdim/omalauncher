@@ -632,6 +632,9 @@ object Tiling {
 
     // ---- keys ----
 
+    /** The open app menu's own keys (arrows, Enter, Esc): true when it used the key. */
+    internal var menuKeys: ((Int) -> Boolean)? = null
+
     /** Keys whose press was a shortcut: their repeats and release are ours too. */
     private val held = HashSet<Int>()
 
@@ -646,6 +649,16 @@ object Tiling {
         if (!supported) return false
         val down = event.action == KeyEvent.ACTION_DOWN
         if (!down) return held.remove(event.keyCode) || fromLauncher && forward(event)
+        if (menuOpen && inFront && !event.isMetaPressed) {
+            // A held arrow goes on moving through the list.
+            val again = event.keyCode in held
+            val arrow = event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+            if (again && !arrow) return true
+            if (menuKeys?.invoke(event.keyCode) == true) {
+                held += event.keyCode
+                return true
+            }
+        }
         if (event.keyCode in held) return true
         if (event.isMetaPressed && event.isShiftPressed && event.keyCode == KeyEvent.KEYCODE_D && keyboard && inFront) {
             enabled = !enabled

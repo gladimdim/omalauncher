@@ -51,6 +51,9 @@ internal class DesktopLayout(
     init {
         setWillNotDraw(false)
         visibility = GONE
+        // Able to hold the focus itself, for when the menu closes (placeMenu).
+        isFocusable = true
+        isFocusableInTouchMode = true
         addView(notice, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         addView(bar, LayoutParams(LayoutParams.MATCH_PARENT, thickness(Edge.TOP)))
         // Asks Android not to take a drag that starts on the bar for its back gesture.
@@ -208,6 +211,9 @@ internal class DesktopLayout(
         if (open && shown == null) {
             menu = ComposeView(activity).apply { setContent { AppMenu(host) } }.also { addView(it, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)) }
         } else if (!open && shown != null) {
+            // The focus the menu's field had stays here, on nothing. Left to Android it would go to the next field
+            // down, home's bar, which opens home's own app list on being focused.
+            requestFocus()
             removeView(shown)
             menu = null
         }
