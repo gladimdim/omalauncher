@@ -1,5 +1,18 @@
 # SD Launcher changelog
 
+## 1.9.1 (112)
+
+Built on **Omalauncher 1.4.0**, as 1.9.0. The bridge is unchanged, so it works
+with the same desktop versions as 1.9.0.
+
+### SUPER DESKTOP
+- **Pairing asks for local network access**: on Android 17 a first pairing
+  only timed out until "Nearby devices" was allowed, because the popup that asks
+  for it appeared only once a PC was paired. The pairing screen now asks when it
+  opens and again on connect, continues pairing once it's allowed, and says what
+  to turn on (opening the app's settings when Android no longer asks) instead of
+  timing out in silence.
+
 ## 1.9.0 (111)
 
 Built on **Omalauncher 1.4.0** (was 0.16.0). No SUPER DESKTOP changes; the
