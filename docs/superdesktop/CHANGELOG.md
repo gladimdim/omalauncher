@@ -1,5 +1,28 @@
 # SD Launcher changelog
 
+## 1.10.0 (113)
+
+Built on **Omalauncher 1.4.0**, as 1.9.1. The bridge is unchanged, so it works
+with the same desktop versions as 1.9.1.
+
+### Tiling desktop (experimental)
+- **A Hyprland-style desktop while a hardware keyboard is connected**: Android
+  apps open as tiled windows on five workspaces, with a bar (workspaces, clock,
+  notifications, Bluetooth, Wi-Fi, battery) that a right click moves to another
+  screen edge. Home and its widgets stay under the windows; workspace N shows
+  home's page N, and a swipe between pages switches the workspace with it.
+- **Shortcuts**: Super+Space opens an app, Super+1…5 switches workspace,
+  Super+Shift+1…5 moves the window there, Super+Alt+arrows moves focus,
+  Super+Shift+arrows swaps windows, Super+F is full screen, Super+W closes,
+  Super+Shift+D leaves the desktop. Three fingers swiped sideways switch
+  workspace too.
+- **It is off until you set it up**, and changes nothing for anyone who doesn't.
+  It needs a helper started over adb after every boot and every update (see the
+  README), and "Tiling desktop shortcuts" turned on in Accessibility settings
+  for the Super shortcuts. Apps in windows get no on-screen keyboard.
+- Tried on a Xiaomi Pad 7 Pro (HyperOS 3, Android 16) only. HyperOS keeps
+  Super with a bare arrow, Super+Tab, Super+L and Super+Enter for itself.
+
 ## 1.9.1 (112)
 
 Built on **Omalauncher 1.4.0**, as 1.9.0. The bridge is unchanged, so it works
