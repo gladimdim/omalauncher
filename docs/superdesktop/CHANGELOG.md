@@ -1,5 +1,39 @@
 # SD Launcher changelog
 
+## 1.9.0 (111)
+
+Built on **Omalauncher 1.4.0** (was 0.16.0). No SUPER DESKTOP changes; the
+bridge is unchanged, so it works with the same desktop versions as 1.8.0.
+The 32-bit TV and box build of 1.8.0 carries over.
+
+### From Omalauncher 0.17.0 to 1.4.0
+- **Linux is much faster**: proot keeps itself on one fast CPU core and a small
+  "fast system calls" library answers file lookups inside the rootfs
+  (`pacman -Qk` 8x, `ls -lR` 6x, `du` 5x, `grep -r` 3x, `git status` 2x). The
+  Linux screen has switches for both. `omalauncher` answers in about 35 ms, and
+  Linux follows the phone's DNS servers.
+- **3D in widgets and apps** (Owl 22): a Canvas `scene(camera)` draws lit,
+  fogged, textured models, with vector math for games and multi-finger
+  `onTouch`. Also tilt (`android.motion`), `fps:` up to 60, a Shader that can't
+  freeze the screen, and new example apps (sky raid, sky forge, boomtown, last
+  outpost, sunset heist, canyon run).
+- **Store**: widgets and apps are two sections; faces are full-screen widgets
+  on their own tab; an image opens full screen on a tap.
+- **Home**: it can open on any page (`home.home-page`); a Fold's inner screen
+  and a Flip's cover screen get layouts of their own (`[unfolded]`, `[cover]`);
+  apps with notifications show a dot.
+- **Terminals**: keyboard suggestions, glide typing and dictation work there
+  and are on by default.
+- **Voice**: replies use the phone's chosen text-to-speech engine at once, the
+  settings name the default voice, and the orb is a glossy blob.
+- **Files**: the launcher no longer asks for all-files access; folders come
+  from Android's folder picker.
+- **Fixes**: AirPods no longer crash the launcher when their link stops, a
+  notification with unreadable extras no longer crashes the dot, turning the
+  phone sideways no longer sends home back to page 1, and a Linux program
+  opening hundreds of Wayland connections no longer runs the launcher out of
+  memory.
+
 ## 1.8.0 (110)
 
 Built on **Omalauncher 0.16.0**, as 1.7.0. No SUPER DESKTOP changes; the
