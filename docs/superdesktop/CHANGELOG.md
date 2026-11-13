@@ -1,5 +1,15 @@
 # SD Launcher changelog
 
+## 1.10.1 (114)
+
+Built on **Omalauncher 1.4.0**, as 1.10.0. The bridge is unchanged, so it works
+with the same desktop versions as 1.10.0.
+
+### Tiling desktop (experimental)
+- **The app finder follows the keyboard**: the up and down arrows move through
+  its list and Esc closes it. Home had taken the arrows for its own tiles, and
+  closing the finder left the focus in home's bar, which opened home's app list.
+
 ## 1.10.0 (113)
 
 Built on **Omalauncher 1.4.0**, as 1.9.1. The bridge is unchanged, so it works
