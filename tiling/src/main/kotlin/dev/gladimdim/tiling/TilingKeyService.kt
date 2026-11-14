@@ -38,6 +38,9 @@ class TilingKeyService : AccessibilityService() {
         var connected by mutableStateOf(false)
             private set
 
+        /** The service as Android's settings name it, for a package. */
+        fun component(pkg: String) = "$pkg/${TilingKeyService::class.java.name}"
+
         /** Opens the notification shade; false when the service is off. */
         fun showNotifications(): Boolean = instance?.performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS) ?: false
     }

@@ -39,7 +39,7 @@ import dev.omalauncher.ui.applySystemBars
 import dev.omalauncher.ui.showStatusBar
 import dev.omalauncher.ui.LauncherRoot
 import dev.omalauncher.ui.LauncherState
-import dev.omalauncher.ui.HardwareTyping
+import dev.omalauncher.ui.TilingHome
 import dev.omalauncher.ui.attachTiling
 import dev.gladimdim.tiling.Tiling
 import dev.omalauncher.ui.PromptRequest
@@ -66,12 +66,20 @@ class MainActivity : ComponentActivity() {
             finish()
             return
         }
+        // Fork: opened as an app (its icon, "Open" after an update) while it is the home app, this would be an ordinary
+        // task beside Android's home: one that shows in recents and, swiped away there, leaves the system's launcher
+        // in front. Home itself is asked for instead, which brings this activity up as the home task.
+        if (savedInstanceState == null && openedAsApp(intent)) {
+            startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            finish()
+            return
+        }
         applySystemBars(this, Palette.isLight)
         runtime.start()
         state.onSettings = { page, homePage -> runtime.openSettings(page, homePage) }
         setContent {
-            // Fork: under the tiling desktop home's text fields take the hardware keyboard alone.
-            HardwareTyping { KeyIndicated { LauncherRoot(runtime, state) } }
+            // Fork: under the tiling desktop home's text fields take the hardware keyboard alone, and its app list is seen.
+            TilingHome(state) { KeyIndicated { LauncherRoot(runtime, state) } }
             SystemBarsEffect(this@MainActivity)
             // A face whose statusBar is false takes the status bar's room too.
             val fullScreen by remember { derivedStateOf { state.fullScreen && runtime.widgets.openScreen == null } }
@@ -90,6 +98,15 @@ class MainActivity : ComponentActivity() {
             snapshotFlow { runtime.launcherReady }.first { it }
             withResumed { requestHomeRole() }
         }
+    }
+
+    /** Whether this start came from the app's icon rather than from Home, while the launcher is the home app. */
+    private fun openedAsApp(intent: Intent): Boolean {
+        if (intent.action != Intent.ACTION_MAIN || !intent.hasCategory(Intent.CATEGORY_LAUNCHER) || intent.hasCategory(Intent.CATEGORY_HOME)) return false
+        // Debug builds are driven through this intent's extras (handleDebugExec).
+        if (BuildConfig.DEBUG && (intent.hasExtra("exec") || intent.hasExtra("theme"))) return false
+        val roles = getSystemService(RoleManager::class.java)
+        return roles.isRoleAvailable(RoleManager.ROLE_HOME) && roles.isRoleHeld(RoleManager.ROLE_HOME)
     }
 
     /** Asks once to become the default home app; Android shows its own chooser. */
@@ -204,6 +221,9 @@ class MainActivity : ComponentActivity() {
             }
         return taken || super.dispatchTouchEvent(event)
     }
+
+    /** Fork: the mouse wheel with Super held turns the tiling desktop's workspaces, over home as over a window. */
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean = Tiling.wheel(event) || super.dispatchGenericMotionEvent(event)
 
     // Lint flags super.dispatchKeyEvent: ComponentActivity marks its override @RestrictTo, but Activity's is public API.
     /**

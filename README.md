@@ -6,6 +6,8 @@ This fork adds SUPER DESKTOP pages, terminal widgets and usage widgets to
 Omalauncher's Android home screen. Pair your Linux PCs from a SUPER DESKTOP
 page; the launcher shares those connections across its widgets.
 
+[Download SD Launcher, setup and keyboard shortcuts](https://superdesktop.dmytrogladkyi.com/launcher/).
+
 To add a **usage widget**, long-press the home screen → **super desktop →
 [ usage ]**, or open a SUPER DESKTOP page's **⚙ → + usage widget**. Tap any
 of its four cards to choose **computer → provider → statistic**. The widget's
@@ -26,7 +28,7 @@ move or resize it.
 
 With a hardware keyboard connected, SD Launcher can turn into a tiling desktop
 in the manner of Hyprland on Omarchy: Android apps open as tiled windows on
-five workspaces, under a bar with the workspaces, the clock, notifications,
+up to ten workspaces, under a bar with the workspaces, the clock, notifications,
 Bluetooth, Wi-Fi and the battery. Home's widgets stay under the windows, and
 workspace N shows home's page N. It needs Android 13 or newer and has been
 tried on a Xiaomi Pad 7 Pro (HyperOS 3) only.
@@ -43,26 +45,55 @@ It stays off until it is set up:
 
    The helper runs as adb's shell user, which may put apps on displays of their
    own and send them input; the launcher draws those displays as its windows.
-2. Turn on **Tiling desktop shortcuts** in Android's Accessibility settings (an
-   APK installed from a file first needs "Allow restricted settings" in the
-   app's info). It only looks at Super shortcuts from a hardware keyboard.
+2. The Super shortcuts need the accessibility service **Tiling desktop shortcuts**. The helper switches it on
+   itself, and again whenever Android has stopped running it; without the helper it is in Android's Accessibility
+   settings under the downloaded apps (an APK installed from a file first needs "Allow restricted settings" in the
+   app's info). It only looks at keys from a hardware keyboard.
+3. On HyperOS, give SD Launcher **Autostart** in its app info: without it the system does not restart the launcher's
+   services after it has killed the launcher behind a locked screen.
 
 | Keys | |
 |---|---|
-| Super+Space | open an app (type, arrows, Enter) |
-| Super+1…5 | switch workspace |
-| Super+Shift+1…5 | move the window to that workspace |
+| Super+Space | open an app (type, arrows, Enter); "show keyboard shortcuts" is in its list |
+| Super+Return | terminal |
+| Super+Shift+B, F, C, E, M, … | browser, files, calendar, email, music, … (`tiling.conf`) |
+| Super+W, Super+Q | close the window |
+| Super+1…9, 0 | switch workspace |
+| Super+Shift+1…0 | move the window to that workspace; with Alt, stay here |
+| Super+Ctrl+Tab | the workspace before this one |
+| Super+wheel, three fingers swiped sideways on the touchscreen | next / previous workspace |
+| Super+S, Super+Alt+S | the scratchpad; move the window to it |
 | Super+Alt+arrows | focus the window that way |
+| Alt+Tab, Alt+Shift+Tab | next / previous window |
 | Super+Shift+arrows | swap windows |
-| Super+F | full screen |
-| Super+W | close the window |
+| Super+J | toggle the window's split |
+| Super+T | float the window, or tile it again |
+| Super+O | pop the window out: centred at 80% of the available window area's width and height, on every workspace |
+| Super+F, Super+Alt+F | full screen; full width with the bar |
+| Super+minus / equal | narrower / wider; with Shift shorter / taller, with Alt a little, with Ctrl a lot |
+| Super+left / right mouse drag | move / resize the window |
+| Super+Shift+Backspace | toggle the gaps |
+| Super+comma | notifications; with Shift dismiss all, with Alt the latest, with Shift+Alt their history |
+| Super+K | the list of these keys |
 | Super+Shift+D | leave the desktop, or come back |
 
-A click on a workspace number switches to it, a right click on the bar moves it
-to the next screen edge, `?` on the bar lists the shortcuts, and three fingers
-swiped sideways switch workspace. Apps in windows get no on-screen keyboard.
-HyperOS keeps Super with a bare arrow (split screen), Super+Tab, Super+L and
-Super+Enter for itself.
+These are Omarchy's keys where Android leaves them free. The keys that open apps are in `tiling.conf`, beside the
+widgets (`~/.config/omalauncher/widgets/tiling.conf` in Linux): a line is `super + shift + b = browser`, and what is
+opened is a kind of app (browser, files, calendar, email, music, calculator, maps, photos, messages, contacts),
+`terminal`, `settings`, an app's name or its package. A key whose app already has a window goes to that window.
+
+On the bar, Omarchy's mark opens home's list of every app, a workspace number switches to it (the first five are
+always shown, a later one while it is in use), `s` is the scratchpad, the gear opens Android's Settings in a window
+and `?` lists the keys; a right click on the bar moves it to the next screen edge. Swiping home's pages switches
+workspace too, with the windows travelling along. Linux windows, the terminal among them, are windows of the desktop
+like any app. Taking the keyboard off turns the windows back into ordinary apps, the focused one staying in front;
+putting it on brings them back. The window under the mouse pointer has the keys. Apps in windows get no on-screen
+keyboard. Super on its own does nothing: the dock and the list of shortcuts HyperOS would show for it are kept away. HyperOS keeps Super with a bare arrow
+(split screen), Super+Tab, Super+L, Super+slash and Super+D for itself.
+
+Three-finger workspace swipes work on the touchscreen. Touchpad swipes can be intercepted by HyperOS before
+they reach the launcher; there is no working fix yet. Use Super+wheel or Super+number instead.
+The helper must be restarted after updating, because this release changes its interface.
 
 The upstream Omalauncher overview follows.
 

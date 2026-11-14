@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
+import android.hardware.display.VirtualDisplayConfig
 import android.os.Binder
 import android.os.Build
 import android.os.Bundle
@@ -14,8 +15,11 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.Process
+import android.os.SystemClock
 import android.util.Log
+import android.view.InputDevice
 import android.view.InputEvent
+import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Surface
@@ -34,7 +38,7 @@ import java.util.concurrent.Executors
  * Nothing here is an app: there is no Application, and the framework is reached through its hidden side by reflection.
  */
 object HelperMain {
-    const val VERSION = 2
+    const val VERSION = 6
     const val TAG = "TilingHelper"
 
     @JvmStatic
@@ -171,11 +175,19 @@ private class Helper(private val pkg: String) : ITilingHelper.Stub() {
         height: Int,
         dpi: Int,
         name: String,
+        refreshRate: Float,
     ): Int {
         enforce()
         val identity = Binder.clearCallingIdentity()
         try {
-            val display = displays.createVirtualDisplay(name, width, height, dpi, surface, FLAGS) ?: return -1
+            val display =
+                if (Build.VERSION.SDK_INT >= 34 && refreshRate > 0f) {
+                    val config = VirtualDisplayConfig.Builder(name, width, height, dpi).setFlags(FLAGS).setRequestedRefreshRate(refreshRate)
+                    if (surface != null) config.setSurface(surface)
+                    displays.createVirtualDisplay(config.build())
+                } else {
+                    displays.createVirtualDisplay(name, width, height, dpi, surface, FLAGS)
+                } ?: return -1
             val id = display.display.displayId
             shown[id] = display
             noKeyboard(id)
@@ -230,6 +242,16 @@ private class Helper(private val pkg: String) : ITilingHelper.Stub() {
             }
             display.release()
         }
+    }
+
+    override fun dropDisplays(
+        displayIds: IntArray,
+        thenFront: Int,
+    ) {
+        enforce()
+        asShell { for (id in displayIds) shown.remove(id)?.release() }
+        // The apps arrive on the main screen a little after their displays go; twice, for a slow one.
+        if (thenFront >= 0) for (delay in longArrayOf(250, 700)) main.postDelayed({ asShell { task("setFocusedTask", thenFront) } }, delay)
     }
 
     // ---- apps ----
@@ -310,6 +332,46 @@ private class Helper(private val pkg: String) : ITilingHelper.Stub() {
         worker.execute { exec(listOf("cmd", "statusbar", "expand-notifications")) }
     }
 
+    /**
+     * The shell user may write secure settings, where the list of enabled accessibility services is: whoever starts
+     * this helper is spared finding the launcher's key service in Settings, and gets it back when Android has dropped it.
+     */
+    override fun enableAccessibilityService(
+        component: String,
+        again: Boolean,
+    ) {
+        enforce()
+        // Only the launcher's own services.
+        if (!component.startsWith("$pkg/")) return
+        worker.execute {
+            val others = run(listOf("settings", "get", "secure", ENABLED_SERVICES)).split(':').map { it.trim() }.filter { it.isNotEmpty() && it != "null" && it != component }
+            if (again) {
+                exec(listOf("settings", "put", "secure", ENABLED_SERVICES, others.joinToString(":")))
+                Thread.sleep(1200)
+            }
+            exec(listOf("settings", "put", "secure", ENABLED_SERVICES, (others + component).joinToString(":")))
+            exec(listOf("settings", "put", "secure", "accessibility_enabled", "1"))
+            Log.i(HelperMain.TAG, "key service switched on" + if (again) " again" else "")
+        }
+    }
+
+    private fun run(command: List<String>): String =
+        runCatching {
+            val process = ProcessBuilder(command).redirectErrorStream(true).start()
+            process.inputStream.bufferedReader().readText().trim().also { process.waitFor() }
+        }.getOrDefault("")
+
+    override fun tapKey(keyCode: Int) {
+        enforce()
+        asShell {
+            val now = SystemClock.uptimeMillis()
+            for (action in intArrayOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+                val event = KeyEvent(now, now, action, keyCode, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_KEYBOARD)
+                inject.invoke(inputManager, event, INJECT_ASYNC)
+            }
+        }
+    }
+
     // ---- input ----
 
     override fun injectMotion(
@@ -367,6 +429,7 @@ private class Helper(private val pkg: String) : ITilingHelper.Stub() {
     companion object {
         const val MAX_TASKS = 100
         const val INJECT_ASYNC = 0
+        const val ENABLED_SERVICES = "enabled_accessibility_services"
 
         /** WindowManager.DISPLAY_IME_POLICY_HIDE. */
         const val IME_POLICY_HIDE = 2

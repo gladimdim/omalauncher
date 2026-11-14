@@ -42,6 +42,7 @@ import dev.omalauncher.linux.shellQuote
 import dev.omalauncher.theme.Style
 import dev.omalauncher.theme.StyleStore
 import dev.omalauncher.theme.ThemeStore
+import dev.omalauncher.ui.opensAsTile
 import dev.omalauncher.ui.Gestures
 import dev.omalauncher.ui.KeyboardBridge
 import dev.omalauncher.ui.SettingsPage
@@ -53,7 +54,10 @@ import dev.omalauncher.ui.bitmapMask
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.ui.decodeImageIcon
 import dev.omalauncher.ui.decodeSvgIcon
+import dev.omalauncher.upgrade.Managed
+import dev.omalauncher.upgrade.Policy
 import dev.omalauncher.upgrade.Provisioner
+import dev.gladimdim.tiling.DEFAULT_BINDINGS
 import dev.omalauncher.wayland.AndroidClipboard
 import dev.omalauncher.wayland.GuestImages
 import dev.omalauncher.wayland.OutputInfo
@@ -142,7 +146,20 @@ class Runtime(
     private val dns = LinuxDns(context, proot.rootfs)
 
     /** The launcher's own provided files (default widgets, their docs); see [Provisioner]. */
-    private val launcherFiles = Provisioner(proot.filesDir, LauncherData.LAUNCHER_MANIFEST, listOf(widgets::managed, style::managed))
+    private val launcherFiles =
+        Provisioner(
+            proot.filesDir,
+            LauncherData.LAUNCHER_MANIFEST,
+            listOf(
+                widgets::managed,
+                style::managed,
+                {
+                    listOf(
+                        Managed.text(File(LauncherData.widgetsDir(context), "tiling.conf"), Policy.Seeded) { DEFAULT_BINDINGS },
+                    )
+                },
+            ),
+        )
 
     /** Every launcher-provided file in the guest; synced only while Linux is installed. */
     private val provisioner: Provisioner =
@@ -226,13 +243,13 @@ class Runtime(
                     "btop" -> "BtopWindow"
                     else -> agentOf(window?.appId.orEmpty(), name)?.windowAlias ?: "LinuxWindowActivity"
                 }
-            InstantActivity.startInstantly(
-                context,
+            val intent =
                 Intent()
                     .setClassName(context, "dev.omalauncher.$activity")
                     .setData(Uri.parse("omarchy://window/$handle"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK),
-            )
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+            // Fork: a window of the tiling desktop while that is on.
+            if (!opensAsTile(context, name ?: "Linux", intent)) InstantActivity.startInstantly(context, intent)
         }
     }
 

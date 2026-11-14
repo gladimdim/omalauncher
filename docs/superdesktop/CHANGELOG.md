@@ -1,5 +1,42 @@
 # SD Launcher changelog
 
+## 1.11.0 (115)
+
+Built on **Omalauncher 1.4.0**, as 1.10.1. The SUPER DESKTOP bridge is
+unchanged, so it works with the same desktop versions as 1.10.1.
+
+### Tiling desktop (experimental)
+- **More control over windows**: float or tile with Super+T, pop a window onto
+  every workspace with Super+O, and keep windows in a scratchpad with Super+S
+  and Super+Alt+S. Each pop-out starts centred at 80% of the available window
+  area's width and height. Resize with Super+minus/equal or Super+right drag, move with
+  Super+left drag, turn a split with Super+J and toggle gaps with
+  Super+Shift+Backspace. Full screen can include the bar or leave it visible.
+- **Ten workspaces**: Super+1…9 and 0 switch; add Shift to move a window there
+  and follow it, or Shift+Alt to stay. Super+Ctrl+Tab returns to the previous
+  workspace, Super+wheel steps between them, and Alt+Tab cycles windows.
+- **Your app keys**: edit `tiling.conf` beside the widgets to choose what
+  Super+Shift+letter opens. Super+Return opens the Linux terminal; Linux
+  windows join the tiled desktop. Super+K or the bar's question mark lists
+  the shortcuts. The start button opens home's app list, the gear opens
+  Android Settings, and Super+comma and its modifiers manage notifications.
+- **Returning to the desktop**: taking the keyboard off returns windows to
+  ordinary Android apps and keeps the focused app in front. Reconnecting it
+  brings windows back. The helper enables the shortcut accessibility service
+  and restarts it when Android stops it. Hidden home widgets pause their
+  updates; virtual displays request the screen's refresh rate on Android 14+.
+- **Opening SD Launcher from its icon** while it is the default home app now
+  opens the home task, avoiding a duplicate entry in Recents.
+
+### Setup and known limits
+- Restart the adb helper after updating (and after every reboot); its
+  interface changed. On HyperOS, allow SD Launcher to autostart.
+- Tested during development on a Xiaomi Pad 7 Pro with HyperOS 3 only.
+  Three-finger touchscreen swipes work. HyperOS can intercept touchpad
+  swipes before the launcher sees them; this remains unresolved. Use
+  Super+wheel or Super+number. The final 80% pop-out sizing has automated
+  build checks but has not been checked on the Pad.
+
 ## 1.10.1 (114)
 
 Built on **Omalauncher 1.4.0**, as 1.10.0. The bridge is unchanged, so it works

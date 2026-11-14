@@ -38,6 +38,49 @@ class LayoutTest {
     }
 
     @Test
+    fun resizingMovesTheWindowsOwnCut() {
+        val splits = List(3) { Split() }
+        // The first window is cut side by side from the rest: 100 wider out of 990 of room.
+        assertEquals(true, resize(screen, splits, 10, 0, 100, 0))
+        val boxes = dwindle(screen, splits, 10)
+        assertEquals(Area(0, 0, 595, 600), boxes[0])
+        assertEquals(605, boxes[1].left)
+        // It has no cut above or below it: nothing to make it taller with.
+        assertEquals(false, resize(screen, splits, 10, 0, 0, 50))
+    }
+
+    @Test
+    fun resizingAWindowOnTheFarSideMovesTheCutBeforeIt() {
+        val splits = List(3) { Split() }
+        // The last window's width is set by the first one's cut: wider means that cut moves left.
+        assertEquals(true, resize(screen, splits, 10, 2, 99, 0))
+        val boxes = dwindle(screen, splits, 10)
+        assertEquals(396, boxes[0].right)
+        assertEquals(406, boxes[2].left)
+        // And its height by the second one's, which it lies below: taller means that one gets shorter.
+        assertEquals(true, resize(screen, splits, 10, 2, 0, 59))
+        assertEquals(236, dwindle(screen, splits, 10)[1].bottom)
+    }
+
+    @Test
+    fun aCutStopsBeforeItSqueezesAWindowOut() {
+        val splits = List(2) { Split() }
+        resize(screen, splits, 10, 0, 5000, 0)
+        assertEquals(MAX_RATIO, splits[0].ratio)
+        assertEquals(false, resize(screen, splits, 10, 0, 100, 0))
+    }
+
+    @Test
+    fun turningASplitStacksWhatWasSideBySide() {
+        val splits = List(2) { Split() }
+        assertEquals(true, turnSplit(splits, 1))
+        val boxes = dwindle(screen, splits, 10)
+        assertEquals(Area(0, 0, 1000, 295), boxes[0])
+        assertEquals(Area(0, 305, 1000, 600), boxes[1])
+        assertEquals(false, turnSplit(List(1) { Split() }, 0))
+    }
+
+    @Test
     fun theBarTakesItsEdgeFromTheWorkArea() {
         assertEquals(Area(8, 38, 992, 592), workArea(1000, 600, Edge.TOP, 30, 8))
         assertEquals(Area(38, 8, 992, 592), workArea(1000, 600, Edge.LEFT, 30, 8))

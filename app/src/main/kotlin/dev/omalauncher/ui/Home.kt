@@ -306,6 +306,12 @@ fun HomeScreen(
     LaunchedEffect(pager) {
         snapshotFlow { currentSlots.getOrNull(pager.currentPage)?.firstOrNull() }.collect { page -> if (page != null) Tiling.pageShown(page) }
     }
+    // Fork: and its windows travel with the page under the finger. The first page's number places the others: page 1
+    // is workspace 0, a face left of it is before the first workspace.
+    LaunchedEffect(pager) {
+        snapshotFlow { pager.currentPage + pager.currentPageOffsetFraction + (currentSlots.firstOrNull()?.firstOrNull() ?: 1) - 1 }
+            .collect { Tiling.pageScrolled(it) }
+    }
 
     fun openMenu(item: HomeItem?) {
         menuFor = item

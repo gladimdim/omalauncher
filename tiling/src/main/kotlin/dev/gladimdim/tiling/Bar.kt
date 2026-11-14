@@ -69,9 +69,15 @@ internal fun Bar(host: TilingHost) {
             },
     ) {
         val workspaces: @Composable () -> Unit = {
+            // The start button, with Omarchy's mark as on its own bar: home's list of every app.
+            Canvas(Modifier.clickable { Tiling.startMenu() }.padding(horizontal = 9.dp, vertical = 7.dp).size(15.dp)) {
+                drawPath(omarchyMark(size.minDimension), if (Tiling.homeRaised) colors.accent else colors.foreground)
+            }
             for (i in 0 until Tiling.WORKSPACES) {
                 val here = i == Tiling.current
                 val used = version >= 0 && Tiling.workspaces[i].isNotEmpty()
+                // The first five always, as on Omarchy's bar; a later one while it has windows or is where we are.
+                if (i >= Tiling.ALWAYS_SHOWN && !here && !used) continue
                 BasicText(
                     (i + 1).toString(),
                     Modifier
@@ -86,10 +92,24 @@ internal fun Bar(host: TilingHost) {
                 )
             }
         }
+        val scratchpad: @Composable () -> Unit = {
+            // The scratchpad, while there is something on it.
+            if (version >= 0 && Tiling.workspaces[Tiling.SCRATCH].isNotEmpty()) {
+                BasicText(
+                    "s",
+                    Modifier
+                        .clickable { Tiling.toggleScratch() }
+                        .then(if (Tiling.scratchShown) Modifier.background(colors.accent.copy(alpha = 0.22f)) else Modifier)
+                        .padding(horizontal = 9.dp, vertical = 5.dp),
+                    style = text.copy(color = if (Tiling.scratchShown) colors.accent else colors.foreground),
+                )
+            }
+        }
         val status: @Composable () -> Unit = {
             Icon(colors.foreground, Modifier.clickable { Tiling.notifications() }) { bell(it) }
             Icon(if (BarStatus.bluetooth) colors.foreground else colors.muted, Modifier.clickable { Tiling.openSettings("Bluetooth", "android.settings.BLUETOOTH_SETTINGS") }) { bluetooth(it) }
             Icon(if (BarStatus.wifi) colors.foreground else colors.muted, Modifier.clickable { Tiling.openSettings("Wi-Fi", "android.settings.WIFI_SETTINGS") }) { wifi(it) }
+            Icon(colors.foreground, Modifier.clickable { Tiling.settings() }) { gear(it) }
             BasicText(
                 "?",
                 Modifier.clickable { Tiling.toggleHelp() }.padding(horizontal = 7.dp, vertical = 4.dp),
@@ -104,7 +124,10 @@ internal fun Bar(host: TilingHost) {
             }
         }
         if (vertical) {
-            Column(Modifier.align(Alignment.TopCenter).padding(top = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) { workspaces() }
+            Column(Modifier.align(Alignment.TopCenter).padding(top = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                workspaces()
+                scratchpad()
+            }
             Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                 BasicText(BarStatus.hours, style = text)
                 BasicText(BarStatus.minutes, style = text)
@@ -115,7 +138,10 @@ internal fun Bar(host: TilingHost) {
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) { status() }
         } else {
-            Row(Modifier.align(Alignment.CenterStart).padding(start = 6.dp), verticalAlignment = Alignment.CenterVertically) { workspaces() }
+            Row(Modifier.align(Alignment.CenterStart).padding(start = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                workspaces()
+                scratchpad()
+            }
             BasicText(BarStatus.time, Modifier.align(Alignment.Center), style = text)
             Row(
                 Modifier.align(Alignment.CenterEnd).padding(end = 6.dp),
@@ -169,4 +195,52 @@ private fun Path.bell(u: Float) {
     close()
     moveTo(10.5f * u, 21f * u)
     lineTo(13.5f * u, 21f * u)
+}
+
+private fun Path.gear(u: Float) {
+    // A hub, a rim and eight teeth.
+    addOval(androidx.compose.ui.geometry.Rect(center = Offset(12f * u, 12f * u), radius = 3f * u))
+    addOval(androidx.compose.ui.geometry.Rect(center = Offset(12f * u, 12f * u), radius = 7f * u))
+    for (i in 0 until 8) {
+        val angle = Math.PI * i / 4
+        val cos = kotlin.math.cos(angle).toFloat()
+        val sin = kotlin.math.sin(angle).toFloat()
+        moveTo((12f + 7f * cos) * u, (12f + 7f * sin) * u)
+        lineTo((12f + 10f * cos) * u, (12f + 10f * sin) * u)
+    }
+}
+
+/**
+ * Omarchy's mark, the glyph U+E900 of its icon font (MIT, Copyright (c) David Heinemeier Hansson), as that font's
+ * outline: only moves and horizontal and vertical lines, on a 1024 grid with y upwards.
+ */
+private const val OMARCHY_MARK =
+    "M70 70H549V0H0V1024H1024V0H626V70H954V954H70ZM884 140H140V884H551V814H210V210H814V814H736V884H884Z" +
+        "M471 140H549V70H471ZM473 954H551V884H473ZM0 551H210V473H0Z"
+
+private fun omarchyMark(size: Float): Path {
+    val path = Path()
+    val scale = size / 1024f
+    var x = 0f
+    var y = 0f
+    for (step in Regex("[MHVZ][^MHVZ]*").findAll(OMARCHY_MARK)) {
+        val numbers = step.value.drop(1).trim().split(' ').filter { it.isNotEmpty() }.map { it.toFloat() }
+        when (step.value[0]) {
+            'M' -> {
+                x = numbers[0]
+                y = numbers[1]
+                path.moveTo(x * scale, (1024f - y) * scale)
+            }
+            'H' -> {
+                x = numbers[0]
+                path.lineTo(x * scale, (1024f - y) * scale)
+            }
+            'V' -> {
+                y = numbers[0]
+                path.lineTo(x * scale, (1024f - y) * scale)
+            }
+            else -> path.close()
+        }
+    }
+    return path
 }

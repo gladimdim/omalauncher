@@ -103,6 +103,7 @@
     <string name="linux_removing">linux wird entfernt…</string>
     <string name="linux_offer_title">arch linux, optional</string>
     <string name="linux_offer_body">Linux-Apps, Terminal-Widgets, Coding-Agenten, pacman und Dateien. Etwa 1 GB Download und 3 GB Platz; installiert sich im Hintergrund.</string>
+    <string name="linux_unsupported">Linux braucht ein 64-Bit-Android-Gerät. Dieses Gerät führt nur 32-Bit-Apps aus. Alles andere im Launcher funktioniert.</string>
     <string name="linux_install">linux installieren</string>
     <plurals name="linux_install_with_agents">
         <item quantity="one">linux und %d agent installieren</item>

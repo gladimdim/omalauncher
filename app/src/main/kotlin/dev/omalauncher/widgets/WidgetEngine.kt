@@ -210,7 +210,10 @@ class WidgetEngine(
     private var started by mutableIntStateOf(0)
 
     /** Sources pause while no home screen is showing. */
-    val visible get() = started > 0
+    val visible get() = started > 0 && !covered
+
+    /** Fork: the tiling desktop's windows lie over the whole of home, which is as good as not showing (ui/TilingHook.kt). */
+    var covered by mutableStateOf(false)
 
     fun homeStarted() {
         started++

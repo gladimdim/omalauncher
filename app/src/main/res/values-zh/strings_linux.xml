@@ -102,6 +102,7 @@
     <string name="linux_removing">正在移除 linux…</string>
     <string name="linux_offer_title">arch linux（可选）</string>
     <string name="linux_offer_body">Linux 应用、终端小组件、编程智能体、pacman 和文件。下载约 1 GB，占用 3 GB 空间；在后台安装。</string>
+    <string name="linux_unsupported">Linux 需要 64 位 Android 设备，而此设备只能运行 32 位应用。启动器的其他功能均可正常使用。</string>
     <string name="linux_install">安装 linux</string>
     <plurals name="linux_install_with_agents">
         <item quantity="other">安装 linux 和 %d 个智能体</item>

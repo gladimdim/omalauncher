@@ -61,30 +61,123 @@ fun workArea(
 }
 
 /**
- * Hyprland's dwindle layout, by order: each window takes half of what is left, split across its longer side, and
- * the last one takes the rest. [gap] is kept between neighbours.
+ * How one window divides what is left with the windows after it: the share it takes, and whether the side the split
+ * runs along is turned from the one the space would pick (Hyprland's togglesplit).
  */
+class Split(
+    var ratio: Float = 0.5f,
+    var turned: Boolean = false,
+)
+
+/** One step of the dwindle: the window's box, what is left for the others, and how it was cut. */
+private class Cut(
+    val box: Area,
+    val rest: Area,
+    /** Side by side (cut by a vertical line), not one above the other. */
+    val sideBySide: Boolean,
+    /** The room along the cut's axis that the ratio divides. */
+    val room: Int,
+)
+
+private fun cut(
+    rest: Area,
+    split: Split,
+    gap: Int,
+): Cut {
+    val sideBySide = (rest.width >= rest.height) != split.turned
+    val ratio = split.ratio.coerceIn(MIN_RATIO, MAX_RATIO)
+    return if (sideBySide) {
+        val room = rest.width - gap
+        val w = (room * ratio).toInt()
+        Cut(Area(rest.left, rest.top, rest.left + w, rest.bottom), Area(rest.left + w + gap, rest.top, rest.right, rest.bottom), true, room)
+    } else {
+        val room = rest.height - gap
+        val h = (room * ratio).toInt()
+        Cut(Area(rest.left, rest.top, rest.right, rest.top + h), Area(rest.left, rest.top + h + gap, rest.right, rest.bottom), false, room)
+    }
+}
+
+const val MIN_RATIO = 0.1f
+const val MAX_RATIO = 0.9f
+
+/**
+ * Hyprland's dwindle layout, by order: each window takes its share of what is left (half, unless resized), cut across
+ * the longer side (unless turned), and the last one takes the rest. [gap] is kept between neighbours.
+ */
+fun dwindle(
+    area: Area,
+    splits: List<Split>,
+    gap: Int,
+): List<Area> {
+    val out = ArrayList<Area>(splits.size)
+    var rest = area
+    for (i in splits.indices) {
+        if (i == splits.lastIndex) {
+            out += rest
+        } else {
+            val cut = cut(rest, splits[i], gap)
+            out += cut.box
+            rest = cut.rest
+        }
+    }
+    return out
+}
+
+/** With every window taking half. */
 fun dwindle(
     area: Area,
     count: Int,
     gap: Int,
-): List<Area> {
-    val out = ArrayList<Area>(count)
+): List<Area> = dwindle(area, List(count) { Split() }, gap)
+
+/**
+ * Makes the window at [index] wider by [dx] and taller by [dy] pixels (narrower and shorter when negative) by moving
+ * the cut that sets that size: its own, when it is cut that way from the windows after it, else the nearest cut
+ * before it that is, which it then lies on the far side of. True when a cut moved.
+ */
+fun resize(
+    area: Area,
+    splits: List<Split>,
+    gap: Int,
+    index: Int,
+    dx: Int,
+    dy: Int,
+): Boolean {
+    if (index !in splits.indices) return false
+    val cuts = ArrayList<Cut>()
     var rest = area
-    for (i in 0 until count) {
-        if (i == count - 1) {
-            out += rest
-        } else if (rest.width >= rest.height) {
-            val w = (rest.width - gap) / 2
-            out += Area(rest.left, rest.top, rest.left + w, rest.bottom)
-            rest = Area(rest.left + w + gap, rest.top, rest.right, rest.bottom)
-        } else {
-            val h = (rest.height - gap) / 2
-            out += Area(rest.left, rest.top, rest.right, rest.top + h)
-            rest = Area(rest.left, rest.top + h + gap, rest.right, rest.bottom)
+    for (i in 0 until splits.lastIndex) {
+        val cut = cut(rest, splits[i], gap)
+        cuts += cut
+        rest = cut.rest
+    }
+    var moved = false
+    for ((delta, sideBySide) in listOf(dx to true, dy to false)) {
+        if (delta == 0) continue
+        // Its own cut gives it the first share; one before it gives it (part of) the rest.
+        val own = cuts.getOrNull(index)?.takeIf { it.sideBySide == sideBySide }
+        val at = if (own != null) index else (index - 1 downTo 0).firstOrNull { cuts[it].sideBySide == sideBySide } ?: continue
+        val room = cuts[at].room.takeIf { it > 0 } ?: continue
+        val change = delta.toFloat() / room * if (own != null) 1 else -1
+        val to = (splits[at].ratio + change).coerceIn(MIN_RATIO, MAX_RATIO)
+        if (to != splits[at].ratio) {
+            splits[at].ratio = to
+            moved = true
         }
     }
-    return out
+    return moved
+}
+
+/** Turns the cut between the window at [index] and its neighbours: side by side becomes one above the other. */
+fun turnSplit(
+    splits: List<Split>,
+    index: Int,
+): Boolean {
+    if (splits.size < 2 || index !in splits.indices) return false
+    // The last window has no cut of its own: the one before it made its place.
+    val at = if (index < splits.lastIndex) index else splits.lastIndex - 1
+    splits[at].turned = !splits[at].turned
+    return true
 }
 
 /** The window next to [from] towards ([dx], [dy]): the nearest one that lies that way, preferring one alongside it. */
