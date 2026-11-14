@@ -65,6 +65,26 @@
     <string name="permissions_notifications_uses">linux while it runs, widgets that notify you</string>
     <string name="permissions_notification_access">notification access</string>
     <string name="permissions_notification_access_uses">notification dots, what\'s playing and do not disturb for widgets</string>
+    <string name="permissions_accessibility">accessibility (tiling shortcuts)</string>
+    <string name="permissions_accessibility_uses">hardware keyboard shortcuts and language switch · Accessibility → Downloaded apps → Tiling desktop shortcuts (if greyed out: App info → ⋮ → Allow restricted settings)</string>
+
+    <string name="settings_keyboard">keyboard &amp; desktop</string>
+    <string name="settings_keyboard_subtitle">language switch: %1$s</string>
+    <string name="keyboard_title">keyboard &amp; desktop</string>
+    <string name="keyboard_language_hotkey">input language hotkey</string>
+    <string name="keyboard_language_hotkey_off">off</string>
+    <string name="keyboard_language_hotkey_change">change</string>
+    <string name="keyboard_language_hotkey_prompt">press any key combination on your hardware keyboard, or pick a preset below</string>
+    <string name="keyboard_language_bar">show language flag in bar</string>
+    <string name="keyboard_language_bar_uses">shows the active input language flag in the toolbar; click it to switch</string>
+    <string name="keyboard_auto_desktop">auto-enter desktop on keyboard</string>
+    <string name="keyboard_auto_desktop_uses">starts tiling desktop automatically when a hardware keyboard connects</string>
+    <string name="keyboard_helper_title">window helper</string>
+    <string name="keyboard_helper_running">running · tiling windows and key injection ready</string>
+    <string name="keyboard_helper_stopped">not running · start from a computer with scripts/tiling-helper.sh</string>
+    <string name="keyboard_app_info">app info</string>
+    <string name="keyboard_accessibility_note">if Accessibility is greyed out as a restricted setting on Android 13+, open App info → ⋮ → Allow restricted settings first</string>
+    <string name="keyboard_conf_note">app shortcuts can also be edited in tiling.conf beside your widgets</string>
 
     <string name="settings_android">android settings</string>
     <string name="settings_android_subtitle">the phone\'s system settings</string>

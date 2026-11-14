@@ -186,7 +186,9 @@ internal fun Notice(host: TilingHost) {
             return@Column
         }
         if (Tiling.help) {
-            for ((combo, what) in SHORTCUTS) {
+            val langCombo = Tiling.languageHotkey?.format()
+            val allShortcuts = if (langCombo != null) SHORTCUTS + (langCombo to "switch input language") else SHORTCUTS
+            for ((combo, what) in allShortcuts) {
                 Row {
                     BasicText(combo, Modifier.width(300.dp), style = text)
                     BasicText(what, style = quiet)
@@ -197,8 +199,13 @@ internal fun Notice(host: TilingHost) {
             if (Tiling.help) Spacer(Modifier.size(10.dp))
             BasicText(
                 "shortcuts need \"Tiling desktop shortcuts\" switched on: Accessibility › Downloaded apps  ›",
-                Modifier.clickable { runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+                Modifier.clickable { Tiling.openAccessibilitySettings(context) },
                 style = text.copy(color = colors.accent),
+            )
+            BasicText(
+                "if greyed out as restricted: App info › ⋮ › Allow restricted settings  ›",
+                Modifier.clickable { Tiling.openAppInfoSettings(context) }.padding(top = 4.dp),
+                style = quiet,
             )
         }
     }

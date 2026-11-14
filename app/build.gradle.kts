@@ -125,8 +125,8 @@ dependencies {
 androidComponents {
     onVariants { variant ->
         variant.outputs.forEach {
-            it.versionName.set("1.11.0")
-            it.versionCode.set(115)
+            it.versionName.set("1.12.0")
+            it.versionCode.set(116)
         }
     }
 }

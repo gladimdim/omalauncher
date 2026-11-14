@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import dev.gladimdim.tiling.Tiling
 import dev.omalauncher.AppLanguage
 import dev.omalauncher.LocalNetwork
 import dev.omalauncher.R
@@ -57,6 +58,7 @@ fun SettingsScreen(
     onLinux: () -> Unit,
     onLicenses: () -> Unit,
     onGestures: () -> Unit,
+    onKeyboard: () -> Unit,
     onPermissions: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -102,6 +104,14 @@ fun SettingsScreen(
                     R.string.settings_gestures,
                     stringResource(R.string.settings_gestures_subtitle, runtime.gestureLabel(runtime.gestures.swipeUp), runtime.gestureLabel(runtime.gestures.swipeDown)),
                     onGestures,
+                ),
+                SettingsRow(
+                    R.string.settings_keyboard,
+                    stringResource(
+                        R.string.settings_keyboard_subtitle,
+                        Tiling.languageHotkey?.format() ?: stringResource(R.string.keyboard_language_hotkey_off),
+                    ),
+                    onKeyboard,
                 ),
                 languageRow(),
                 SettingsRow(R.string.settings_linux, linuxStatus, onLinux),

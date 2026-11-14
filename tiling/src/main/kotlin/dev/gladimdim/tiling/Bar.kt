@@ -106,6 +106,15 @@ internal fun Bar(host: TilingHost) {
             }
         }
         val status: @Composable () -> Unit = {
+            if (Tiling.showLanguageInBar) {
+                BarStatus.inputLanguage?.let { lang ->
+                    BasicText(
+                        lang.display(vertical),
+                        Modifier.clickable { Tiling.switchInputLanguage() }.padding(horizontal = 6.dp, vertical = 4.dp),
+                        style = text,
+                    )
+                }
+            }
             Icon(colors.foreground, Modifier.clickable { Tiling.notifications() }) { bell(it) }
             Icon(if (BarStatus.bluetooth) colors.foreground else colors.muted, Modifier.clickable { Tiling.openSettings("Bluetooth", "android.settings.BLUETOOTH_SETTINGS") }) { bluetooth(it) }
             Icon(if (BarStatus.wifi) colors.foreground else colors.muted, Modifier.clickable { Tiling.openSettings("Wi-Fi", "android.settings.WIFI_SETTINGS") }) { wifi(it) }

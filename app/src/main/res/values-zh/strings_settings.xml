@@ -57,6 +57,27 @@
     <string name="permissions_notification_access_uses">通知圆点，以及小组件用的正在播放内容和勿扰模式</string>
 
     <string name="settings_android">android 设置</string>
+    <string name="permissions_accessibility">无障碍（平铺快捷键）</string>
+    <string name="permissions_accessibility_uses">实体键盘快捷键与切换输入语言 · 无障碍 → 已下载的应用 → Tiling desktop shortcuts（若呈灰色：应用信息 → ⋮ → 允许受限制的设置）</string>
+
+    <string name="settings_keyboard">键盘与桌面</string>
+    <string name="settings_keyboard_subtitle">切换语言：%1$s</string>
+    <string name="keyboard_title">键盘与桌面</string>
+    <string name="keyboard_language_hotkey">输入语言快捷键</string>
+    <string name="keyboard_language_hotkey_off">关</string>
+    <string name="keyboard_language_hotkey_change">更改</string>
+    <string name="keyboard_language_hotkey_prompt">在实体键盘上按下任意组合键，或选择下方预设</string>
+    <string name="keyboard_language_bar">在状态栏显示语言国旗</string>
+    <string name="keyboard_language_bar_uses">在状态栏显示当前输入语言；点击可切换</string>
+    <string name="keyboard_auto_desktop">连接键盘时自动进入桌面</string>
+    <string name="keyboard_auto_desktop_uses">连接实体键盘时自动启动平铺桌面</string>
+    <string name="keyboard_helper_title">窗口助手</string>
+    <string name="keyboard_helper_running">运行中 · 平铺窗口与按键注入就绪</string>
+    <string name="keyboard_helper_stopped">未运行 · 请在电脑上运行 scripts/tiling-helper.sh</string>
+    <string name="keyboard_app_info">应用信息</string>
+    <string name="keyboard_accessibility_note">若 Android 13+ 上无障碍开关呈灰色受限，请先打开 应用信息 → ⋮ → 允许受限制的设置</string>
+    <string name="keyboard_conf_note">应用快捷键也可在组件旁的 tiling.conf 中编辑</string>
+
     <string name="settings_android_subtitle">手机的系统设置</string>
     <string name="settings_licenses">开源许可</string>
     <string name="settings_licenses_subtitle">Omalauncher 中的开源软件</string>

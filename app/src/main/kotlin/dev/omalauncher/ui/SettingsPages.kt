@@ -42,6 +42,7 @@ enum class SettingsPage {
     Linux,
     Licenses,
     Gestures,
+    Keyboard,
 
     /** Every permission, to turn on or off. */
     Permissions,
@@ -118,6 +119,7 @@ private fun SettingsPage(
                 onLinux = { stack.push(SettingsPage.Linux) },
                 onLicenses = { stack.push(SettingsPage.Licenses) },
                 onGestures = { stack.push(SettingsPage.Gestures) },
+                onKeyboard = { stack.push(SettingsPage.Keyboard) },
                 onPermissions = { stack.push(SettingsPage.Permissions) },
             )
         SettingsPage.Style -> StyleScreen(runtime, onDismiss = close, onBrowse = { stack.push(SettingsPage.Themes) }, onAgent = ::agent)
@@ -166,6 +168,7 @@ private fun SettingsPage(
         SettingsPage.Linux -> LinuxScreen(runtime, onDismiss = close)
         SettingsPage.Licenses -> LicensesScreen(onDismiss = close)
         SettingsPage.Gestures -> GesturesScreen(runtime, onDismiss = close, onAgent = ::agent)
+        SettingsPage.Keyboard -> KeyboardSettingsScreen(onDismiss = close)
         SettingsPage.Permissions -> PermissionsScreen(runtime, onDismiss = close)
     }
 }

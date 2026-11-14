@@ -58,6 +58,27 @@
     <string name="permissions_notification_access">acesso a notificações</string>
     <string name="permissions_notification_access_uses">pontos de notificação, o que está tocando e não perturbe para widgets</string>
 
+    <string name="permissions_accessibility">acessibilidade (atalhos tiling)</string>
+    <string name="permissions_accessibility_uses">atalhos de teclado e troca de idioma · Acessibilidade → Apps transferidos → Tiling desktop shortcuts (se cinza: Info do app → ⋮ → Permitir configurações restritas)</string>
+
+    <string name="settings_keyboard">teclado e desktop</string>
+    <string name="settings_keyboard_subtitle">troca de idioma: %1$s</string>
+    <string name="keyboard_title">teclado e desktop</string>
+    <string name="keyboard_language_hotkey">atalho de idioma</string>
+    <string name="keyboard_language_hotkey_off">desligado</string>
+    <string name="keyboard_language_hotkey_change">alterar</string>
+    <string name="keyboard_language_hotkey_prompt">pressione qualquer combinação no teclado físico ou escolha abaixo</string>
+    <string name="keyboard_language_bar">mostrar bandeira de idioma na barra</string>
+    <string name="keyboard_language_bar_uses">mostra o idioma ativo na barra; toque para alternar</string>
+    <string name="keyboard_auto_desktop">abrir desktop ao conectar teclado</string>
+    <string name="keyboard_auto_desktop_uses">inicia o desktop tiling automaticamente ao conectar um teclado físico</string>
+    <string name="keyboard_helper_title">auxiliar de janelas</string>
+    <string name="keyboard_helper_running">em execução · janelas tiling e teclas prontas</string>
+    <string name="keyboard_helper_stopped">parado · inicie pelo computador com scripts/tiling-helper.sh</string>
+    <string name="keyboard_app_info">info do app</string>
+    <string name="keyboard_accessibility_note">se Acessibilidade estiver restrita no Android 13+, abra Info do app → ⋮ → Permitir configurações restritas primeiro</string>
+    <string name="keyboard_conf_note">os atalhos de apps também podem ser editados em tiling.conf ao lado dos widgets</string>
+
     <string name="settings_android">configurações do android</string>
     <string name="settings_android_subtitle">as configurações do sistema do telefone</string>
     <string name="settings_licenses">licenças</string>

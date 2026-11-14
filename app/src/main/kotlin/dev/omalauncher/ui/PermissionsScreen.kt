@@ -22,6 +22,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import dev.gladimdim.tiling.Tiling
+import dev.gladimdim.tiling.TilingKeyService
 import dev.omalauncher.LocalNetwork
 import dev.omalauncher.R
 import dev.omalauncher.Runtime
@@ -146,6 +148,13 @@ fun PermissionsScreen(
                     runtime.widgets.media.granted,
                     runtime.widgets.media::openAccessSettings,
                     runtime.widgets.media::openAccessSettings,
+                ),
+                Permission(
+                    R.string.permissions_accessibility,
+                    stringResource(R.string.permissions_accessibility_uses),
+                    TilingKeyService.connected,
+                    { Tiling.openAccessibilitySettings(context) },
+                    { Tiling.openAccessibilitySettings(context) },
                 ),
             )
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {

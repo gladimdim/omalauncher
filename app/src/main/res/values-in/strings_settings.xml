@@ -57,6 +57,27 @@
     <string name="permissions_notification_access_uses">titik notifikasi, yang sedang diputar dan jangan ganggu untuk widget</string>
 
     <string name="settings_android">setelan android</string>
+    <string name="permissions_accessibility">aksesibilitas (pintasan tiling)</string>
+    <string name="permissions_accessibility_uses">pintasan papan ketik dan ganti bahasa · Aksesibilitas → Aplikasi terunduh → Tiling desktop shortcuts (jika abu-abu: Info aplikasi → ⋮ → Izinkan setelan terbatas)</string>
+
+    <string name="settings_keyboard">papan ketik &amp; desktop</string>
+    <string name="settings_keyboard_subtitle">ganti bahasa: %1$s</string>
+    <string name="keyboard_title">papan ketik &amp; desktop</string>
+    <string name="keyboard_language_hotkey">tombol ganti bahasa</string>
+    <string name="keyboard_language_hotkey_off">mati</string>
+    <string name="keyboard_language_hotkey_change">ubah</string>
+    <string name="keyboard_language_hotkey_prompt">tekan kombinasi tombol di papan ketik fisik atau pilih preset di bawah</string>
+    <string name="keyboard_language_bar">tampilkan bendera bahasa di bilah</string>
+    <string name="keyboard_language_bar_uses">menampilkan bendera bahasa input aktif di bilah; ketuk untuk mengganti</string>
+    <string name="keyboard_auto_desktop">otomatis masuk desktop saat ada papan ketik</string>
+    <string name="keyboard_auto_desktop_uses">menjalankan desktop tiling otomatis saat papan ketik fisik tersambung</string>
+    <string name="keyboard_helper_title">pembantu jendela</string>
+    <string name="keyboard_helper_running">berjalan · jendela tiling dan injeksi tombol siap</string>
+    <string name="keyboard_helper_stopped">tidak berjalan · jalankan dari komputer dengan scripts/tiling-helper.sh</string>
+    <string name="keyboard_app_info">info aplikasi</string>
+    <string name="keyboard_accessibility_note">jika Aksesibilitas dibatasi di Android 13+, buka Info aplikasi → ⋮ → Izinkan setelan terbatas terlebih dahulu</string>
+    <string name="keyboard_conf_note">pintasan aplikasi juga dapat diubah di tiling.conf di samping widget Anda</string>
+
     <string name="settings_android_subtitle">setelan sistem ponsel</string>
     <string name="settings_licenses">lisensi</string>
     <string name="settings_licenses_subtitle">perangkat lunak open source di Omalauncher</string>

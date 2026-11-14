@@ -22,6 +22,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -181,6 +182,21 @@ object Tiling {
     var enabled by mutableStateOf(true)
         private set
 
+    /** Hotkey to switch the active input language (null = disabled). */
+    var languageHotkey by mutableStateOf<KeyHotkey?>(KeyHotkey.DEFAULT_LANGUAGE)
+        private set
+
+    /** Whether the active input language flag is shown in the bar. */
+    var showLanguageInBar by mutableStateOf(true)
+        private set
+
+    /** Whether connecting a hardware keyboard automatically enters the tiling desktop. */
+    var autoEnableOnKeyboard by mutableStateOf(true)
+        private set
+
+    /** Whether the window helper process is currently connected (for settings UI). */
+    val helperConnected: Boolean get() = helper != null
+
     /** Trusted virtual displays, which the tiles are, came with Android 13. */
     val supported = Build.VERSION.SDK_INT >= 33
     /**
@@ -248,11 +264,16 @@ object Tiling {
         if (Build.VERSION.SDK_INT < 33) return
         this.activity = activity
         this.host = host
-        edge = runCatching { Edge.valueOf(prefs(activity).getString("edge", null) ?: "TOP") }.getOrDefault(Edge.TOP)
-        help = !prefs(activity).getBoolean("help_seen", false)
-        optedIn = prefs(activity).getBoolean("opted_in", false)
-        enabled = prefs(activity).getBoolean("enabled", true)
-        gapless = prefs(activity).getBoolean("gapless", false)
+        val p = prefs(activity)
+        edge = runCatching { Edge.valueOf(p.getString("edge", null) ?: "TOP") }.getOrDefault(Edge.TOP)
+        help = !p.getBoolean("help_seen", false)
+        optedIn = p.getBoolean("opted_in", false)
+        enabled = p.getBoolean("enabled", true)
+        gapless = p.getBoolean("gapless", false)
+        showLanguageInBar = p.getBoolean("show_language_in_bar", true)
+        autoEnableOnKeyboard = p.getBoolean("auto_enable_on_keyboard", true)
+        languageHotkey =
+            if (p.contains("language_hotkey")) KeyHotkey.parse(p.getString("language_hotkey", null)) else KeyHotkey.DEFAULT_LANGUAGE
         val view = DesktopLayout(activity, host)
         layout = view
         activity.addContentView(view, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -329,9 +350,61 @@ object Tiling {
         keyboard = found
         Log.i(TAG, "hardware keyboard: $found")
         // Attaching the keyboard asks for the desktop, also after it was left with Super+Shift+D.
-        if (found && !enabled) turn(true)
+        if (found && !enabled && autoEnableOnKeyboard) turn(true)
         if (active) host?.workspaceShown(current)
         changed()
+    }
+
+    fun setLanguageHotkey(
+        context: Context,
+        hotkey: KeyHotkey?,
+    ) {
+        languageHotkey = hotkey
+        prefs(context).edit().putString("language_hotkey", hotkey?.format() ?: "off").apply()
+    }
+
+    fun setShowLanguageInBar(
+        context: Context,
+        show: Boolean,
+    ) {
+        showLanguageInBar = show
+        prefs(context).edit().putBoolean("show_language_in_bar", show).apply()
+        if (show && Build.VERSION.SDK_INT >= 33) BarStatus.refreshInputLanguage(context)
+    }
+
+    fun setAutoEnableOnKeyboard(
+        context: Context,
+        auto: Boolean,
+    ) {
+        autoEnableOnKeyboard = auto
+        prefs(context).edit().putBoolean("auto_enable_on_keyboard", auto).apply()
+    }
+
+    /** Switches the active input language / keyboard layout via the shell helper or Android's IME picker. */
+    fun switchInputLanguage() {
+        val ctx = activity
+        val h = helper
+        if (h != null) {
+            runCatching { h.tapKey(KeyEvent.KEYCODE_LANGUAGE_SWITCH) }
+        } else if (ctx != null) {
+            runCatching { ctx.getSystemService(InputMethodManager::class.java)?.showInputMethodPicker() }
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            BarStatus.refreshInputLanguage(ctx)
+            main.postDelayed({ BarStatus.refreshInputLanguage(ctx) }, 150)
+            main.postDelayed({ BarStatus.refreshInputLanguage(ctx) }, 450)
+        }
+    }
+
+    fun openAccessibilitySettings(context: Context) {
+        runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+
+    fun openAppInfoSettings(context: Context) {
+        val intent =
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
     }
 
     private fun turn(on: Boolean) {
@@ -1084,6 +1157,7 @@ object Tiling {
         when (name.lowercase()) {
             "terminal" -> host?.terminal()
             "settings" -> settings()
+            "switch_language", "input_language" -> switchInputLanguage()
             else -> {
                 val apps = host?.apps().orEmpty()
                 val role = name.lowercase().takeIf { it in ROLES }
@@ -1316,6 +1390,9 @@ object Tiling {
     /** Keys whose press was a shortcut: their repeats and release are ours too. */
     private val held = HashSet<Int>()
 
+    /** Armed when a modifier-only language hotkey (e.g. Alt+Shift) is held without any non-modifier key. */
+    private var langModArmed = false
+
     /**
      * A key from the keyboard, before any app sees it ([TilingKeyService]) or as the launcher's window gets it
      * ([fromLauncher]). True when it was a shortcut and is used up.
@@ -1325,6 +1402,22 @@ object Tiling {
         fromLauncher: Boolean,
     ): Boolean {
         if (!supported) return false
+        val down = event.action == KeyEvent.ACTION_DOWN
+        val langKey = languageHotkey
+        if (langKey != null && langKey.isModifierOnly && active && inFront) {
+            if (KeyHotkey.isModifierKey(event.keyCode)) {
+                if (down) {
+                    langModArmed = langKey.matchesModifiers(event.isMetaPressed, event.isCtrlPressed, event.isAltPressed, event.isShiftPressed)
+                } else if (langModArmed) {
+                    langModArmed = false
+                    switchInputLanguage()
+                }
+            } else if (down) {
+                langModArmed = false
+            }
+        } else if (!active || !inFront) {
+            langModArmed = false
+        }
         // Super on its own brings up the system's dock (a tap) and its list of shortcuts (held), and HyperOS decides
         // that before any app or service has the key: keeping the key from Android is not enough. It only does so
         // while no other key was pressed with Super, so one is, the moment Super goes down: a Shift, from the helper,
@@ -1334,7 +1427,6 @@ object Tiling {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) runCatching { helper?.tapKey(KeyEvent.KEYCODE_SHIFT_LEFT) }
             return true
         }
-        val down = event.action == KeyEvent.ACTION_DOWN
         if (!down) return held.remove(event.keyCode) || fromLauncher && forward(event)
         if (menuOpen && inFront && !event.isMetaPressed) {
             // A held arrow goes on moving through the list.
@@ -1363,6 +1455,11 @@ object Tiling {
             return true
         }
         if (!active || !inFront) return false
+        if (langKey != null && !langKey.isModifierOnly && event.repeatCount == 0 && langKey.matchesKey(event)) {
+            switchInputLanguage()
+            held += event.keyCode
+            return true
+        }
         // Esc arrives as Back from keyboards that send it so (HyperOS's does).
         if (help && (event.keyCode == KeyEvent.KEYCODE_ESCAPE || event.keyCode == KeyEvent.KEYCODE_BACK)) {
             toggleHelp()

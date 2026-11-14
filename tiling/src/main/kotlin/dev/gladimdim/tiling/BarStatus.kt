@@ -6,12 +6,15 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.ContentObserver
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,19 +37,41 @@ internal object BarStatus {
         private set
     var charging by mutableStateOf(false)
         private set
+    var inputLanguage by mutableStateOf<InputLanguageInfo?>(null)
+        private set
 
     val time: String get() = now.format(DateTimeFormatter.ofPattern("EEEE HH:mm"))
     val hours: String get() = now.format(DateTimeFormatter.ofPattern("HH"))
     val minutes: String get() = now.format(DateTimeFormatter.ofPattern("mm"))
 
     private val main = Handler(Looper.getMainLooper())
+    private var appContext: Context? = null
     private var started = false
 
     @RequiresApi(33)
     fun start(context: Context) {
         if (started) return
         started = true
+        val app = context.applicationContext
+        appContext = app
         tick()
+        refreshInputLanguage(app)
+        runCatching {
+            val observer =
+                object : ContentObserver(main) {
+                    override fun onChange(selfChange: Boolean) = refreshInputLanguage(app)
+                }
+            app.contentResolver.registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.SELECTED_INPUT_METHOD_SUBTYPE),
+                false,
+                observer,
+            )
+            app.contentResolver.registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.DEFAULT_INPUT_METHOD),
+                false,
+                observer,
+            )
+        }
         runCatching {
             val connectivity = context.getSystemService(ConnectivityManager::class.java)
             connectivity.registerDefaultNetworkCallback(
@@ -92,6 +117,21 @@ internal object BarStatus {
             }
         // Both are sent by the system only.
         context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+    }
+
+    /** Reads the active IME subtype (or system locale as fallback) so the bar's language flag stays current. */
+    fun refreshInputLanguage(context: Context? = appContext) {
+        val ctx = context ?: return
+        val tag =
+            runCatching {
+                val imm = ctx.getSystemService(InputMethodManager::class.java)
+                val subtype = imm?.currentInputMethodSubtype
+                @Suppress("DEPRECATION")
+                subtype?.languageTag?.takeIf { it.isNotBlank() }
+                    ?: subtype?.locale?.takeIf { it.isNotBlank() }
+            }.getOrNull()
+                ?: ctx.resources.configuration.locales.get(0)?.toLanguageTag()
+        inputLanguage = InputLanguageInfo.fromLocale(tag)
     }
 
     /** On the minute. */

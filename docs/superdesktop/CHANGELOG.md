@@ -1,5 +1,21 @@
 # SD Launcher changelog
 
+## 1.12.0 (116)
+
+Built on **Omalauncher 1.4.0**, as 1.11.0.
+
+### Tiling desktop (experimental)
+- **Keyboard & desktop settings**: new Settings screen to configure the input
+  language switch hotkey (including modifier-only chords like `alt + shift` or
+  `ctrl + shift`, or recording any hardware key combination), toggle the bar
+  language flag, and toggle auto-entering the desktop on keyboard connect.
+- **Active input language flag in the bar**: shows the current IME language
+  flag/code (for example `🇺🇦 UA` / `🇺🇸 US`) and switches language on click.
+- **Permissions guidance**: added Accessibility (`Tiling desktop shortcuts`) to
+  both Permissions and Keyboard & desktop settings, with direct links to
+  Accessibility settings and App info (`Allow restricted settings` on Android
+  13+).
+
 ## 1.11.0 (115)
 
 Built on **Omalauncher 1.4.0**, as 1.10.1. The SUPER DESKTOP bridge is

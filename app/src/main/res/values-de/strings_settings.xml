@@ -60,6 +60,26 @@
     <string name="permissions_notifications_uses">linux, solange es läuft, widgets, die dich benachrichtigen</string>
     <string name="permissions_notification_access">benachrichtigungszugriff</string>
     <string name="permissions_notification_access_uses">benachrichtigungspunkte, was gerade läuft und bitte nicht stören für widgets</string>
+    <string name="permissions_accessibility">bedienungshilfen (tiling-kurzbefehle)</string>
+    <string name="permissions_accessibility_uses">tastaturkurzbefehle und sprachwechsel · Bedienungshilfen → Heruntergeladene Apps → Tiling desktop shortcuts (falls ausgegraut: App-Info → ⋮ → Eingeschränkte Einstellungen zulassen)</string>
+
+    <string name="settings_keyboard">tastatur &amp; desktop</string>
+    <string name="settings_keyboard_subtitle">sprachwechsel: %1$s</string>
+    <string name="keyboard_title">tastatur &amp; desktop</string>
+    <string name="keyboard_language_hotkey">taste für sprachwechsel</string>
+    <string name="keyboard_language_hotkey_off">aus</string>
+    <string name="keyboard_language_hotkey_change">ändern</string>
+    <string name="keyboard_language_hotkey_prompt">drücke eine tastenkombination auf deiner tastatur oder wähle unten eine vorgabe</string>
+    <string name="keyboard_language_bar">sprachflagge in der leiste</string>
+    <string name="keyboard_language_bar_uses">zeigt die aktive eingabesprache in der leiste; antippen wechselt sie</string>
+    <string name="keyboard_auto_desktop">desktop bei tastatur automatisch öffnen</string>
+    <string name="keyboard_auto_desktop_uses">startet den tiling-desktop automatisch, wenn eine tastatur verbunden wird</string>
+    <string name="keyboard_helper_title">fenster-helfer</string>
+    <string name="keyboard_helper_running">läuft · tiling-fenster und tastensteuerung bereit</string>
+    <string name="keyboard_helper_stopped">läuft nicht · vom computer aus mit scripts/tiling-helper.sh starten</string>
+    <string name="keyboard_app_info">app-info</string>
+    <string name="keyboard_accessibility_note">wenn Bedienungshilfen unter Android 13+ ausgegraut sind, öffne zuerst App-Info → ⋮ → Eingeschränkte Einstellungen zulassen</string>
+    <string name="keyboard_conf_note">app-kurzbefehle lassen sich auch in tiling.conf neben deinen widgets bearbeiten</string>
 
     <string name="settings_android">android-einstellungen</string>
     <string name="settings_android_subtitle">die systemeinstellungen des smartphones</string>
