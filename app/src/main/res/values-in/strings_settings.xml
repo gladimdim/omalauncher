@@ -61,8 +61,22 @@
     <string name="permissions_accessibility_uses">pintasan papan ketik dan ganti bahasa · Aksesibilitas → Aplikasi terunduh → Tiling desktop shortcuts (jika abu-abu: Info aplikasi → ⋮ → Izinkan setelan terbatas)</string>
 
     <string name="settings_keyboard">papan ketik &amp; desktop</string>
-    <string name="settings_keyboard_subtitle">ganti bahasa: %1$s</string>
+    <string name="settings_keyboard_subtitle">%1$s · bahasa: %2$s</string>
+    <string name="settings_keyboard_ready">tiling siap</string>
+    <string name="settings_keyboard_needs_setup">perlu pengaturan tiling</string>
+    <string name="settings_tiling_setup">siapkan tiling</string>
+    <string name="settings_tiling_setup_subtitle">aplikasi sebagai jendela dengan keyboard fisik · butuh satu menit</string>
     <string name="keyboard_title">papan ketik &amp; desktop</string>
+    <string name="keyboard_check_title">kesiapan tiling</string>
+    <string name="keyboard_check_setup">siapkan</string>
+    <string name="keyboard_check_ready">semua siap · sambungkan papan ketik fisik untuk memakai tiling</string>
+    <string name="keyboard_check_missing">belum siap · menyiapkannya butuh satu menit</string>
+    <string name="keyboard_check_hw_on">papan ketik fisik: tersambung</string>
+    <string name="keyboard_check_hw_off">papan ketik fisik: tidak tersambung</string>
+    <string name="keyboard_check_a11y_on">aksesibilitas: aktif</string>
+    <string name="keyboard_check_a11y_off">pintasan aksesibilitas: nonaktif</string>
+    <string name="keyboard_check_helper_on">pembantu jendela: berjalan</string>
+    <string name="keyboard_check_helper_off">pembantu jendela: berhenti</string>
     <string name="keyboard_language_hotkey">tombol ganti bahasa</string>
     <string name="keyboard_language_hotkey_off">mati</string>
     <string name="keyboard_language_hotkey_change">ubah</string>
@@ -73,7 +87,7 @@
     <string name="keyboard_auto_desktop_uses">menjalankan desktop tiling otomatis saat papan ketik fisik tersambung</string>
     <string name="keyboard_helper_title">pembantu jendela</string>
     <string name="keyboard_helper_running">berjalan · jendela tiling dan injeksi tombol siap</string>
-    <string name="keyboard_helper_stopped">tidak berjalan · jalankan dari komputer dengan scripts/tiling-helper.sh</string>
+    <string name="keyboard_helper_stopped">tidak berjalan · siapkan tiling akan memulainya</string>
     <string name="keyboard_app_info">info aplikasi</string>
     <string name="keyboard_accessibility_note">jika Aksesibilitas dibatasi di Android 13+, buka Info aplikasi → ⋮ → Izinkan setelan terbatas terlebih dahulu</string>
     <string name="keyboard_conf_note">pintasan aplikasi juga dapat diubah di tiling.conf di samping widget Anda</string>

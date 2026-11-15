@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.gladimdim.tiling.Tiling
+import dev.gladimdim.tiling.TilingKeyService
 import dev.omalauncher.AppLanguage
 import dev.omalauncher.LocalNetwork
 import dev.omalauncher.R
@@ -59,6 +60,7 @@ fun SettingsScreen(
     onLicenses: () -> Unit,
     onGestures: () -> Unit,
     onKeyboard: () -> Unit,
+    onTilingSetup: () -> Unit,
     onPermissions: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -105,10 +107,23 @@ fun SettingsScreen(
                     stringResource(R.string.settings_gestures_subtitle, runtime.gestureLabel(runtime.gestures.swipeUp), runtime.gestureLabel(runtime.gestures.swipeDown)),
                     onGestures,
                 ),
+                // Fork: until the tiling desktop's helper runs and its shortcuts are on, the way there is a row of its own.
+                if (Tiling.supported && !(Tiling.helperConnected && TilingKeyService.connected)) {
+                    SettingsRow(R.string.settings_tiling_setup, stringResource(R.string.settings_tiling_setup_subtitle), onTilingSetup)
+                } else {
+                    null
+                },
                 SettingsRow(
                     R.string.settings_keyboard,
                     stringResource(
                         R.string.settings_keyboard_subtitle,
+                        stringResource(
+                            if (Tiling.helperConnected && TilingKeyService.connected) {
+                                R.string.settings_keyboard_ready
+                            } else {
+                                R.string.settings_keyboard_needs_setup
+                            },
+                        ),
                         Tiling.languageHotkey?.format() ?: stringResource(R.string.keyboard_language_hotkey_off),
                     ),
                     onKeyboard,
@@ -189,7 +204,7 @@ private fun SettingsRows(rows: List<SettingsRow>) {
                 var open by remember { mutableStateOf(false) }
                 Row(
                     when (row.title) {
-                        R.string.settings_home_app, R.string.settings_local_network -> Modifier.passesKeys(next)
+                        R.string.settings_home_app, R.string.settings_local_network, R.string.settings_tiling_setup -> Modifier.passesKeys(next)
                         R.string.settings_android -> Modifier.focusRequester(next)
                         else -> Modifier
                     }.card(onClick = { if (row.menu != null) open = !open else row.onClick() }),

@@ -106,6 +106,7 @@ internal fun Bar(host: TilingHost) {
             }
         }
         val status: @Composable () -> Unit = {
+            MascotBadge(host, vertical)
             if (Tiling.showLanguageInBar) {
                 BarStatus.inputLanguage?.let { lang ->
                     BasicText(

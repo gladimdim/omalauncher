@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tiling_setup_title">设置平铺</string>
+    <string name="tiling_setup_intro">平铺桌面通过一个以 android 调试权限运行的小助手把应用打开为窗口。设置只需一分钟，只做一次。</string>
+    <string name="tiling_setup_unsupported">平铺桌面需要 android 13 或更高版本</string>
+    <string name="tiling_setup_allow">允许</string>
+    <string name="tiling_setup_try_again">重试</string>
+    <string name="tiling_setup_about_phone">关于手机</string>
+    <string name="tiling_setup_open_developer">开发者选项</string>
+    <string name="tiling_setup_open_accessibility">无障碍</string>
+
+    <string name="tiling_setup_notifications">允许通知</string>
+    <string name="tiling_setup_notifications_text">配对码要在通知里输入：一离开 android 的设置，它就会收回配对码</string>
+    <string name="tiling_setup_local_network">允许本地网络</string>
+    <string name="tiling_setup_local_network_text">没有它，android 17 会对启动器隐藏这部手机自己的调试端口</string>
+    <string name="tiling_setup_developer">开发者选项</string>
+    <string name="tiling_setup_developer_text">在“关于手机”中连续点按“版本号”七次（三星：在“软件信息”下 · 小米：改为点按“OS 版本”）</string>
+    <string name="tiling_setup_debugging">无线调试</string>
+    <string name="tiling_setup_debugging_text">连接 wi-fi。然后在“开发者选项”中打开“无线调试”，并允许在此网络上使用</string>
+    <string name="tiling_setup_debugging_again_text">“无线调试”已关闭：在“开发者选项”中打开它，助手就会启动</string>
+    <string name="tiling_setup_pair">配对</string>
+    <string name="tiling_setup_pair_text">1. 在“开发者选项”中点按“无线调试”这几个字（不是开关）\n2. 点按“使用配对码配对设备”，记下六位数字\n3. 会有一条通知询问这六位数字：展开它并输入。在此之前请留在 android 的设置里：离开就会让配对码失效</string>
+    <string name="tiling_setup_pair_waiting">正在等待配对对话框…</string>
+    <string name="tiling_setup_pair_found">已找到配对对话框 · 在通知中输入配对码</string>
+    <string name="tiling_setup_pairing">正在配对…</string>
+    <string name="tiling_setup_pair_wrong">配对码未被接受 · 再次点按“使用配对码配对设备”获取新的配对码</string>
+    <string name="tiling_setup_pair_again">这部手机不再接受启动器的密钥 · 请再配对一次</string>
+    <string name="tiling_setup_pair_failed">配对没有成功 · 再次点按“使用配对码配对设备”</string>
+    <string name="tiling_setup_helper">窗口助手</string>
+    <string name="tiling_setup_helper_starting">正在启动…</string>
+    <string name="tiling_setup_helper_silent">助手已启动但没有应答</string>
+    <string name="tiling_setup_helper_failed">无法启动助手</string>
+    <string name="tiling_setup_keys">键盘快捷键</string>
+    <string name="tiling_setup_keys_starting">正在开启…</string>
+    <string name="tiling_setup_keys_manual">android 没有开启它们。在“无障碍”→“已下载的应用”中打开 Tiling desktop shortcuts（如果是灰色：应用信息 → ⋮ → 允许受限制的设置）</string>
+
+    <string name="tiling_setup_done">一切就绪 · 连接实体键盘，桌面就会启动</string>
+    <string name="tiling_setup_done_keyboard">一切就绪 · 桌面已准备好</string>
+    <string name="tiling_setup_done_restart">“USB 调试”现在也已打开：wi-fi 断开时它能让助手继续运行。手机重启后，启动器会在你允许过的 wi-fi 上短暂打开“无线调试”，重新启动助手。</string>
+    <string name="tiling_setup_done_restart_by_hand">手机重启后，打开一次“无线调试”，助手就会重新启动</string>
+
+    <string name="tiling_setup_channel">平铺设置</string>
+    <string name="tiling_setup_channel_progress">平铺设置进度</string>
+    <string name="tiling_setup_note_wait">正在设置平铺</string>
+    <string name="tiling_setup_note_wait_text">在“无线调试”中点按“使用配对码配对设备”</string>
+    <string name="tiling_setup_note_code">输入配对码</string>
+    <string name="tiling_setup_note_code_text">android 正在显示的六位数字</string>
+    <string name="tiling_setup_note_code_action">输入配对码</string>
+    <string name="tiling_setup_note_code_label">配对码</string>
+    <string name="tiling_setup_note_pairing">正在配对…</string>
+    <string name="tiling_setup_note_starting">正在启动窗口助手…</string>
+    <string name="tiling_setup_note_wrong">配对码未被接受</string>
+    <string name="tiling_setup_note_wrong_text">再次点按“使用配对码配对设备”获取新的配对码</string>
+    <string name="tiling_setup_note_ready">平铺已就绪</string>
+    <string name="tiling_setup_note_ready_text">连接实体键盘，桌面就会启动</string>
+    <string name="tiling_setup_note_unfinished">已配对，但窗口助手没有启动</string>
+    <string name="tiling_setup_note_unfinished_text">点按以完成设置</string>
+    <string name="tiling_setup_note_stop">停止</string>
+</resources>

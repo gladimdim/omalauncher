@@ -6,6 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Brings the launcher's own task back in front for the app menu. -->
     <uses-permission android:name="android.permission.REORDER_TASKS" />
+    <!-- Not asked of the user, and not Android's to give an app: the helper's first start grants it, with the shell
+         user's rights (adb/LocalAdbHelper.kt). With it the launcher switches Wireless Debugging on itself after a
+         restart, for the moment it takes to start the helper again. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- The kinds of app a key in tiling.conf can open ("browser", "files", …): which app Android has for each. -->
     <queries>

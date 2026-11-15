@@ -35,8 +35,16 @@ tried on a Xiaomi Pad 7 Pro (HyperOS 3) only.
 
 It stays off until it is set up:
 
-1. Start the helper from a computer, with the tablet connected over adb. Again
-   after every reboot and every update of the app. From this repository that is
+1. Start the helper. On the tablet itself: settings, **set up tiling**, and follow
+   its steps. It pairs the launcher with Android's Wireless debugging once (the
+   pairing code is typed into a notification, because Android only shows it while
+   its own Settings are in front) and starts the helper through it. From then on
+   the launcher starts the helper again by itself after a reboot or an update,
+   switching Wireless debugging on for the moment that takes; USB debugging is
+   left on, as Android stops the helper when no debugging is on at all.
+
+   Or from a computer, with the tablet connected over adb, again after every
+   reboot and every update of the app. From this repository that is
    `scripts/tiling-helper.sh`; without it:
 
    ```sh

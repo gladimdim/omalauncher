@@ -64,8 +64,22 @@
     <string name="permissions_accessibility_uses">tastaturkurzbefehle und sprachwechsel · Bedienungshilfen → Heruntergeladene Apps → Tiling desktop shortcuts (falls ausgegraut: App-Info → ⋮ → Eingeschränkte Einstellungen zulassen)</string>
 
     <string name="settings_keyboard">tastatur &amp; desktop</string>
-    <string name="settings_keyboard_subtitle">sprachwechsel: %1$s</string>
+    <string name="settings_keyboard_subtitle">%1$s · sprache: %2$s</string>
+    <string name="settings_keyboard_ready">tiling bereit</string>
+    <string name="settings_keyboard_needs_setup">tiling-einrichtung nötig</string>
+    <string name="settings_tiling_setup">tiling einrichten</string>
+    <string name="settings_tiling_setup_subtitle">apps als fenster mit einer tastatur · dauert eine minute</string>
     <string name="keyboard_title">tastatur &amp; desktop</string>
+    <string name="keyboard_check_title">tiling-status</string>
+    <string name="keyboard_check_setup">einrichten</string>
+    <string name="keyboard_check_ready">alles bereit · tastatur verbinden, um tiling zu nutzen</string>
+    <string name="keyboard_check_missing">noch nicht bereit · das einrichten dauert eine minute</string>
+    <string name="keyboard_check_hw_on">tastatur: verbunden</string>
+    <string name="keyboard_check_hw_off">tastatur: nicht verbunden</string>
+    <string name="keyboard_check_a11y_on">bedienungshilfen: an</string>
+    <string name="keyboard_check_a11y_off">bedienungshilfen: aus</string>
+    <string name="keyboard_check_helper_on">fenster-helfer: läuft</string>
+    <string name="keyboard_check_helper_off">fenster-helfer: aus</string>
     <string name="keyboard_language_hotkey">taste für sprachwechsel</string>
     <string name="keyboard_language_hotkey_off">aus</string>
     <string name="keyboard_language_hotkey_change">ändern</string>
@@ -76,7 +90,7 @@
     <string name="keyboard_auto_desktop_uses">startet den tiling-desktop automatisch, wenn eine tastatur verbunden wird</string>
     <string name="keyboard_helper_title">fenster-helfer</string>
     <string name="keyboard_helper_running">läuft · tiling-fenster und tastensteuerung bereit</string>
-    <string name="keyboard_helper_stopped">läuft nicht · vom computer aus mit scripts/tiling-helper.sh starten</string>
+    <string name="keyboard_helper_stopped">läuft nicht · tiling einrichten startet ihn</string>
     <string name="keyboard_app_info">app-info</string>
     <string name="keyboard_accessibility_note">wenn Bedienungshilfen unter Android 13+ ausgegraut sind, öffne zuerst App-Info → ⋮ → Eingeschränkte Einstellungen zulassen</string>
     <string name="keyboard_conf_note">app-kurzbefehle lassen sich auch in tiling.conf neben deinen widgets bearbeiten</string>

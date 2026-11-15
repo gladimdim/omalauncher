@@ -62,8 +62,22 @@
     <string name="permissions_accessibility_uses">atajos de teclado y cambio de idioma · Accesibilidad → Aplicaciones descargadas → Tiling desktop shortcuts (si está deshabilitado: Info. de app → ⋮ → Permitir ajustes restringidos)</string>
 
     <string name="settings_keyboard">teclado y escritorio</string>
-    <string name="settings_keyboard_subtitle">cambio de idioma: %1$s</string>
+    <string name="settings_keyboard_subtitle">%1$s · idioma: %2$s</string>
+    <string name="settings_keyboard_ready">tiling listo</string>
+    <string name="settings_keyboard_needs_setup">falta configurar tiling</string>
+    <string name="settings_tiling_setup">configurar tiling</string>
+    <string name="settings_tiling_setup_subtitle">apps como ventanas con un teclado físico · lleva un minuto</string>
     <string name="keyboard_title">teclado y escritorio</string>
+    <string name="keyboard_check_title">estado de tiling</string>
+    <string name="keyboard_check_setup">configurar</string>
+    <string name="keyboard_check_ready">todo listo · conecta un teclado físico para usar tiling</string>
+    <string name="keyboard_check_missing">aún no está listo · configurarlo lleva un minuto</string>
+    <string name="keyboard_check_hw_on">teclado físico: conectado</string>
+    <string name="keyboard_check_hw_off">teclado físico: desconectado</string>
+    <string name="keyboard_check_a11y_on">accesibilidad: activada</string>
+    <string name="keyboard_check_a11y_off">atajos de accesibilidad: desactivados</string>
+    <string name="keyboard_check_helper_on">asistente de ventanas: activo</string>
+    <string name="keyboard_check_helper_off">ayudante de ventanas: detenido</string>
     <string name="keyboard_language_hotkey">atajo de idioma</string>
     <string name="keyboard_language_hotkey_off">desactivado</string>
     <string name="keyboard_language_hotkey_change">cambiar</string>
@@ -74,7 +88,7 @@
     <string name="keyboard_auto_desktop_uses">inicia el escritorio tiling automáticamente al conectar un teclado</string>
     <string name="keyboard_helper_title">asistente de ventanas</string>
     <string name="keyboard_helper_running">activo · ventanas tiling y teclas listas</string>
-    <string name="keyboard_helper_stopped">inactivo · inícialo desde un ordenador con scripts/tiling-helper.sh</string>
+    <string name="keyboard_helper_stopped">no está en marcha · configurar tiling lo inicia</string>
     <string name="keyboard_app_info">info. de app</string>
     <string name="keyboard_accessibility_note">si Accesibilidad aparece restringida en Android 13+, abre Info. de app → ⋮ → Permitir ajustes restringidos primero</string>
     <string name="keyboard_conf_note">los atajos de apps también se pueden editar en tiling.conf junto a tus widgets</string>

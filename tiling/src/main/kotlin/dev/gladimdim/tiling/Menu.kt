@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.gladimdim.tiling.adb.LocalAdbHelper
 import kotlinx.coroutines.awaitCancellation
 
 /** The app menu, Super+Space: type to narrow it, arrows to pick, Enter opens the app in a new tile. */
@@ -172,41 +174,59 @@ internal fun Notice(host: TilingHost) {
     val quiet = text.copy(color = colors.muted)
     val helper = HelperLink.helper != null
     val keys = TilingKeyService.connected
-    if (helper && keys && !Tiling.help) return
-    Column(
-        Modifier
-            .background(colors.background.copy(alpha = 0.92f))
-            .border(2.dp, colors.border)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (Tiling.help) Tiling.toggleHelp() }
-            .padding(horizontal = 22.dp, vertical = 16.dp),
-    ) {
-        if (!helper) {
-            BasicText(if (HelperLink.outdated) "the window helper is from an older build" else "the window helper is not running", style = text.copy(color = colors.accent))
-            BasicText("start it from a computer: scripts/tiling-helper.sh", style = quiet)
-            return@Column
-        }
-        if (Tiling.help) {
-            val langCombo = Tiling.languageHotkey?.format()
-            val allShortcuts = if (langCombo != null) SHORTCUTS + (langCombo to "switch input language") else SHORTCUTS
-            for ((combo, what) in allShortcuts) {
-                Row {
-                    BasicText(combo, Modifier.width(300.dp), style = text)
-                    BasicText(what, style = quiet)
+    if (helper && keys && !Tiling.help && !Tiling.mascotOpen) return
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (Tiling.mascotOpen) MascotPanel(host)
+        if (!helper || !keys || Tiling.help) {
+            Column(
+                Modifier
+                    .background(colors.background.copy(alpha = 0.92f))
+                    .border(2.dp, colors.border)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (Tiling.help) Tiling.toggleHelp() }
+                    .padding(horizontal = 22.dp, vertical = 16.dp),
+            ) {
+                if (!helper) {
+                    BasicText(if (HelperLink.outdated) "the window helper is from an older build" else "the window helper is not running", style = text.copy(color = colors.accent))
+                    // Android's Settings cannot open as a window here: the helper is what makes windows.
+                    BasicText(
+                        when {
+                            LocalAdbHelper.busy -> "starting the helper…"
+                            LocalAdbHelper.paired -> "start it  ›"
+                            else -> "set up the tiling desktop  ›"
+                        },
+                        Modifier.clickable { if (LocalAdbHelper.paired) LocalAdbHelper.startHelper(context) else Tiling.setup() }.padding(top = 6.dp),
+                        style = text.copy(color = colors.accent),
+                    )
+                    if (LocalAdbHelper.paired && LocalAdbHelper.problem != null) {
+                        BasicText("that did not work: open the setup  ›", Modifier.clickable { Tiling.setup() }.padding(top = 4.dp), style = quiet)
+                    }
+                    BasicText("or start it from a computer: scripts/tiling-helper.sh", Modifier.padding(top = 4.dp), style = quiet)
+                    return@Column
+                }
+                if (Tiling.help) {
+                    val langCombo = Tiling.languageHotkey?.format()
+                    val allShortcuts = if (langCombo != null) SHORTCUTS + (langCombo to "switch input language") else SHORTCUTS
+                    for ((combo, what) in allShortcuts) {
+                        Row {
+                            BasicText(combo, Modifier.width(300.dp), style = text)
+                            BasicText(what, style = quiet)
+                        }
+                    }
+                }
+                if (!keys) {
+                    if (Tiling.help) Spacer(Modifier.size(10.dp))
+                    BasicText(
+                        "shortcuts need \"Tiling desktop shortcuts\" switched on: Accessibility › Downloaded apps  ›",
+                        Modifier.clickable { Tiling.openAccessibilitySettings(context) },
+                        style = text.copy(color = colors.accent),
+                    )
+                    BasicText(
+                        "if greyed out as restricted: App info › ⋮ › Allow restricted settings  ›",
+                        Modifier.clickable { Tiling.openAppInfoSettings(context) }.padding(top = 4.dp),
+                        style = quiet,
+                    )
                 }
             }
-        }
-        if (!keys) {
-            if (Tiling.help) Spacer(Modifier.size(10.dp))
-            BasicText(
-                "shortcuts need \"Tiling desktop shortcuts\" switched on: Accessibility › Downloaded apps  ›",
-                Modifier.clickable { Tiling.openAccessibilitySettings(context) },
-                style = text.copy(color = colors.accent),
-            )
-            BasicText(
-                "if greyed out as restricted: App info › ⋮ › Allow restricted settings  ›",
-                Modifier.clickable { Tiling.openAppInfoSettings(context) }.padding(top = 4.dp),
-                style = quiet,
-            )
         }
     }
 }

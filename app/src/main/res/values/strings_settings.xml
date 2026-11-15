@@ -69,8 +69,22 @@
     <string name="permissions_accessibility_uses">hardware keyboard shortcuts and language switch · Accessibility → Downloaded apps → Tiling desktop shortcuts (if greyed out: App info → ⋮ → Allow restricted settings)</string>
 
     <string name="settings_keyboard">keyboard &amp; desktop</string>
-    <string name="settings_keyboard_subtitle">language switch: %1$s</string>
+    <string name="settings_keyboard_subtitle">%1$s · language: %2$s</string>
+    <string name="settings_keyboard_ready">tiling ready</string>
+    <string name="settings_keyboard_needs_setup">tiling setup needed</string>
+    <string name="settings_tiling_setup">set up tiling</string>
+    <string name="settings_tiling_setup_subtitle">apps as windows with a hardware keyboard · takes a minute</string>
     <string name="keyboard_title">keyboard &amp; desktop</string>
+    <string name="keyboard_check_title">tiling readiness</string>
+    <string name="keyboard_check_setup">set up</string>
+    <string name="keyboard_check_ready">all set · connect a hardware keyboard to use tiling</string>
+    <string name="keyboard_check_missing">not ready yet · setting it up takes a minute</string>
+    <string name="keyboard_check_hw_on">hardware keyboard: connected</string>
+    <string name="keyboard_check_hw_off">hardware keyboard: not connected</string>
+    <string name="keyboard_check_a11y_on">accessibility shortcuts: on</string>
+    <string name="keyboard_check_a11y_off">accessibility shortcuts: off</string>
+    <string name="keyboard_check_helper_on">window helper: running</string>
+    <string name="keyboard_check_helper_off">window helper: stopped</string>
     <string name="keyboard_language_hotkey">input language hotkey</string>
     <string name="keyboard_language_hotkey_off">off</string>
     <string name="keyboard_language_hotkey_change">change</string>
@@ -81,7 +95,7 @@
     <string name="keyboard_auto_desktop_uses">starts tiling desktop automatically when a hardware keyboard connects</string>
     <string name="keyboard_helper_title">window helper</string>
     <string name="keyboard_helper_running">running · tiling windows and key injection ready</string>
-    <string name="keyboard_helper_stopped">not running · start from a computer with scripts/tiling-helper.sh</string>
+    <string name="keyboard_helper_stopped">not running · set up tiling starts it</string>
     <string name="keyboard_app_info">app info</string>
     <string name="keyboard_accessibility_note">if Accessibility is greyed out as a restricted setting on Android 13+, open App info → ⋮ → Allow restricted settings first</string>
     <string name="keyboard_conf_note">app shortcuts can also be edited in tiling.conf beside your widgets</string>

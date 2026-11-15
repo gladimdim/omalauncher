@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tiling_setup_title">configurar tiling</string>
+    <string name="tiling_setup_intro">el escritorio tiling abre las apps como ventanas mediante un pequeño ayudante que funciona con los permisos de depuración de android. configurarlo lleva un minuto, una sola vez.</string>
+    <string name="tiling_setup_unsupported">el escritorio tiling necesita android 13 o posterior</string>
+    <string name="tiling_setup_allow">permitir</string>
+    <string name="tiling_setup_try_again">reintentar</string>
+    <string name="tiling_setup_about_phone">información del teléfono</string>
+    <string name="tiling_setup_open_developer">opciones para desarrolladores</string>
+    <string name="tiling_setup_open_accessibility">accesibilidad</string>
+
+    <string name="tiling_setup_notifications">permitir notificaciones</string>
+    <string name="tiling_setup_notifications_text">el código de vinculación se escribe en una notificación: android retira el código en cuanto sales de sus ajustes</string>
+    <string name="tiling_setup_local_network">permitir la red local</string>
+    <string name="tiling_setup_local_network_text">sin ello, android 17 oculta al launcher el puerto de depuración de este teléfono</string>
+    <string name="tiling_setup_developer">opciones para desarrolladores</string>
+    <string name="tiling_setup_developer_text">en Información del teléfono, toca siete veces Número de compilación (samsung: en Información de software · xiaomi: toca Versión del SO)</string>
+    <string name="tiling_setup_debugging">depuración inalámbrica</string>
+    <string name="tiling_setup_debugging_text">conéctate a una wifi. luego, en Opciones para desarrolladores, activa Depuración inalámbrica y permítela en esta red</string>
+    <string name="tiling_setup_debugging_again_text">Depuración inalámbrica está desactivada: actívala en Opciones para desarrolladores y el ayudante se inicia</string>
+    <string name="tiling_setup_pair">vincular</string>
+    <string name="tiling_setup_pair_text">1. en Opciones para desarrolladores, toca el texto Depuración inalámbrica (no el interruptor)\n2. toca Vincular dispositivo con código de vinculación y apunta los seis dígitos\n3. una notificación los pide: ábrela y escríbelos. hasta entonces no salgas de los ajustes de android: al salir, el código se cancela</string>
+    <string name="tiling_setup_pair_waiting">esperando el diálogo de vinculación…</string>
+    <string name="tiling_setup_pair_found">diálogo de vinculación encontrado · escribe su código en la notificación</string>
+    <string name="tiling_setup_pairing">vinculando…</string>
+    <string name="tiling_setup_pair_wrong">ese código no se aceptó · toca otra vez Vincular dispositivo con código de vinculación para obtener uno nuevo</string>
+    <string name="tiling_setup_pair_again">este teléfono ya no acepta la clave del launcher · vincula de nuevo</string>
+    <string name="tiling_setup_pair_failed">la vinculación no funcionó · toca otra vez Vincular dispositivo con código de vinculación</string>
+    <string name="tiling_setup_helper">ayudante de ventanas</string>
+    <string name="tiling_setup_helper_starting">iniciando…</string>
+    <string name="tiling_setup_helper_silent">el ayudante se inició y no respondió</string>
+    <string name="tiling_setup_helper_failed">no se pudo iniciar el ayudante</string>
+    <string name="tiling_setup_keys">atajos de teclado</string>
+    <string name="tiling_setup_keys_starting">activándolos…</string>
+    <string name="tiling_setup_keys_manual">android no los activó. en Accesibilidad → Apps descargadas, activa Tiling desktop shortcuts (si aparece en gris: Información de la app → ⋮ → Permitir ajustes restringidos)</string>
+
+    <string name="tiling_setup_done">todo listo · conecta un teclado y el escritorio se inicia</string>
+    <string name="tiling_setup_done_keyboard">todo listo · el escritorio está preparado</string>
+    <string name="tiling_setup_done_restart">la Depuración por USB también queda activada: mantiene el ayudante en marcha cuando se cae la wifi. tras reiniciar el teléfono, el launcher activa un momento la Depuración inalámbrica, en una wifi que hayas permitido, para iniciar de nuevo el ayudante.</string>
+    <string name="tiling_setup_done_restart_by_hand">tras reiniciar el teléfono, activa una vez la Depuración inalámbrica y el ayudante se inicia de nuevo</string>
+
+    <string name="tiling_setup_channel">configuración de tiling</string>
+    <string name="tiling_setup_channel_progress">progreso de la configuración de tiling</string>
+    <string name="tiling_setup_note_wait">configurando tiling</string>
+    <string name="tiling_setup_note_wait_text">en Depuración inalámbrica, toca Vincular dispositivo con código de vinculación</string>
+    <string name="tiling_setup_note_code">introduce el código de vinculación</string>
+    <string name="tiling_setup_note_code_text">los seis dígitos que muestra android</string>
+    <string name="tiling_setup_note_code_action">introducir código</string>
+    <string name="tiling_setup_note_code_label">código de vinculación</string>
+    <string name="tiling_setup_note_pairing">vinculando…</string>
+    <string name="tiling_setup_note_starting">iniciando el ayudante de ventanas…</string>
+    <string name="tiling_setup_note_wrong">ese código no se aceptó</string>
+    <string name="tiling_setup_note_wrong_text">toca otra vez Vincular dispositivo con código de vinculación para obtener uno nuevo</string>
+    <string name="tiling_setup_note_ready">tiling está listo</string>
+    <string name="tiling_setup_note_ready_text">conecta un teclado y el escritorio se inicia</string>
+    <string name="tiling_setup_note_unfinished">vinculado, pero el ayudante de ventanas no se inició</string>
+    <string name="tiling_setup_note_unfinished_text">toca para terminar la configuración</string>
+    <string name="tiling_setup_note_stop">detener</string>
+</resources>

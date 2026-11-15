@@ -389,5 +389,15 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Runs a user-started Linux environment and its display server" />
         </service>
+
+        <!-- Fork: takes Wireless Debugging's pairing code in a notification while the tiling desktop is set up. -->
+        <service
+            android:name=".TilingSetupService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Waits for the pairing dialog of Wireless Debugging while the user sets up the tiling desktop, and asks for its code" />
+        </service>
     </application>
 </manifest>

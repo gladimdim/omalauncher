@@ -29,15 +29,50 @@ import dev.omalauncher.R
 
 /** Keyboard mode & tiling desktop settings: input language hotkey, bar flag, and required permissions. */
 @Composable
-fun KeyboardSettingsScreen(onDismiss: () -> Unit) {
+fun KeyboardSettingsScreen(
+    onDismiss: () -> Unit,
+    onSetup: () -> Unit,
+) {
     val context = LocalContext.current
     var pickingHotkey by remember { mutableStateOf(false) }
 
     val currentHotkey = Tiling.languageHotkey
     val hotkeyLabel = currentHotkey?.format() ?: stringResource(R.string.keyboard_language_hotkey_off)
 
+    val accessibilityOn = TilingKeyService.connected
+    val helperOn = Tiling.helperConnected
+    val allReady = accessibilityOn && helperOn
+
     OverlayPanel(stringResource(R.string.keyboard_title), onDismiss, contentWidth = ReadingWidth) {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // What the desktop needs, and the way to it while something is missing (TilingSetupScreen).
+            ActionsRow(
+                Modifier.card(),
+                actions = {
+                    if (!allReady && Tiling.supported) BracketAction(stringResource(R.string.keyboard_check_setup), Palette.accent, onClick = onSetup)
+                },
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    BasicText(stringResource(R.string.keyboard_check_title), style = Mono.copy(fontSize = TextSize.Item))
+                    BasicText(
+                        stringResource(if (allReady) R.string.keyboard_check_ready else R.string.keyboard_check_missing),
+                        style = Mono.copy(color = if (allReady) Palette.green else Palette.accent, fontSize = TextSize.Small),
+                    )
+                    BasicText(
+                        "• " + stringResource(if (Tiling.keyboard) R.string.keyboard_check_hw_on else R.string.keyboard_check_hw_off),
+                        style = Mono.copy(color = if (Tiling.keyboard) Palette.green else Palette.muted, fontSize = TextSize.Small),
+                    )
+                    BasicText(
+                        "• " + stringResource(if (helperOn) R.string.keyboard_check_helper_on else R.string.keyboard_check_helper_off),
+                        style = Mono.copy(color = if (helperOn) Palette.green else Palette.red, fontSize = TextSize.Small),
+                    )
+                    BasicText(
+                        "• " + stringResource(if (accessibilityOn) R.string.keyboard_check_a11y_on else R.string.keyboard_check_a11y_off),
+                        style = Mono.copy(color = if (accessibilityOn) Palette.green else Palette.red, fontSize = TextSize.Small),
+                    )
+                }
+            }
+
             ActionsRow(
                 Modifier.card(),
                 actions = {
@@ -68,7 +103,6 @@ fun KeyboardSettingsScreen(onDismiss: () -> Unit) {
                 turnOff = { Tiling.setAutoEnableOnKeyboard(context, false) },
             )
 
-            val accessibilityOn = TilingKeyService.connected
             ActionsRow(
                 Modifier.card(),
                 actions = {
@@ -97,7 +131,6 @@ fun KeyboardSettingsScreen(onDismiss: () -> Unit) {
                 }
             }
 
-            val helperOn = Tiling.helperConnected
             Column(Modifier.card()) {
                 BasicText(stringResource(R.string.keyboard_helper_title), style = Mono.copy(fontSize = TextSize.Item))
                 BasicText(

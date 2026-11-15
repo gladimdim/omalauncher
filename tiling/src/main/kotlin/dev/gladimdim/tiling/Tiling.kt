@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontFamily
+import dev.gladimdim.tiling.adb.LocalAdbHelper
 import java.io.File
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -77,6 +78,12 @@ interface TilingHost {
 
     /** Dismisses every notification that can be, or only the latest one. False without access to notifications. */
     fun dismissNotifications(all: Boolean): Boolean
+
+    /** The launcher's own screen that sets the desktop up (pairing, starting the helper), for the notice that it is not. */
+    fun setup() = Unit
+
+    /** Live SUPER DESKTOP harness statuses for the bar's mascot. */
+    val mascotStatus: MascotStatus get() = MascotStatus()
 }
 
 /** One window: an app on its own display, drawn into a tile. */
@@ -241,6 +248,13 @@ object Tiling {
     var help by mutableStateOf(false)
         private set
 
+    var mascotOpen by mutableStateOf(false)
+        private set
+
+    internal fun toggleMascot() {
+        mascotOpen = !mascotOpen
+    }
+
     /** The app finder's "show keyboard shortcuts". */
     internal fun showHelp() {
         menuOpen = false
@@ -274,6 +288,8 @@ object Tiling {
         autoEnableOnKeyboard = p.getBoolean("auto_enable_on_keyboard", true)
         languageHotkey =
             if (p.contains("language_hotkey")) KeyHotkey.parse(p.getString("language_hotkey", null)) else KeyHotkey.DEFAULT_LANGUAGE
+        LocalAdbHelper.init(activity)
+        if (optedIn && HelperLink.helper == null) LocalAdbHelper.autoStartIfPaired(activity)
         val view = DesktopLayout(activity, host)
         layout = view
         activity.addContentView(view, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -528,6 +544,8 @@ object Tiling {
             optedIn = true
             activity?.let { prefs(it).edit().putBoolean("opted_in", true).apply() }
         }
+        // Also without a keyboard attached: whoever has just set the desktop up is spared Android's Accessibility settings.
+        wantKeys()
         if (active) host?.workspaceShown(current)
         layout?.rebuild()
         changed()
@@ -630,6 +648,7 @@ object Tiling {
     private fun poll() {
         main.postDelayed(::poll, POLL_MS)
         if (active) wantKeys()
+        if (active && helper == null) activity?.let { LocalAdbHelper.autoStartIfPaired(it) }
         val helper = helper ?: return
         if (!active || workspaces.all { it.isEmpty() }) return
         background.execute {
@@ -1287,6 +1306,11 @@ object Tiling {
         host?.toggleDrawer()
     }
 
+    /** The launcher's setup screen, from the notice that the helper is not running. */
+    internal fun setup() {
+        host?.setup()
+    }
+
     /** The bar's gear: Android's Settings, in a window. */
     internal fun settings() = open("Settings", arrayOf("-a", "android.settings.SETTINGS"))
 
@@ -1461,6 +1485,11 @@ object Tiling {
             return true
         }
         // Esc arrives as Back from keyboards that send it so (HyperOS's does).
+        if (mascotOpen && (event.keyCode == KeyEvent.KEYCODE_ESCAPE || event.keyCode == KeyEvent.KEYCODE_BACK)) {
+            mascotOpen = false
+            held += event.keyCode
+            return true
+        }
         if (help && (event.keyCode == KeyEvent.KEYCODE_ESCAPE || event.keyCode == KeyEvent.KEYCODE_BACK)) {
             toggleHelp()
             held += event.keyCode

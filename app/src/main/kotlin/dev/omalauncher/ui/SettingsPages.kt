@@ -44,6 +44,9 @@ enum class SettingsPage {
     Gestures,
     Keyboard,
 
+    /** Fork: the steps that get the tiling desktop's helper running, from settings or the desktop's own notice. */
+    TilingSetup,
+
     /** Every permission, to turn on or off. */
     Permissions,
 }
@@ -120,6 +123,7 @@ private fun SettingsPage(
                 onLicenses = { stack.push(SettingsPage.Licenses) },
                 onGestures = { stack.push(SettingsPage.Gestures) },
                 onKeyboard = { stack.push(SettingsPage.Keyboard) },
+                onTilingSetup = { stack.push(SettingsPage.TilingSetup) },
                 onPermissions = { stack.push(SettingsPage.Permissions) },
             )
         SettingsPage.Style -> StyleScreen(runtime, onDismiss = close, onBrowse = { stack.push(SettingsPage.Themes) }, onAgent = ::agent)
@@ -168,7 +172,8 @@ private fun SettingsPage(
         SettingsPage.Linux -> LinuxScreen(runtime, onDismiss = close)
         SettingsPage.Licenses -> LicensesScreen(onDismiss = close)
         SettingsPage.Gestures -> GesturesScreen(runtime, onDismiss = close, onAgent = ::agent)
-        SettingsPage.Keyboard -> KeyboardSettingsScreen(onDismiss = close)
+        SettingsPage.Keyboard -> KeyboardSettingsScreen(onDismiss = close, onSetup = { stack.push(SettingsPage.TilingSetup) })
+        SettingsPage.TilingSetup -> TilingSetupScreen(onDismiss = close)
         SettingsPage.Permissions -> PermissionsScreen(runtime, onDismiss = close)
     }
 }

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tiling_setup_title">siapkan tiling</string>
+    <string name="tiling_setup_intro">desktop tiling membuka aplikasi sebagai jendela lewat pembantu kecil yang berjalan dengan hak debug android. menyiapkannya butuh satu menit, sekali saja.</string>
+    <string name="tiling_setup_unsupported">desktop tiling memerlukan android 13 atau yang lebih baru</string>
+    <string name="tiling_setup_allow">izinkan</string>
+    <string name="tiling_setup_try_again">coba lagi</string>
+    <string name="tiling_setup_about_phone">tentang ponsel</string>
+    <string name="tiling_setup_open_developer">opsi developer</string>
+    <string name="tiling_setup_open_accessibility">aksesibilitas</string>
+
+    <string name="tiling_setup_notifications">izinkan notifikasi</string>
+    <string name="tiling_setup_notifications_text">kode penyambungan diketik di notifikasi: android menarik kembali kodenya begitu setelannya ditinggalkan</string>
+    <string name="tiling_setup_local_network">izinkan jaringan lokal</string>
+    <string name="tiling_setup_local_network_text">tanpa itu, android 17 menyembunyikan port debug ponsel ini dari launcher</string>
+    <string name="tiling_setup_developer">opsi developer</string>
+    <string name="tiling_setup_developer_text">di Tentang ponsel, ketuk Nomor build tujuh kali (samsung: di bawah Informasi software · xiaomi: ketuk Versi OS)</string>
+    <string name="tiling_setup_debugging">proses debug nirkabel</string>
+    <string name="tiling_setup_debugging_text">sambungkan ke wi-fi. lalu, di Opsi developer, aktifkan Proses debug nirkabel dan izinkan di jaringan ini</string>
+    <string name="tiling_setup_debugging_again_text">Proses debug nirkabel nonaktif: aktifkan di Opsi developer, lalu pembantu akan berjalan</string>
+    <string name="tiling_setup_pair">sambungkan</string>
+    <string name="tiling_setup_pair_text">1. di Opsi developer, ketuk tulisan Proses debug nirkabel (bukan tombolnya)\n2. ketuk Sambungkan perangkat dengan kode penyambungan, lalu ingat enam angkanya\n3. sebuah notifikasi memintanya: buka dan ketik di sana. tetap di setelan android sampai saat itu: meninggalkannya membatalkan kode</string>
+    <string name="tiling_setup_pair_waiting">menunggu dialog penyambungan…</string>
+    <string name="tiling_setup_pair_found">dialog penyambungan ditemukan · ketik kodenya di notifikasi</string>
+    <string name="tiling_setup_pairing">menyambungkan…</string>
+    <string name="tiling_setup_pair_wrong">kode itu tidak diterima · ketuk lagi Sambungkan perangkat dengan kode penyambungan untuk kode baru</string>
+    <string name="tiling_setup_pair_again">ponsel ini tidak lagi menerima kunci launcher · sambungkan sekali lagi</string>
+    <string name="tiling_setup_pair_failed">penyambungan tidak berhasil · ketuk lagi Sambungkan perangkat dengan kode penyambungan</string>
+    <string name="tiling_setup_helper">pembantu jendela</string>
+    <string name="tiling_setup_helper_starting">memulai…</string>
+    <string name="tiling_setup_helper_silent">pembantu sudah dimulai tetapi tidak menjawab</string>
+    <string name="tiling_setup_helper_failed">pembantu tidak bisa dimulai</string>
+    <string name="tiling_setup_keys">pintasan keyboard</string>
+    <string name="tiling_setup_keys_starting">mengaktifkannya…</string>
+    <string name="tiling_setup_keys_manual">android tidak mengaktifkannya. di Aksesibilitas → Aplikasi yang didownload, aktifkan Tiling desktop shortcuts (jika berwarna abu-abu: Info aplikasi → ⋮ → Izinkan setelan terbatas)</string>
+
+    <string name="tiling_setup_done">semua siap · sambungkan keyboard dan desktop akan dimulai</string>
+    <string name="tiling_setup_done_keyboard">semua siap · desktop sudah siap</string>
+    <string name="tiling_setup_done_restart">Proses debug USB kini juga aktif: itu menjaga pembantu tetap berjalan saat wi-fi terputus. setelah ponsel dimulai ulang, launcher mengaktifkan Proses debug nirkabel sebentar, di wi-fi yang kamu izinkan, untuk memulai pembantu lagi.</string>
+    <string name="tiling_setup_done_restart_by_hand">setelah ponsel dimulai ulang, aktifkan Proses debug nirkabel sekali dan pembantu akan berjalan lagi</string>
+
+    <string name="tiling_setup_channel">penyiapan tiling</string>
+    <string name="tiling_setup_channel_progress">progres penyiapan tiling</string>
+    <string name="tiling_setup_note_wait">menyiapkan tiling</string>
+    <string name="tiling_setup_note_wait_text">di Proses debug nirkabel, ketuk Sambungkan perangkat dengan kode penyambungan</string>
+    <string name="tiling_setup_note_code">masukkan kode penyambungan</string>
+    <string name="tiling_setup_note_code_text">enam angka yang sedang ditampilkan android</string>
+    <string name="tiling_setup_note_code_action">masukkan kode</string>
+    <string name="tiling_setup_note_code_label">kode penyambungan</string>
+    <string name="tiling_setup_note_pairing">menyambungkan…</string>
+    <string name="tiling_setup_note_starting">memulai pembantu jendela…</string>
+    <string name="tiling_setup_note_wrong">kode itu tidak diterima</string>
+    <string name="tiling_setup_note_wrong_text">ketuk lagi Sambungkan perangkat dengan kode penyambungan untuk kode baru</string>
+    <string name="tiling_setup_note_ready">tiling sudah siap</string>
+    <string name="tiling_setup_note_ready_text">sambungkan keyboard dan desktop akan dimulai</string>
+    <string name="tiling_setup_note_unfinished">tersambung, tetapi pembantu jendela tidak berjalan</string>
+    <string name="tiling_setup_note_unfinished_text">ketuk untuk menyelesaikan penyiapan</string>
+    <string name="tiling_setup_note_stop">hentikan</string>
+</resources>

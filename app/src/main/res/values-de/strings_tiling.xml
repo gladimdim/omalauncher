@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tiling_setup_title">tiling einrichten</string>
+    <string name="tiling_setup_intro">der tiling-desktop öffnet apps als fenster über einen kleinen helfer, der mit androids debugging-rechten läuft. das einrichten dauert eine minute, einmalig.</string>
+    <string name="tiling_setup_unsupported">der tiling-desktop braucht android 13 oder neuer</string>
+    <string name="tiling_setup_allow">erlauben</string>
+    <string name="tiling_setup_try_again">nochmal versuchen</string>
+    <string name="tiling_setup_about_phone">über das telefon</string>
+    <string name="tiling_setup_open_developer">entwickleroptionen</string>
+    <string name="tiling_setup_open_accessibility">bedienungshilfen</string>
+
+    <string name="tiling_setup_notifications">benachrichtigungen erlauben</string>
+    <string name="tiling_setup_notifications_text">der kopplungscode wird in eine benachrichtigung getippt: android nimmt den code zurück, sobald du seine einstellungen verlässt</string>
+    <string name="tiling_setup_local_network">lokales netzwerk erlauben</string>
+    <string name="tiling_setup_local_network_text">ohne das versteckt android 17 den debugging-port dieses telefons vor dem launcher</string>
+    <string name="tiling_setup_developer">entwickleroptionen</string>
+    <string name="tiling_setup_developer_text">tippe unter Über das Telefon siebenmal auf Build-Nummer (samsung: unter Softwareinformationen · xiaomi: stattdessen auf OS-Version)</string>
+    <string name="tiling_setup_debugging">debugging über wlan</string>
+    <string name="tiling_setup_debugging_text">verbinde dich mit einem wlan. schalte dann in den Entwickleroptionen Debugging über WLAN ein und erlaube es in diesem netzwerk</string>
+    <string name="tiling_setup_debugging_again_text">Debugging über WLAN ist aus: schalte es in den Entwickleroptionen ein, dann startet der helfer</string>
+    <string name="tiling_setup_pair">koppeln</string>
+    <string name="tiling_setup_pair_text">1. tippe in den Entwickleroptionen auf den text Debugging über WLAN (nicht auf den schalter)\n2. tippe auf Gerät über einen Kopplungscode koppeln und merk dir die sechs ziffern\n3. eine benachrichtigung fragt danach: klapp sie auf und tippe sie ein. bleib bis dahin in androids einstellungen: wenn du sie verlässt, verfällt der code</string>
+    <string name="tiling_setup_pair_waiting">warte auf den kopplungsdialog…</string>
+    <string name="tiling_setup_pair_found">kopplungsdialog gefunden · tippe seinen code in die benachrichtigung</string>
+    <string name="tiling_setup_pairing">kopple…</string>
+    <string name="tiling_setup_pair_wrong">der code wurde nicht angenommen · tippe nochmal auf Gerät über einen Kopplungscode koppeln für einen neuen</string>
+    <string name="tiling_setup_pair_again">dieses telefon nimmt den schlüssel des launchers nicht mehr an · kopple noch einmal</string>
+    <string name="tiling_setup_pair_failed">das koppeln hat nicht geklappt · tippe nochmal auf Gerät über einen Kopplungscode koppeln</string>
+    <string name="tiling_setup_helper">fenster-helfer</string>
+    <string name="tiling_setup_helper_starting">startet…</string>
+    <string name="tiling_setup_helper_silent">der helfer wurde gestartet und hat nicht geantwortet</string>
+    <string name="tiling_setup_helper_failed">der helfer ließ sich nicht starten</string>
+    <string name="tiling_setup_keys">tastaturkurzbefehle</string>
+    <string name="tiling_setup_keys_starting">werden eingeschaltet…</string>
+    <string name="tiling_setup_keys_manual">android hat sie nicht eingeschaltet. schalte unter Bedienungshilfen → Heruntergeladene Apps die Tiling desktop shortcuts ein (falls ausgegraut: App-Info → ⋮ → Eingeschränkte Einstellungen zulassen)</string>
+
+    <string name="tiling_setup_done">alles bereit · verbinde eine tastatur, dann startet der desktop</string>
+    <string name="tiling_setup_done_keyboard">alles bereit · der desktop ist startklar</string>
+    <string name="tiling_setup_done_restart">USB-Debugging ist jetzt auch an: so läuft der helfer weiter, wenn das wlan weg ist. nach einem neustart des telefons schaltet der launcher Debugging über WLAN kurz ein, in einem wlan, das du erlaubt hast, und startet den helfer wieder.</string>
+    <string name="tiling_setup_done_restart_by_hand">schalte nach einem neustart des telefons einmal Debugging über WLAN ein, dann startet der helfer wieder</string>
+
+    <string name="tiling_setup_channel">tiling-einrichtung</string>
+    <string name="tiling_setup_channel_progress">fortschritt der tiling-einrichtung</string>
+    <string name="tiling_setup_note_wait">tiling wird eingerichtet</string>
+    <string name="tiling_setup_note_wait_text">tippe unter Debugging über WLAN auf Gerät über einen Kopplungscode koppeln</string>
+    <string name="tiling_setup_note_code">kopplungscode eingeben</string>
+    <string name="tiling_setup_note_code_text">die sechs ziffern, die android gerade zeigt</string>
+    <string name="tiling_setup_note_code_action">code eingeben</string>
+    <string name="tiling_setup_note_code_label">kopplungscode</string>
+    <string name="tiling_setup_note_pairing">kopple…</string>
+    <string name="tiling_setup_note_starting">der fenster-helfer startet…</string>
+    <string name="tiling_setup_note_wrong">der code wurde nicht angenommen</string>
+    <string name="tiling_setup_note_wrong_text">tippe nochmal auf Gerät über einen Kopplungscode koppeln für einen neuen</string>
+    <string name="tiling_setup_note_ready">tiling ist bereit</string>
+    <string name="tiling_setup_note_ready_text">verbinde eine tastatur, dann startet der desktop</string>
+    <string name="tiling_setup_note_unfinished">gekoppelt, aber der fenster-helfer ist nicht gestartet</string>
+    <string name="tiling_setup_note_unfinished_text">tippe, um die einrichtung abzuschließen</string>
+    <string name="tiling_setup_note_stop">stopp</string>
+</resources>

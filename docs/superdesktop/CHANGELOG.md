@@ -1,5 +1,28 @@
 # SD Launcher changelog
 
+## 1.13.0 (118)
+
+Built on **Omalauncher 1.4.0**, as 1.12.0.
+
+### Tiling desktop (experimental)
+- **Set up from the tablet itself**: settings has a new **set up tiling**
+  screen that leads through Developer options, Wireless debugging and pairing,
+  ticking each step off as Android reports it done, and then starts the window
+  helper with no computer. The pairing code is typed into a notification that
+  comes up over Android's pairing dialog, because Android takes the code back
+  the moment its Settings are left. The keyboard shortcuts are switched on by
+  the helper, without a visit to Accessibility.
+- **The helper comes back by itself**: after a reboot, or an update that needs
+  a newer helper, the launcher switches Wireless debugging on for the moment it
+  takes to start the helper and off again (on a Wi-Fi allowed for debugging).
+  Setup switches USB debugging on, as Android stops the helper when no
+  debugging is on at all, and Wireless debugging goes off whenever Wi-Fi drops.
+  If Android has dropped the pairing, the launcher says so and asks to pair
+  again. `scripts/tiling-helper.sh` from a computer still works.
+- **Agent mascot in the bar**: a small thunderbolt shows what the SUPER DESKTOP
+  harnesses on your paired computers are doing (working, waiting for you, an
+  error, idle or offline) with a count, and opens a list of them on a click.
+
 ## 1.12.0 (116)
 
 Built on **Omalauncher 1.4.0**, as 1.11.0.

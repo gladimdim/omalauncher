@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tiling_setup_title">configurar tiling</string>
+    <string name="tiling_setup_intro">o desktop tiling abre os apps como janelas por meio de um pequeno ajudante que roda com os direitos de depuração do android. a configuração leva um minuto, uma única vez.</string>
+    <string name="tiling_setup_unsupported">o desktop tiling precisa do android 13 ou mais recente</string>
+    <string name="tiling_setup_allow">permitir</string>
+    <string name="tiling_setup_try_again">tentar de novo</string>
+    <string name="tiling_setup_about_phone">sobre o telefone</string>
+    <string name="tiling_setup_open_developer">opções do desenvolvedor</string>
+    <string name="tiling_setup_open_accessibility">acessibilidade</string>
+
+    <string name="tiling_setup_notifications">permitir notificações</string>
+    <string name="tiling_setup_notifications_text">o código de pareamento é digitado em uma notificação: o android retira o código assim que você sai das configurações dele</string>
+    <string name="tiling_setup_local_network">permitir a rede local</string>
+    <string name="tiling_setup_local_network_text">sem isso, o android 17 esconde do launcher a porta de depuração deste telefone</string>
+    <string name="tiling_setup_developer">opções do desenvolvedor</string>
+    <string name="tiling_setup_developer_text">em Sobre o telefone, toque sete vezes em Número da versão (samsung: em Informações do software · xiaomi: toque em Versão do SO)</string>
+    <string name="tiling_setup_debugging">depuração sem fio</string>
+    <string name="tiling_setup_debugging_text">conecte-se a um wi-fi. depois, em Opções do desenvolvedor, ative a Depuração sem fio e permita-a nesta rede</string>
+    <string name="tiling_setup_debugging_again_text">a Depuração sem fio está desativada: ative-a em Opções do desenvolvedor e o ajudante inicia</string>
+    <string name="tiling_setup_pair">parear</string>
+    <string name="tiling_setup_pair_text">1. em Opções do desenvolvedor, toque no texto Depuração sem fio (não na chave)\n2. toque em Parear dispositivo com código de pareamento e guarde os seis dígitos\n3. uma notificação pede esses dígitos: abra-a e digite-os. até lá, fique nas configurações do android: sair delas cancela o código</string>
+    <string name="tiling_setup_pair_waiting">aguardando a caixa de pareamento…</string>
+    <string name="tiling_setup_pair_found">caixa de pareamento encontrada · digite o código dela na notificação</string>
+    <string name="tiling_setup_pairing">pareando…</string>
+    <string name="tiling_setup_pair_wrong">esse código não foi aceito · toque de novo em Parear dispositivo com código de pareamento para obter um novo</string>
+    <string name="tiling_setup_pair_again">este telefone não aceita mais a chave do launcher · pareie mais uma vez</string>
+    <string name="tiling_setup_pair_failed">o pareamento não funcionou · toque de novo em Parear dispositivo com código de pareamento</string>
+    <string name="tiling_setup_helper">ajudante de janelas</string>
+    <string name="tiling_setup_helper_starting">iniciando…</string>
+    <string name="tiling_setup_helper_silent">o ajudante foi iniciado e não respondeu</string>
+    <string name="tiling_setup_helper_failed">não foi possível iniciar o ajudante</string>
+    <string name="tiling_setup_keys">atalhos de teclado</string>
+    <string name="tiling_setup_keys_starting">ativando…</string>
+    <string name="tiling_setup_keys_manual">o android não os ativou. em Acessibilidade → Apps transferidos, ative Tiling desktop shortcuts (se estiver esmaecido: Informações do app → ⋮ → Permitir configurações restritas)</string>
+
+    <string name="tiling_setup_done">tudo pronto · conecte um teclado e o desktop inicia</string>
+    <string name="tiling_setup_done_keyboard">tudo pronto · o desktop está preparado</string>
+    <string name="tiling_setup_done_restart">a Depuração USB agora também está ativada: ela mantém o ajudante rodando quando o wi-fi cai. depois de reiniciar o telefone, o launcher ativa a Depuração sem fio por um instante, em um wi-fi que você permitiu, para iniciar o ajudante de novo.</string>
+    <string name="tiling_setup_done_restart_by_hand">depois de reiniciar o telefone, ative a Depuração sem fio uma vez e o ajudante inicia de novo</string>
+
+    <string name="tiling_setup_channel">configuração do tiling</string>
+    <string name="tiling_setup_channel_progress">andamento da configuração do tiling</string>
+    <string name="tiling_setup_note_wait">configurando o tiling</string>
+    <string name="tiling_setup_note_wait_text">em Depuração sem fio, toque em Parear dispositivo com código de pareamento</string>
+    <string name="tiling_setup_note_code">digite o código de pareamento</string>
+    <string name="tiling_setup_note_code_text">os seis dígitos que o android está mostrando</string>
+    <string name="tiling_setup_note_code_action">digitar código</string>
+    <string name="tiling_setup_note_code_label">código de pareamento</string>
+    <string name="tiling_setup_note_pairing">pareando…</string>
+    <string name="tiling_setup_note_starting">iniciando o ajudante de janelas…</string>
+    <string name="tiling_setup_note_wrong">esse código não foi aceito</string>
+    <string name="tiling_setup_note_wrong_text">toque de novo em Parear dispositivo com código de pareamento para obter um novo</string>
+    <string name="tiling_setup_note_ready">o tiling está pronto</string>
+    <string name="tiling_setup_note_ready_text">conecte um teclado e o desktop inicia</string>
+    <string name="tiling_setup_note_unfinished">pareado, mas o ajudante de janelas não iniciou</string>
+    <string name="tiling_setup_note_unfinished_text">toque para concluir a configuração</string>
+    <string name="tiling_setup_note_stop">parar</string>
+</resources>

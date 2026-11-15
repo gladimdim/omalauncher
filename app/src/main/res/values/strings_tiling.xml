@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork: setting up the tiling desktop (ui/TilingSetupScreen.kt), and the notification its pairing code is typed into
+     (TilingSetupService.kt). The names of Android's own settings keep their capitals. -->
+<resources>
+    <string name="tiling_setup_title">set up tiling</string>
+    <string name="tiling_setup_intro">the tiling desktop opens apps as windows through a small helper that runs with android\'s debugging rights. setting it up takes a minute, once.</string>
+    <string name="tiling_setup_unsupported">the tiling desktop needs android 13 or newer</string>
+    <string name="tiling_setup_allow">allow</string>
+    <string name="tiling_setup_try_again">try again</string>
+    <string name="tiling_setup_about_phone">about phone</string>
+    <string name="tiling_setup_open_developer">developer options</string>
+    <string name="tiling_setup_open_accessibility">accessibility</string>
+
+    <string name="tiling_setup_notifications">allow notifications</string>
+    <string name="tiling_setup_notifications_text">the pairing code is typed into a notification: android takes the code back as soon as its settings are left</string>
+    <string name="tiling_setup_local_network">allow the local network</string>
+    <string name="tiling_setup_local_network_text">without it, android 17 hides this phone\'s own debugging port from the launcher</string>
+    <string name="tiling_setup_developer">developer options</string>
+    <string name="tiling_setup_developer_text">in About phone, tap Build number seven times (samsung: under Software information · xiaomi: tap OS version instead)</string>
+    <string name="tiling_setup_debugging">wireless debugging</string>
+    <string name="tiling_setup_debugging_text">connect to wi-fi. then, in Developer options, switch on Wireless debugging and allow it on this network</string>
+    <string name="tiling_setup_debugging_again_text">Wireless debugging is off: switch it on in Developer options, and the helper starts</string>
+    <string name="tiling_setup_pair">pair</string>
+    <string name="tiling_setup_pair_text">1. in Developer options, tap the words Wireless debugging (not its switch)\n2. tap Pair device with pairing code, and note the six digits\n3. a notification asks for them: open it and type them in. stay in android\'s settings until then: leaving them cancels the code</string>
+    <string name="tiling_setup_pair_waiting">waiting for the pairing dialog…</string>
+    <string name="tiling_setup_pair_found">found the pairing dialog · type its code into the notification</string>
+    <string name="tiling_setup_pairing">pairing…</string>
+    <string name="tiling_setup_pair_wrong">that code was not accepted · tap Pair device with pairing code again for a new one</string>
+    <string name="tiling_setup_pair_again">this phone no longer accepts the launcher\'s key · pair once more</string>
+    <string name="tiling_setup_pair_failed">pairing did not work · tap Pair device with pairing code again</string>
+    <string name="tiling_setup_helper">window helper</string>
+    <string name="tiling_setup_helper_starting">starting…</string>
+    <string name="tiling_setup_helper_silent">the helper was started and did not answer</string>
+    <string name="tiling_setup_helper_failed">the helper could not be started</string>
+    <string name="tiling_setup_keys">keyboard shortcuts</string>
+    <string name="tiling_setup_keys_starting">switching them on…</string>
+    <string name="tiling_setup_keys_manual">android did not switch them on. in Accessibility → Downloaded apps, switch on Tiling desktop shortcuts (if greyed out: App info → ⋮ → Allow restricted settings)</string>
+
+    <string name="tiling_setup_done">all set · connect a hardware keyboard and the desktop starts</string>
+    <string name="tiling_setup_done_keyboard">all set · the desktop is ready</string>
+    <string name="tiling_setup_done_restart">USB debugging is now on as well: it keeps the helper running when wi-fi drops. after a restart of the phone the launcher switches Wireless debugging on for a moment, on a wi-fi you allowed, to start the helper again.</string>
+    <string name="tiling_setup_done_restart_by_hand">after a restart of the phone, switch Wireless debugging on once and the helper starts again</string>
+
+    <string name="tiling_setup_channel">tiling setup</string>
+    <string name="tiling_setup_channel_progress">tiling setup progress</string>
+    <string name="tiling_setup_note_wait">setting up tiling</string>
+    <string name="tiling_setup_note_wait_text">in Wireless debugging, tap Pair device with pairing code</string>
+    <string name="tiling_setup_note_code">enter the pairing code</string>
+    <string name="tiling_setup_note_code_text">the six digits android is showing</string>
+    <string name="tiling_setup_note_code_action">enter code</string>
+    <string name="tiling_setup_note_code_label">pairing code</string>
+    <string name="tiling_setup_note_pairing">pairing…</string>
+    <string name="tiling_setup_note_starting">starting the window helper…</string>
+    <string name="tiling_setup_note_wrong">that code was not accepted</string>
+    <string name="tiling_setup_note_wrong_text">tap Pair device with pairing code again for a new one</string>
+    <string name="tiling_setup_note_ready">tiling is ready</string>
+    <string name="tiling_setup_note_ready_text">connect a hardware keyboard and the desktop starts</string>
+    <string name="tiling_setup_note_unfinished">paired, but the window helper did not start</string>
+    <string name="tiling_setup_note_unfinished_text">tap to finish the setup</string>
+    <string name="tiling_setup_note_stop">stop</string>
+</resources>
