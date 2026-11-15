@@ -9,6 +9,9 @@ import android.app.WallpaperManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -297,9 +300,34 @@ fun HomeScreen(
         onDispose { state.onHomeAgain = {} }
     }
     LaunchedEffect(state.requestedPage) {
-        // Fork: with the tiling desktop on, a page comes with its workspace's windows, at once as they do.
-        state.requestedPage?.let { slotOf(it).takeIf { i -> i >= 0 }?.let { i -> if (Tiling.active) pager.scrollToPage(i) else pager.animateScrollToPage(i) } }
-        state.requestedPage = null
+        val page = state.requestedPage ?: return@LaunchedEffect
+        try {
+            val i = slotOf(page)
+            if (i < 0) return@LaunchedEffect
+            if (!Tiling.active) {
+                pager.animateScrollToPage(i)
+                return@LaunchedEffect
+            }
+            // Fork: with the tiling desktop on, a page comes with its workspace's windows, at once as they do. A field
+            // typed into on the page being left lets go first, as it does once the page has turned: still focused, it
+            // is scrolled back into view, and one scroll of the pager ends another. A turn that was ended like that is
+            // made again, or the workspace would be on screen over another workspace's page.
+            if (i != pager.currentPage) terminals.deactivate()
+            for (attempt in 1..3) {
+                try {
+                    pager.scrollToPage(i)
+                    break
+                } catch (e: CancellationException) {
+                    // This effect itself was ended, by a newer request: that one turns the page.
+                    ensureActive()
+                    withFrameNanos {}
+                }
+            }
+        } finally {
+            // Also when the turn was cut short: left standing, the request would make asking for the same page again no
+            // change at all, and that page could not be turned to until another one had been.
+            if (state.requestedPage == page) state.requestedPage = null
+        }
     }
     // Fork: a page turned to brings the workspace of its number, as a workspace brings its page (TilingHook.kt): one
     // set of spaces, whether by a swipe or by Super+number.

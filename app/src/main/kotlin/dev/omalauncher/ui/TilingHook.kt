@@ -118,6 +118,10 @@ fun attachTiling(
                 runtime.openSettings(SettingsPage.TilingSetup)
             }
 
+            override fun settings() {
+                runtime.openSettings()
+            }
+
             override val mascotStatus: MascotStatus get() = mascotState
         }
     // Apps opened from home itself (a pinned icon, its app list, a widget) become windows too.

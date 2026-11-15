@@ -91,8 +91,8 @@ opened is a kind of app (browser, files, calendar, email, music, calculator, map
 `terminal`, `settings`, an app's name or its package. A key whose app already has a window goes to that window.
 
 On the bar, Omarchy's mark opens home's list of every app, a workspace number switches to it (the first five are
-always shown, a later one while it is in use), `s` is the scratchpad, the gear opens Android's Settings in a window
-and `?` lists the keys; a right click on the bar moves it to the next screen edge. Swiping home's pages switches
+always shown, a later one while it is in use), `s` is the scratchpad, the gear offers the launcher's settings or
+Android's (in a window) and `?` lists the keys; a right click on the bar moves it to the next screen edge. Swiping home's pages switches
 workspace too, with the windows travelling along. Linux windows, the terminal among them, are windows of the desktop
 like any app. Taking the keyboard off turns the windows back into ordinary apps, the focused one staying in front;
 putting it on brings them back. The window under the mouse pointer has the keys. Apps in windows get no on-screen

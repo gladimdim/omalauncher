@@ -2,17 +2,22 @@ package dev.gladimdim.tiling
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -24,12 +29,21 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 
 /**
  * The bar, as Omarchy's waybar lays it out: workspaces at the start, the clock in the middle, the device's state at
@@ -119,7 +133,10 @@ internal fun Bar(host: TilingHost) {
             Icon(colors.foreground, Modifier.clickable { Tiling.notifications() }) { bell(it) }
             Icon(if (BarStatus.bluetooth) colors.foreground else colors.muted, Modifier.clickable { Tiling.openSettings("Bluetooth", "android.settings.BLUETOOTH_SETTINGS") }) { bluetooth(it) }
             Icon(if (BarStatus.wifi) colors.foreground else colors.muted, Modifier.clickable { Tiling.openSettings("Wi-Fi", "android.settings.WIFI_SETTINGS") }) { wifi(it) }
-            Icon(colors.foreground, Modifier.clickable { Tiling.settings() }) { gear(it) }
+            Box {
+                Icon(if (Tiling.settingsMenu) colors.accent else colors.foreground, Modifier.clickable { Tiling.toggleSettingsMenu() }) { gear(it) }
+                if (Tiling.settingsMenu) SettingsMenu(host)
+            }
             BasicText(
                 "?",
                 Modifier.clickable { Tiling.toggleHelp() }.padding(horizontal = 7.dp, vertical = 4.dp),
@@ -159,6 +176,69 @@ internal fun Bar(host: TilingHost) {
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) { status() }
         }
+    }
+}
+
+/**
+ * From the gear: which settings to open, the launcher's own or Android's. It does not take the keys, so the desktop's
+ * shortcuts go on working under it; a click anywhere else, the gear again or Esc closes it.
+ */
+@Composable
+private fun SettingsMenu(host: TilingHost) {
+    val colors = host.colors
+    val context = LocalContext.current
+    val text = TextStyle(fontFamily = host.font, fontSize = 13.sp, color = colors.foreground)
+    val gap = with(LocalDensity.current) { 10.dp.roundToPx() }
+    val edge = Tiling.edge
+    Popup(
+        popupPositionProvider = remember(edge, gap) { BesideBar(edge, gap) },
+        onDismissRequest = { Tiling.closeSettingsMenu() },
+        properties = PopupProperties(focusable = false),
+    ) {
+        Column(
+            Modifier
+                .width(IntrinsicSize.Max)
+                .background(colors.background.copy(alpha = 0.96f))
+                .border(2.dp, colors.border)
+                .padding(vertical = 6.dp),
+        ) {
+            for ((label, open) in listOf<Pair<String, () -> Unit>>("launcher settings" to { Tiling.launcherSettings() }, "android settings" to { Tiling.androidSettings(context) })) {
+                BasicText(label, Modifier.fillMaxWidth().clickable(onClick = open).padding(horizontal = 16.dp, vertical = 9.dp), style = text)
+            }
+        }
+    }
+}
+
+/**
+ * Beside what was clicked, on the side of it away from the screen's edge the bar is on, and in line with its end: the
+ * bar's icons are at the end of it, where a popup starting at one would run off the screen.
+ */
+private class BesideBar(
+    private val edge: Edge,
+    private val gap: Int,
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val x =
+            when (edge) {
+                Edge.LEFT -> anchorBounds.right + gap
+                Edge.RIGHT -> anchorBounds.left - gap - popupContentSize.width
+                else -> anchorBounds.right - popupContentSize.width
+            }
+        val y =
+            when (edge) {
+                Edge.TOP -> anchorBounds.bottom + gap
+                Edge.BOTTOM -> anchorBounds.top - gap - popupContentSize.height
+                else -> anchorBounds.bottom - popupContentSize.height
+            }
+        return IntOffset(
+            x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+            y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)),
+        )
     }
 }
 

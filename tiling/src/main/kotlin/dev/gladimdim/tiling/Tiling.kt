@@ -82,6 +82,9 @@ interface TilingHost {
     /** The launcher's own screen that sets the desktop up (pairing, starting the helper), for the notice that it is not. */
     fun setup() = Unit
 
+    /** The launcher's own settings, for the bar's gear, which offers them beside Android's. */
+    fun settings() = Unit
+
     /** Live SUPER DESKTOP harness statuses for the bar's mascot. */
     val mascotStatus: MascotStatus get() = MascotStatus()
 }
@@ -1311,7 +1314,36 @@ object Tiling {
         host?.setup()
     }
 
-    /** The bar's gear: Android's Settings, in a window. */
+    /** The bar's gear was clicked: the choice between the launcher's settings and Android's is up beside it. */
+    var settingsMenu by mutableStateOf(false)
+        private set
+    private var settingsMenuClosedAt = 0L
+
+    internal fun toggleSettingsMenu() {
+        // A click on the gear while the choice is up closes it twice over, as a click outside it and as one on the
+        // gear: the second must not bring it straight back.
+        if (settingsMenu) closeSettingsMenu() else if (SystemClock.uptimeMillis() - settingsMenuClosedAt > 300) settingsMenu = true
+    }
+
+    internal fun closeSettingsMenu() {
+        if (!settingsMenu) return
+        settingsMenu = false
+        settingsMenuClosedAt = SystemClock.uptimeMillis()
+    }
+
+    /** The first of the gear's two: the launcher's own settings. */
+    internal fun launcherSettings() {
+        closeSettingsMenu()
+        host?.settings()
+    }
+
+    /** The other: Android's Settings, in a window, or as Android opens them while there is no helper to make one. */
+    internal fun androidSettings(context: Context) {
+        closeSettingsMenu()
+        if (!settings()) runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+
+    /** Android's Settings, in a window: one of the gear's two, and what a key bound to `settings` opens. */
     internal fun settings() = open("Settings", arrayOf("-a", "android.settings.SETTINGS"))
 
     /** A settings page from the bar, in a tile like any app. */
@@ -1485,6 +1517,11 @@ object Tiling {
             return true
         }
         // Esc arrives as Back from keyboards that send it so (HyperOS's does).
+        if (settingsMenu && (event.keyCode == KeyEvent.KEYCODE_ESCAPE || event.keyCode == KeyEvent.KEYCODE_BACK)) {
+            closeSettingsMenu()
+            held += event.keyCode
+            return true
+        }
         if (mascotOpen && (event.keyCode == KeyEvent.KEYCODE_ESCAPE || event.keyCode == KeyEvent.KEYCODE_BACK)) {
             mascotOpen = false
             held += event.keyCode
