@@ -1,5 +1,16 @@
 # SD Launcher changelog
 
+## 1.13.1 (119)
+
+Built on **Omalauncher 1.4.0**, as 1.13.0.
+
+### Tiling desktop (experimental)
+- **Settings choice on the bar's gear**: tapping the gear on the tiling bar
+  now asks whether to open the launcher's own settings or Android's settings.
+- **Reliable workspace page turns**: switching workspaces turns home's page
+  again if an earlier turn was cut short, and clears focus from a widget's text
+  field first so the page turn is not blocked.
+
 ## 1.13.0 (118)
 
 Built on **Omalauncher 1.4.0**, as 1.12.0.
