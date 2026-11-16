@@ -6,10 +6,10 @@ set -e
 cd "$(dirname "$0")/.."
 variant=${1:-debug}
 case "$variant" in
-    debug) task=assembleDebug ;;
-    release) task=assembleRelease ;;
+    debug) task=assembleFossDebug ;;
+    release) task=assembleFossRelease ;;
     *) echo "usage: $0 [debug|release]" >&2; exit 2 ;;
 esac
 [ -f app/src/main/jniLibs/arm64-v8a/libproot.so ] || ./scripts/fetch-proot.sh
 ./gradlew ":app:$task"
-adb install -r "app/build/outputs/apk/$variant/app-$variant.apk"
+adb install -r "app/build/outputs/apk/foss/$variant/app-foss-$variant.apk"

@@ -15,10 +15,10 @@ import dev.gladimdim.superdesktop.SdColors
 import dev.gladimdim.superdesktop.SdHost
 import dev.gladimdim.superdesktop.SuperDesktopTile
 import dev.omalauncher.App
-import dev.omalauncher.LauncherData
+import dev.omalauncher.storage.LauncherData
 import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.Palette
-import dev.omalauncher.ui.TileField
+import dev.omalauncher.ui.home.TileField
 import java.io.File
 
 // Fork: the SuperDesktop element. Adapts the launcher to the :superdesktop module, which knows nothing of it.

@@ -17,7 +17,7 @@ import dev.gladimdim.tiling.Tiling
 import dev.gladimdim.tiling.adb.LocalAdbHelper
 import dev.gladimdim.tiling.adb.LocalAdbHelper.Problem
 import dev.gladimdim.tiling.adb.LocalAdbHelper.Step
-import dev.omalauncher.ui.SettingsPage
+import dev.omalauncher.ui.settings.SettingsPage
 
 // Fork: the tiling desktop's setup (ui/TilingSetupScreen.kt).
 

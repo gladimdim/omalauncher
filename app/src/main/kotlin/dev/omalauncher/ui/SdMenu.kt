@@ -13,7 +13,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.gladimdim.superdesktop.SdWidgets
-import dev.omalauncher.LauncherData
+import dev.omalauncher.storage.LauncherData
+import dev.omalauncher.ui.home.LauncherState
 import dev.omalauncher.R
 
 // Fork: SUPER DESKTOP's row in the home long-press menu, drawn like "create with …" above it.

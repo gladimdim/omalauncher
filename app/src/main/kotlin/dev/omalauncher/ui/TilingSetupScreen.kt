@@ -32,7 +32,7 @@ import dev.gladimdim.tiling.TilingKeyService
 import dev.gladimdim.tiling.adb.LocalAdbHelper
 import dev.gladimdim.tiling.adb.LocalAdbHelper.Problem
 import dev.gladimdim.tiling.adb.LocalAdbHelper.Step
-import dev.omalauncher.LocalNetwork
+import dev.omalauncher.net.LocalNetwork
 import dev.omalauncher.R
 import dev.omalauncher.TilingSetupService
 import kotlinx.coroutines.delay

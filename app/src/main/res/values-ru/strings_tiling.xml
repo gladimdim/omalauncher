@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork: setting up the tiling desktop (ui/TilingSetupScreen.kt), and the notification its pairing code is typed into
+     (TilingSetupService.kt). The names of Android's own settings keep their capitals. -->
+<resources>
+    <string name="tiling_setup_title">настроить тайлинг</string>
+    <string name="tiling_setup_intro">тайлинг открывает приложения в окнах через небольшого помощника, который работает с правами отладки android. настройка займёт минуту, один раз.</string>
+    <string name="tiling_setup_unsupported">для тайлинга нужен android 13 или новее</string>
+    <string name="tiling_setup_allow">разрешить</string>
+    <string name="tiling_setup_try_again">ещё раз</string>
+    <string name="tiling_setup_about_phone">о телефоне</string>
+    <string name="tiling_setup_open_developer">для разработчиков</string>
+    <string name="tiling_setup_open_accessibility">спец. возможности</string>
+
+    <string name="tiling_setup_notifications">разрешите уведомления</string>
+    <string name="tiling_setup_notifications_text">код подключения вводится в уведомлении: android отменяет код, как только вы выходите из его настроек</string>
+    <string name="tiling_setup_local_network">разрешите локальную сеть</string>
+    <string name="tiling_setup_local_network_text">без этого android 17 скрывает от лаунчера порт отладки самого телефона</string>
+    <string name="tiling_setup_developer">для разработчиков</string>
+    <string name="tiling_setup_developer_text">в О телефоне нажмите на Номер сборки семь раз (samsung: в Сведениях о ПО · xiaomi: нажимайте на Версию ОС)</string>
+    <string name="tiling_setup_debugging">отладка по wi-fi</string>
+    <string name="tiling_setup_debugging_text">подключитесь к wi-fi. затем в разделе Для разработчиков включите Отладку по Wi-Fi и разрешите её в этой сети</string>
+    <string name="tiling_setup_debugging_again_text">Отладка по Wi-Fi выключена: включите её в разделе Для разработчиков, и помощник запустится</string>
+    <string name="tiling_setup_pair">подключение</string>
+    <string name="tiling_setup_pair_text">1. в разделе Для разработчиков нажмите на слова Отладка по Wi-Fi (не на переключатель)\n2. нажмите Подключить устройство с помощью кода и запомните шесть цифр\n3. уведомление попросит их: откройте его и введите цифры. до этого оставайтесь в настройках android: если выйти, код отменится</string>
+    <string name="tiling_setup_pair_waiting">ждём окно подключения…</string>
+    <string name="tiling_setup_pair_found">окно подключения найдено · введите его код в уведомлении</string>
+    <string name="tiling_setup_pairing">подключение…</string>
+    <string name="tiling_setup_pair_wrong">код не принят · снова нажмите Подключить устройство с помощью кода, чтобы получить новый</string>
+    <string name="tiling_setup_pair_again">телефон больше не принимает ключ лаунчера · подключите его ещё раз</string>
+    <string name="tiling_setup_pair_failed">подключиться не удалось · снова нажмите Подключить устройство с помощью кода</string>
+    <string name="tiling_setup_helper">помощник окон</string>
+    <string name="tiling_setup_helper_starting">запуск…</string>
+    <string name="tiling_setup_helper_silent">помощник запущен, но не отвечает</string>
+    <string name="tiling_setup_helper_failed">не удалось запустить помощника</string>
+    <string name="tiling_setup_keys">сочетания клавиш</string>
+    <string name="tiling_setup_keys_starting">включаем…</string>
+    <string name="tiling_setup_keys_manual">android их не включил. в Специальных возможностях → Скачанные приложения включите Tiling desktop shortcuts (если недоступно: О приложении → ⋮ → Разрешить настройки с ограниченным доступом)</string>
+
+    <string name="tiling_setup_done">всё готово · подключите аппаратную клавиатуру, и рабочий стол запустится</string>
+    <string name="tiling_setup_done_keyboard">всё готово · рабочий стол готов</string>
+    <string name="tiling_setup_done_restart">Отладка по USB теперь тоже включена: она не даёт помощнику остановиться, когда пропадает wi-fi. после перезагрузки телефона лаунчер ненадолго включит Отладку по Wi-Fi в разрешённой вами сети wi-fi, чтобы снова запустить помощника.</string>
+    <string name="tiling_setup_done_restart_by_hand">после перезагрузки телефона один раз включите Отладку по Wi-Fi, и помощник запустится снова</string>
+
+    <string name="tiling_setup_channel">настройка тайлинга</string>
+    <string name="tiling_setup_channel_progress">ход настройки тайлинга</string>
+    <string name="tiling_setup_note_wait">настройка тайлинга</string>
+    <string name="tiling_setup_note_wait_text">в Отладке по Wi-Fi нажмите Подключить устройство с помощью кода</string>
+    <string name="tiling_setup_note_code">введите код подключения</string>
+    <string name="tiling_setup_note_code_text">шесть цифр, которые показывает android</string>
+    <string name="tiling_setup_note_code_action">ввести код</string>
+    <string name="tiling_setup_note_code_label">код подключения</string>
+    <string name="tiling_setup_note_pairing">подключение…</string>
+    <string name="tiling_setup_note_starting">запускаем помощника окон…</string>
+    <string name="tiling_setup_note_wrong">код не принят</string>
+    <string name="tiling_setup_note_wrong_text">снова нажмите Подключить устройство с помощью кода, чтобы получить новый</string>
+    <string name="tiling_setup_note_ready">тайлинг готов</string>
+    <string name="tiling_setup_note_ready_text">подключите аппаратную клавиатуру, и рабочий стол запустится</string>
+    <string name="tiling_setup_note_unfinished">подключено, но помощник окон не запустился</string>
+    <string name="tiling_setup_note_unfinished_text">нажмите, чтобы завершить настройку</string>
+    <string name="tiling_setup_note_stop">стоп</string>
+</resources>

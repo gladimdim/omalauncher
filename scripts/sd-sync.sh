@@ -6,4 +6,4 @@ cd "$(dirname "$0")/.."
 git fetch upstream
 git push origin upstream/main:main
 git rebase upstream/main superdesktop
-./gradlew :owl:test :app:testDebugUnitTest :superdesktop:testDebugUnitTest :app:assembleDebug
+./gradlew :owl:test :app:testFossDebugUnitTest :superdesktop:testDebugUnitTest :app:assembleFossDebug

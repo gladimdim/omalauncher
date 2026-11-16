@@ -26,6 +26,7 @@ import dev.gladimdim.tiling.KeyHotkey
 import dev.gladimdim.tiling.Tiling
 import dev.gladimdim.tiling.TilingKeyService
 import dev.omalauncher.R
+import dev.omalauncher.ui.settings.SwitchRow
 
 /** Keyboard mode & tiling desktop settings: input language hotkey, bar flag, and required permissions. */
 @Composable

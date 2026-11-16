@@ -22,14 +22,25 @@ android {
         applicationId = "com.gladimdim.sdlauncher"
         minSdk = 29
         targetSdk = 37
-        versionCode = 37
-        versionName = "1.4.0"
+        versionCode = 39
+        versionName = "1.6.0"
         // armeabi-v7a is for 32-bit Android TVs and boxes: the launcher only, without proot (jniLibs/arm64-v8a), since
         // the Arch rootfs is aarch64 and Linux isn't offered there (linux/Bootstrap.kt, linuxSupported).
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     buildFeatures { buildConfig = true }
+
+    // play: the AAB for Google Play, with Play's in-app updates, whose library is closed source. foss: the APK on
+    // GitHub releases, which F-Droid builds too, without it; its LauncherUpdates asks GitHub releases instead.
+    flavorDimensions += "store"
+    productFlavors {
+        create("foss") {
+            dimension = "store"
+            isDefault = true
+        }
+        create("play") { dimension = "store" }
+    }
 
     externalNativeBuild {
         cmake { path = file("src/main/cpp/CMakeLists.txt") }
@@ -77,7 +88,7 @@ android {
 tasks.withType<Test>().configureEach { inputs.dir("src/main/assets/widgets") }
 
 // Gitignored, built by scripts/fetch-proot.sh. Without it a release still builds, but every Linux command fails.
-tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+tasks.matching { it.name.matches(Regex("pre\\w*ReleaseBuild")) }.configureEach {
     val proot = file("src/main/jniLibs/arm64-v8a/libproot.so")
     doFirst { check(proot.exists()) { "$proot is missing; run scripts/fetch-proot.sh" } }
 }
@@ -85,7 +96,7 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
 // The libraries don't follow a pull: built before patches/proot or the script changed, they make an app with
 // an old proot (and no fast lane library) that builds and installs like any other. The script leaves a hash
 // of what it built from in .source; a debug build without any libraries stays possible (CI lints that way).
-tasks.matching { it.name == "preDebugBuild" || it.name == "preReleaseBuild" }.configureEach {
+tasks.matching { it.name.matches(Regex("pre\\w*(Debug|Release)Build")) }.configureEach {
     val libs = file("src/main/jniLibs/arm64-v8a")
     val root = rootProject.projectDir
     val sources = listOf(rootProject.file("scripts/fetch-proot.sh")) +
@@ -116,6 +127,9 @@ dependencies {
     implementation(project(":owl"))
     implementation(project(":superdesktop"))
     implementation(project(":tiling"))
+    "playImplementation"(libs.play.app.update)
+    // Play's library brings fragment 1.0.0, too old for registerForActivityResult.
+    "playImplementation"(libs.androidx.fragment)
     testImplementation(libs.junit)
     // android.jar only has stubs of org.json.
     testImplementation(libs.org.json)

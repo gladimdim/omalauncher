@@ -66,7 +66,7 @@ jobs:
 
       - name: Test and build
         if: steps.rebase.outputs.changed == 'yes'
-        run: ./gradlew :owl:test :app:testDebugUnitTest :superdesktop:testDebugUnitTest :app:assembleDebug
+        run: ./gradlew :owl:test :app:testFossDebugUnitTest :superdesktop:testDebugUnitTest :app:assembleFossDebug
 
       - name: Push
         if: steps.rebase.outputs.changed == 'yes'
@@ -78,7 +78,7 @@ jobs:
         if: steps.rebase.outputs.changed == 'yes'
         with:
           name: sd-launcher-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/foss/debug/app-foss-debug.apk
 
       - name: Open an issue
         if: failure()

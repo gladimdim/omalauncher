@@ -27,7 +27,9 @@ import dev.gladimdim.tiling.TilingColors
 import dev.gladimdim.tiling.TilingHarness
 import dev.gladimdim.tiling.TilingHost
 import dev.omalauncher.InstantActivity
-import dev.omalauncher.LauncherData
+import dev.omalauncher.storage.LauncherData
+import dev.omalauncher.ui.home.LauncherState
+import dev.omalauncher.ui.settings.SettingsPage
 import dev.omalauncher.Runtime
 import dev.omalauncher.widgets.runtime.MediaListener
 import java.io.File
