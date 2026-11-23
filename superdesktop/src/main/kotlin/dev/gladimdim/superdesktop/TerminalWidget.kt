@@ -219,13 +219,14 @@ private fun Locked(
             )
             if (active) {
                 KeyRow(host, onKey = { text, enter -> act("Send") { SdLive.api(b).sendKeys(pin.harness, text, enter) } }, onDone = { active = false })
+                AntigravityDraftKeys(h?.agentType, prompt, host) { prompt = it }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     val send = {
                         if (prompt.isNotBlank()) {
                             val text = prompt
                             act("Send") {
                                 SdLive.api(b).sendKeys(pin.harness, text, true)
-                                prompt = ""
+                                if (prompt == text) prompt = ""
                             }
                         }
                     }

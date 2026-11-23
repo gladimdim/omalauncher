@@ -3,6 +3,7 @@ package dev.gladimdim.superdesktop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -114,6 +115,16 @@ internal fun Choice(
         Spacer(Modifier.width(10.dp))
         Label(text, host, c.foreground, 13, modifier = Modifier.weight(1f))
         note?.let { Label(it, host, c.muted, 11) }
+    }
+}
+
+@Composable
+internal fun AntigravityDraftKeys(agentType: String?, prompt: String, host: SdHost, onChange: (String) -> Unit) {
+    if (agentType != "antigravity" && agentType != "agy") return
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Action("@", host) { onChange(prompt + "@") }
+        Action("/", host) { onChange(prompt + "/") }
+        Action("/resume", host, enabled = prompt.isEmpty()) { onChange("/resume") }
     }
 }
 

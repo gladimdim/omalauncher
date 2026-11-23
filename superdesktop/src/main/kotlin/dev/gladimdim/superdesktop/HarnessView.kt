@@ -84,9 +84,15 @@ internal fun HarnessView(
         } else {
             TerminalPane(b, h.id, host, active, onActivate = { active = true }, modifier = Modifier.fillMaxWidth().weight(1f))
         }
-        if (active) KeyRow(host, onKey = { text, enter -> onKeys(b, h, text, enter) {} }, onDone = { active = false })
+        if (active) {
+            KeyRow(host, onKey = { text, enter -> onKeys(b, h, text, enter) {} }, onDone = { active = false })
+            AntigravityDraftKeys(h.agentType, prompt, host) { prompt = it }
+        }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val send = { if (prompt.isNotBlank()) onKeys(b, h, prompt, true) { prompt = "" } }
+            val send = {
+                val text = prompt
+                if (text.isNotBlank()) onKeys(b, h, text, true) { if (prompt == text) prompt = "" }
+            }
             Field(prompt, { prompt = it }, host, "prompt ${h.agentName}…", Modifier.weight(1f).focusRequester(promptFocus), onDone = send)
             KeyboardButton(host, active, promptFocus) { active = it }
             Action("send", host, strong = true, enabled = prompt.isNotBlank(), onClick = send)
