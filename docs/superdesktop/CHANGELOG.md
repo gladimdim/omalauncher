@@ -1,5 +1,12 @@
 # SD Launcher changelog
 
+## 1.14.0 (120)
+
+Based on Omalauncher 1.4.0. The terminal page and pinned terminal widgets add
+`@`, `/` and `/resume` shortcuts when typing in Antigravity CLI. The shortcuts
+edit the local draft. Tap Send to open Antigravity's conversation picker, then
+use the existing terminal keys to move and select.
+
 ## 1.13.1 (119)
 
 Built on **Omalauncher 1.4.0**, as 1.13.0.
