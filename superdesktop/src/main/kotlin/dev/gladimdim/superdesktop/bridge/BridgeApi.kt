@@ -187,6 +187,23 @@ class BridgeApi(
             Unit
         }
 
+    /** Restarts [id] fresh or resumes its native conversation (SUPER DESKTOP 2.1.0+). */
+    suspend fun relaunchHarness(
+        id: String,
+        mode: RelaunchMode,
+    ) = withContext(Dispatchers.IO) {
+        val body = JSONObject().put("mode", mode.wire).toString().toRequestBody(json)
+        val request = authed("/api/v1/harnesses/$id/relaunch").post(body).build()
+        client.newBuilder().retryOnConnectionFailure(false).build().newCall(request).execute().use { response ->
+            val raw = response.body?.string().orEmpty()
+            if (response.code == 401) throw NotPairedException()
+            if (!response.isSuccessful) {
+                val error = runCatching { JSONObject(raw).optString("error") }.getOrNull()?.takeIf { it.isNotBlank() }
+                throw IOException(relaunchFailure(response.code, error))
+            }
+        }
+    }
+
     /** Asks the computer to let this device in; the owner approves it there. Returns the request id and the code to compare. */
     suspend fun requestPairing(
         secret: String,
@@ -218,3 +235,21 @@ class BridgeApi(
 }
 
 fun Bridge.api(host: String = this.host) = BridgeApi(baseUrl(host), token, pin)
+
+enum class RelaunchMode(val wire: String) {
+    FRESH("fresh"),
+    RESUME("resume"),
+}
+
+internal fun relaunchFailure(
+    code: Int,
+    error: String?,
+): String =
+    when {
+        code == 404 && error == "no_such_session" -> "This terminal is no longer running."
+        code == 404 -> "Update SUPER DESKTOP on the computer to restart or resume terminals."
+        error == "unsupported_resume" -> "This terminal does not have a conversation to resume."
+        error == "desktop_not_running" || error == "desktop_unavailable" -> "SUPER DESKTOP is not running on the computer."
+        code == 504 -> "Restart timed out. Check the computer before trying again."
+        else -> error?.replace('_', ' ') ?: "Restart failed (HTTP $code)"
+    }

@@ -27,6 +27,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import dev.gladimdim.superdesktop.bridge.Bridge
 import dev.gladimdim.superdesktop.bridge.Harness
+import dev.gladimdim.superdesktop.bridge.RelaunchMode
 import dev.gladimdim.superdesktop.live.Feed
 import dev.gladimdim.superdesktop.terminal.KeyRow
 import dev.gladimdim.superdesktop.terminal.TerminalPane
@@ -47,6 +48,7 @@ internal fun HarnessView(
     onKeys: (Bridge, Harness, String, Boolean, () -> Unit) -> Unit,
     leave: (() -> Unit)?,
     onWidget: ((Bridge, Harness) -> Unit)? = null,
+    onRelaunch: ((Bridge, Harness, RelaunchMode) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val c = host.colors
@@ -66,11 +68,13 @@ internal fun HarnessView(
     LaunchedEffect(prompt) { SdDrafts.put(context, b.key, h.id, prompt) }
     var history by remember(h.id) { mutableStateOf(false) }
     var active by remember(h.id) { mutableStateOf(false) }
+    var confirmRelaunch by remember(h.id) { mutableStateOf(false) }
     val promptFocus = remember { FocusRequester() }
     // Back first lets go of the terminal, then leaves the harness: the home screen gets it after that.
-    BackHandler(enabled = history) { history = false }
-    BackHandler(enabled = active && !history) { active = false }
-    BackHandler(enabled = !active && !history && leave != null) { leave?.invoke() }
+    BackHandler(enabled = confirmRelaunch) { confirmRelaunch = false }
+    BackHandler(enabled = history && !confirmRelaunch) { history = false }
+    BackHandler(enabled = active && !history && !confirmRelaunch) { active = false }
+    BackHandler(enabled = !active && !history && !confirmRelaunch && leave != null) { leave?.invoke() }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(8.dp).background(dot, CircleShape))
@@ -84,9 +88,10 @@ internal fun HarnessView(
         } else {
             TerminalPane(b, h.id, host, active, onActivate = { active = true }, modifier = Modifier.fillMaxWidth().weight(1f))
         }
+        WaitingApprovalRow(h.status, h.agentType, host) { text, enter -> onKeys(b, h, text, enter) {} }
         if (active) {
             KeyRow(host, onKey = { text, enter -> onKeys(b, h, text, enter) {} }, onDone = { active = false })
-            AntigravityDraftKeys(h.agentType, prompt, host) { prompt = it }
+            HarnessDraftKeys(h.agentType, prompt, host) { prompt = it }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val send = {
@@ -97,11 +102,29 @@ internal fun HarnessView(
             KeyboardButton(host, active, promptFocus) { active = it }
             Action("send", host, strong = true, enabled = prompt.isNotBlank(), onClick = send)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (leave != null) Action(leaveLabel, host, onClick = leave)
-            Action("history", host, strong = history) { history = !history }
-            Action("open in app", host) { onOpen(b, h) }
-            if (onWidget != null) Action("+ widget", host) { onWidget(b, h) }
+        if (confirmRelaunch && onRelaunch != null) {
+            val isShell = h.agentType.trim().lowercase() in setOf("shell", "bash", "zsh", "fish", "sh")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Action("restart fresh", host, color = c.yellow) {
+                    confirmRelaunch = false
+                    onRelaunch(b, h, RelaunchMode.FRESH)
+                }
+                if (!isShell) {
+                    Action("resume", host, color = c.accent) {
+                        confirmRelaunch = false
+                        onRelaunch(b, h, RelaunchMode.RESUME)
+                    }
+                }
+                Action("cancel", host) { confirmRelaunch = false }
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (leave != null) Action(leaveLabel, host, onClick = leave)
+                Action("history", host, strong = history) { history = !history }
+                if (onRelaunch != null) Action("relaunch", host) { confirmRelaunch = true }
+                Action("open in app", host) { onOpen(b, h) }
+                if (onWidget != null) Action("+ widget", host) { onWidget(b, h) }
+            }
         }
     }
 }

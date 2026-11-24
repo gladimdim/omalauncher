@@ -3,6 +3,7 @@ package dev.gladimdim.superdesktop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -118,13 +120,73 @@ internal fun Choice(
     }
 }
 
+internal fun harnessDraftShortcuts(agentType: String?): List<Pair<String, Boolean>> =
+    when (agentType?.trim()?.lowercase()) {
+        "claude" -> listOf("@" to false, "/" to false, "/compact" to true, "/clear" to true, "/model" to true, "/resume" to true)
+        "codex" -> listOf("@" to false, "/" to false, "/model" to true, "/compact" to true, "/diff" to true, "/new" to true)
+        "antigravity", "agy" -> listOf("@" to false, "/" to false, "/resume" to true, "/model" to true, "/compact" to true)
+        "opencode" -> listOf("@" to false, "/" to false, "/models" to true, "/sessions" to true, "/compact" to true, "/undo" to true)
+        "grok" -> listOf("/" to false, "/minimal" to true, "/model" to true, "/resume" to true, "/clear" to true)
+        "hermes" -> listOf("/" to false, "/model" to true, "/new" to true, "/queue " to true, "/status" to true)
+        "pi" -> listOf("@" to false, "/" to false, "/model" to true, "/tree" to true, "/compact" to true, "/resume" to true)
+        "openclaw" -> listOf("/" to false, "/status" to true, "/model" to true, "/new" to true)
+        "aider" -> listOf("/" to false, "/add " to true, "/diff" to true, "/undo" to true, "/run " to true, "/test " to true)
+        "crush" -> listOf("/" to false, "/model" to true, "/sessions" to true)
+        "reasonix" -> listOf("/" to false, "/model" to true, "/compact" to true)
+        "dsh" -> listOf("/" to false, "/settings" to true, "/model" to true)
+        "goose" -> listOf("/" to false, "/mode" to true, "/plan" to true, "/clear" to true)
+        "amp" -> listOf("@" to false, "/" to false, "/model" to true, "/new" to true, "/compact" to true)
+        "copilot" -> listOf("@" to false, "/" to false, "/model" to true, "/diff" to true, "/compact" to true)
+        else -> emptyList()
+    }
+
+/** Per-harness quick shortcuts while drafting a prompt; tokens append and commands fill empty drafts. */
 @Composable
-internal fun AntigravityDraftKeys(agentType: String?, prompt: String, host: SdHost, onChange: (String) -> Unit) {
-    if (agentType != "antigravity" && agentType != "agy") return
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Action("@", host) { onChange(prompt + "@") }
-        Action("/", host) { onChange(prompt + "/") }
-        Action("/resume", host, enabled = prompt.isEmpty()) { onChange("/resume") }
+internal fun HarnessDraftKeys(
+    agentType: String?,
+    prompt: String,
+    host: SdHost,
+    onChange: (String) -> Unit,
+) {
+    val entries = harnessDraftShortcuts(agentType)
+    if (entries.isEmpty()) return
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        for ((text, emptyOnly) in entries) {
+            val label = text.trim()
+            Action(label, host, enabled = !emptyOnly || prompt.isEmpty()) {
+                onChange(if (emptyOnly) text else prompt + text)
+            }
+        }
+    }
+}
+
+private val WAITING_APPROVALS =
+    listOf(
+        Triple("Yes", "y", true),
+        Triple("No", "n", true),
+        Triple("1", "1", true),
+        Triple("2", "2", true),
+        Triple("3", "3", true),
+        Triple("↑", "\u001b[A", false),
+        Triple("↓", "\u001b[B", false),
+        Triple("⏎", "", true),
+        Triple("esc", "\u001b", false),
+    )
+
+/** Contextual 1-tap approval bar shown immediately when an AI harness pauses in WAITING state. */
+@Composable
+internal fun WaitingApprovalRow(
+    status: String,
+    agentType: String?,
+    host: SdHost,
+    onKey: (text: String, enter: Boolean) -> Unit,
+) {
+    val normalized = agentType?.trim()?.lowercase()
+    if (!needsYou(status) || normalized in setOf("shell", "bash", "zsh", "fish", "sh")) return
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        for ((label, text, enter) in WAITING_APPROVALS) {
+            Action(label, host, color = host.colors.yellow, strong = label == "Yes") { onKey(text, enter) }
+        }
     }
 }
 

@@ -1,5 +1,13 @@
 # SD Launcher changelog
 
+## 1.15.0 (121)
+
+Based on **Omalauncher 1.6.0** (adds **Hermes** agent support and proot hard-link fixes). Updates SUPER DESKTOP home pages and pinned terminal widgets to pair with **SUPER DESKTOP 2.1.0**:
+- **Per-harness quick keys:** Replaces the Antigravity-only bar with tailored `@`, `/`, and slash-command shortcuts for all 15 supported harnesses (`Claude`, `Codex`, `Antigravity`/`AGY`, `OpenCode`, `Grok`, `Hermes`, `Pi`, `OpenClaw`, `Aider`, `Crush`, `Reasonix`, `DSH`, `Goose`, `Amp`, and `Copilot`), while keeping `@`, `/`, `/resume` first for Antigravity.
+- **One-tap Waiting approval bar & Error border cues:** When an AI harness pauses in `WAITING`, `Yes` / `No` / `1`–`3` / arrows / `Enter` / `Esc` appear immediately right under the terminal pane, and `ERROR` states outline cards and widgets in red.
+- **Remote Restart fresh & Resume:** Terminal pages add a `relaunch` action with `Restart fresh` and `Resume` (requires SUPER DESKTOP **2.1.0+** on the PC; degrades cleanly on older PCs).
+- **Open in free GitHub APK too:** `open in app` now opens the terminal in the free GitHub APK (`com.gladimdim.superdesktop.self`) as well as the Google Play edition.
+
 ## 1.14.0 (120)
 
 Based on Omalauncher 1.4.0. The terminal page and pinned terminal widgets add

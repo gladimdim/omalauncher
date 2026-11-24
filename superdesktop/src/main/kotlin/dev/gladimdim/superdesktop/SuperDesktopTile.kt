@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.gladimdim.superdesktop.bridge.Bridge
 import dev.gladimdim.superdesktop.bridge.Harness
+import dev.gladimdim.superdesktop.bridge.RelaunchMode
 import dev.gladimdim.superdesktop.live.Feed
 import dev.gladimdim.superdesktop.live.SdLive
 import dev.gladimdim.superdesktop.pair.PairingActivity
@@ -186,6 +187,21 @@ private fun PageTile(
         }
     }
 
+    /** Restarts or resumes [h] on [b] (SUPER DESKTOP 2.1.0+). */
+    fun relaunch(
+        b: Bridge,
+        h: Harness,
+        mode: RelaunchMode,
+    ) {
+        act(if (mode == RelaunchMode.FRESH) "Restart" else "Resume") {
+            SdLive.api(b).relaunchHarness(h.id, mode)
+            say(
+                if (mode == RelaunchMode.FRESH) "Restarting ${h.sessionTitle ?: h.agentName}…"
+                else "Resuming ${h.sessionTitle ?: h.agentName}…",
+            )
+        }
+    }
+
     /** A terminal widget already locked to [h]; the launcher opens its page. */
     fun addWidget(
         b: Bridge,
@@ -274,6 +290,7 @@ private fun PageTile(
                         onKeys = ::keys,
                         leave = { SdPages.set(context, page, config.copy(pinned = null)) },
                         onWidget = ::addWidget,
+                        onRelaunch = ::relaunch,
                         modifier = body,
                     )
                 }
@@ -305,7 +322,7 @@ private fun PageTile(
                             )
                         }
                         val view = @Composable { m: Modifier ->
-                            HarnessView(b, h, feed, host, leaveLabel = if (wide) "close" else "back", onOpen = { pc, harness -> openInApp(context, pc, harness) }, onKeys = ::keys, leave = { opened = null }, onWidget = ::addWidget, modifier = m)
+                            HarnessView(b, h, feed, host, leaveLabel = if (wide) "close" else "back", onOpen = { pc, harness -> openInApp(context, pc, harness) }, onKeys = ::keys, leave = { opened = null }, onWidget = ::addWidget, onRelaunch = ::relaunch, modifier = m)
                         }
                         when {
                             wide && opened != null ->
@@ -355,23 +372,27 @@ internal object Notes {
 
 internal fun openPairing(context: Context) = context.startActivity(Intent(context, PairingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 
-/** Hands harness [h] to the SUPER DESKTOP app's terminal, when it's installed and paired with the same computer. */
+/** Hands harness [h] to the SUPER DESKTOP app's terminal (free GitHub APK or Google Play), when installed. */
 internal fun openInApp(
     context: Context,
     b: Bridge,
     h: Harness,
 ) {
-    val intent =
-        Intent("com.omarchy.ailauncher.widget.OPEN_TERMINAL")
-            .setClassName("com.gladimdim.superdesktop", "com.omarchy.ailauncher.MainActivity")
-            .putExtra("widget_bridge_url", b.baseUrl())
-            .putExtra("widget_harness_id", h.id)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    try {
-        context.startActivity(intent)
-    } catch (_: ActivityNotFoundException) {
-        Log.d(TAG, "SUPER DESKTOP app not installed")
+    for (pkg in listOf("com.gladimdim.superdesktop.self", "com.gladimdim.superdesktop")) {
+        val intent =
+            Intent("com.omarchy.ailauncher.widget.OPEN_TERMINAL")
+                .setClassName(pkg, "com.omarchy.ailauncher.MainActivity")
+                .putExtra("widget_bridge_url", b.baseUrl())
+                .putExtra("widget_harness_id", h.id)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(intent)
+            return
+        } catch (_: ActivityNotFoundException) {
+            // Try the other edition.
+        }
     }
+    Log.d(TAG, "SUPER DESKTOP app not installed")
 }
 
 @Composable

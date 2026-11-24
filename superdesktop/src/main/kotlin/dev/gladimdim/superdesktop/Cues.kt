@@ -22,6 +22,9 @@ internal fun isReady(status: String) = status == "IDLE" || status == "WAITING" |
 /** WAITING is the agent asking a question or for a permission. */
 internal fun needsYou(status: String) = status == "WAITING"
 
+/** ERROR is a failed turn or bridge error on that harness. */
+internal fun isError(status: String) = status == "ERROR"
+
 /** How a status reads on a card: WAITING says what it means. */
 internal fun statusLabel(status: String) = if (needsYou(status)) "NEEDS YOU" else status
 
@@ -49,13 +52,18 @@ internal fun rememberDoneFlash(
     return flash.value
 }
 
-/** A frame's color: the done flash over waiting's yellow over [normal]. */
+/** A frame's color: the done flash over error red / waiting yellow over [normal]. */
 internal fun cueBorder(
     status: String,
     flash: Float,
     normal: Color,
     host: SdHost,
 ): Color {
-    val base = if (needsYou(status)) host.colors.yellow else normal
+    val base =
+        when {
+            isError(status) -> host.colors.red
+            needsYou(status) -> host.colors.yellow
+            else -> normal
+        }
     return if (flash > 0f) lerp(base, host.colors.green, flash) else base
 }
